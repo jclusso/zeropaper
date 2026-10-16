@@ -32,3 +32,26 @@ class TaxonomyTest < ActiveSupport::TestCase
     assert_includes Tag.shareable, orphan
   end
 end
+
+# The AI applies its answer inside a transaction that holds the document's
+# row lock. A name another process creates first must not abort it.
+class TaxonomyRaceTest < ActiveSupport::TestCase
+  self.use_transactional_tests = false
+
+  test "a name created on another connection first is found inside a transaction" do
+    Thread.new { Tag.create!(name: "Garden") }.join
+    # As if the other process committed right after this one looked the
+    # name up and checked it.
+    lookups = 0
+    Tag.define_singleton_method(:named) { |name| super(name) unless (lookups += 1) == 1 }
+    Tag.any_instance.stubs(:name_unique_ignoring_case)
+
+    tag = Tag.transaction { Tag.find_or_create_named("garden", auto_match: false) }
+
+    assert_equal "Garden", tag.name
+    assert_equal 1, Tag.where("lower(name) = 'garden'").count
+  ensure
+    Tag.singleton_class.remove_method(:named) if Tag.singleton_class.method_defined?(:named, false)
+    Tag.where("lower(name) = 'garden'").delete_all
+  end
+end

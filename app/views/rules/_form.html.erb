@@ -62,7 +62,7 @@
       </div>
 
       <%= render "shared/switch", form: form, field: :mark_private, title: safe_join([ "Mark as ", private_badge(interactive: false) ]),
-            description: "Checked on this machine before anything is sent: filename and source when the file arrives, text after local OCR." %>
+            description: "Checked on this machine before anything is sent: filename and source when the file arrives, text after local OCR. Saving also marks the matching documents already in the library." %>
     </div>
   </section>
 

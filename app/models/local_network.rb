@@ -2,10 +2,11 @@ require "ipaddr"
 require "socket"
 
 # Whether a URL points at this machine or the local network, for services
-# that count as local, such as Docling. A host is local when it is a
-# single-label name (a Docker service like "zeropaper-docling", or
-# "localhost") or when every address it resolves to is loopback or in a
-# private range.
+# that count as local, such as Docling. A host is local when every address
+# it resolves to is loopback or in a private range.
+# Every name is resolved, single-label ones too (a Docker service like
+# "zeropaper-docling", or "localhost"), so a number that resolves to a
+# public address, like "134744072", is refused.
 #
 #   LocalNetwork.url?("http://zeropaper-docling:5001")   # => true
 #   LocalNetwork.url?("http://192.168.1.20:5001")        # => true
@@ -14,23 +15,52 @@ module LocalNetwork
   extend self
 
   def url?(url)
+    addresses(url).present?
+  end
+
+  # The addresses the URL's host resolves to when all of them are local,
+  # for pinning a request to them; nil otherwise.
+  def addresses(url)
     uri = URI.parse(url.to_s.strip)
-    uri.is_a?(URI::HTTP) && host?(uri.hostname)
+    host_addresses(uri.hostname) if uri.is_a?(URI::HTTP)
   rescue URI::InvalidURIError
-    false
+    nil
   end
 
   def host?(host)
-    host = host.to_s.downcase.delete_suffix(".")
-    return false if host.empty?
-    return local_address?(host) if ip?(host)
-    return true unless host.include?(".")
+    host_addresses(host).present?
+  end
 
-    addresses = resolve(host)
-    addresses.any? && addresses.all? { |address| local_address?(address) }
+  # Whether the URL is known to point elsewhere: it is not an HTTP URL, or
+  # its host resolves to an address that is not local. A name that does not
+  # resolve yet, such as a container that is still starting, is not.
+  def elsewhere?(url)
+    uri = URI.parse(url.to_s.strip)
+    return true unless uri.is_a?(URI::HTTP)
+
+    host = normalize(uri.hostname)
+    host.empty? || all_addresses(host).any? { |address| !local_address?(address) }
+  rescue URI::InvalidURIError
+    true
   end
 
   private
+    def host_addresses(host)
+      host = normalize(host)
+      return if host.empty?
+
+      addresses = all_addresses(host)
+      addresses if addresses.any? && addresses.all? { |address| local_address?(address) }
+    end
+
+    def normalize(host)
+      host.to_s.downcase.delete_suffix(".")
+    end
+
+    def all_addresses(host)
+      ip?(host) ? [ host ] : resolve(host)
+    end
+
     def ip?(host)
       IPAddr.new(host)
       true

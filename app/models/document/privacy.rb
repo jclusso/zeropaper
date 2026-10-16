@@ -45,11 +45,13 @@ module Document::Privacy
     update!(private: true, private_reason: reason)
   end
 
-  # Runs the rules that mark documents private once the text is known.
+  # Runs the rules that mark documents private once the text is known. Text
+  # that reads as nothing still runs them, so an "any" rule's filename or
+  # source conditions decide.
   def screen_for_privacy(text)
-    return if private? || text.blank?
+    return if private?
 
-    if (rule = Rule.where(mark_private: true).matching(self, text: text).first)
+    if (rule = Rule.where(mark_private: true).matching(self, text: text.to_s).first)
       privatize_during_processing!(rule.private_reason)
     end
   end

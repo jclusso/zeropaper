@@ -22,7 +22,7 @@ ZeroPaper is a self-hosted document archive built with Ruby on Rails. It turns s
 A private document is processed only on your machine:
 
 - Its file, text, filename and details are never sent to a hosted AI provider. Every outbound AI request goes through one check that refuses private documents.
-- OCR runs locally with Tesseract or Docling. Docling counts as local only when its address is on this machine or the local network; otherwise private documents are read with Tesseract. Details come from Rules and from matching correspondent, type and tag names in the text, and dates are found in the text.
+- OCR runs locally with Tesseract or Docling. Docling is used only while its host resolves to a loopback or private address, checked again for each document; otherwise every document, not just private ones, is read with Tesseract. Details come from Rules and from matching correspondent, type and tag names in the text, and dates are found in the text.
 - Research searches private documents locally but never sends them to the model. When private documents match a question, the answer lists them as links.
 
 There are three ways to mark a document private:
@@ -77,7 +77,7 @@ Settings that take effect at runtime (AI providers and keys, models, OCR, page c
 | `SECRET_KEY_BASE` | Required. Signs sessions and derives the encryption keys. |
 | `POSTGRES_PASSWORD` | Required. Password for the bundled database. |
 | `TZ` | Time zone. Defaults to `UTC`. |
-| `DOCLING_URL` | Where Docling runs. Set by Compose; when present, Docling is the default local engine. It must be on this machine or the local network. |
+| `DOCLING_URL` | Where Docling runs. Set by Compose; when present, Docling is the default local engine. A URL that resolves to a public address is ignored; one whose host does not resolve yet is kept, and documents are read with Tesseract until it resolves to a loopback or private address. |
 | `PROCESSING_THREADS` | How many documents are processed at once. Defaults to `6`. Each scan uses up to 2 cores for Tesseract, so about half your cores is a good ceiling. |
 | `INGEST_DIR` | The ingest folder. Defaults to `/rails/storage/ingest`; with Docker, mount that path instead of changing it. |
 | `BACKUP_DIR` | The backup folder. Defaults to `/rails/storage/backups`; with Docker, mount that path instead of changing it. |

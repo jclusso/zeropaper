@@ -19,7 +19,9 @@ class Setting < ApplicationRecord
   validates :local_ocr_provider, inclusion: { in: LOCAL_OCR_PROVIDERS.keys }
   validates :review_confidence_threshold, numericality: { in: 0..1 }
   validates :docling_url, presence: true, if: -> { local_ocr_provider == "docling" }
-  validate :docling_url_is_local, if: -> { docling_url.present? && docling_url_changed? }
+  # The first save takes DOCLING_URL, which from_environment already
+  # checked; its host may not resolve until the container starts.
+  validate :docling_url_is_local, on: :update, if: -> { docling_url.present? && docling_url_changed? }
   validate :tasks_have_models
   validates :backup_frequency, inclusion: { in: Backup::FREQUENCIES.keys }
   validates :backup_keep_daily, :backup_keep_weekly, :backup_keep_monthly, :backup_keep_yearly, numericality: { only_integer: true, in: 0..1000 }
@@ -28,11 +30,12 @@ class Setting < ApplicationRecord
     first || create!(from_environment)
   end
 
-  # DOCLING_URL is only used when it is local; otherwise documents are read
-  # with Tesseract.
+  # DOCLING_URL is ignored when it points elsewhere. A host that does not
+  # resolve yet is kept: whether Docling is local is decided again for each
+  # document, which is read with Tesseract while it is not.
   def self.from_environment
     docling_url = ENV["DOCLING_URL"].presence
-    if docling_url && !LocalNetwork.url?(docling_url)
+    if docling_url && LocalNetwork.elsewhere?(docling_url)
       Rails.logger.warn("[settings] ignoring DOCLING_URL #{docling_url}: Docling must run on this machine or the local network")
       docling_url = nil
     end
@@ -66,12 +69,13 @@ class Setting < ApplicationRecord
     LOCAL_OCR_PROVIDERS.fetch(local_ocr_provider)
   end
 
-  # The local engine that reads a document. Docling only counts as local
+  # The local engine that reads documents. Docling only counts as local
   # while its address is on this machine or the local network, checked again
-  # now because a name can resolve elsewhere later; when it is not, private
-  # documents are read with Tesseract.
-  def local_ocr_provider_for(document)
-    return "tesseract" if local_ocr_provider == "docling" && document.private? && !docling_local?
+  # now because a name can resolve elsewhere later; when it is not, every
+  # document is read with Tesseract, since local reads include the privacy
+  # screen of shareable documents. Docling checks again before each request.
+  def local_ocr_engine
+    return "tesseract" if local_ocr_provider == "docling" && !docling_local?
 
     local_ocr_provider
   end

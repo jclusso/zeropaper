@@ -23,11 +23,13 @@ module Taxonomy
       find_by("lower(name) = ?", name.to_s.squish.downcase) if name.present?
     end
 
-    # `attributes` only apply when the record is new.
+    # `attributes` only apply when the record is new. The create runs in a
+    # savepoint, so losing a race to another process leaves an outer
+    # transaction usable for the lookup that follows.
     def find_or_create_named(name, **attributes)
       return if name.blank?
 
-      named(name) || create!(name: name.to_s.squish.truncate(120, omission: ""), **attributes)
+      named(name) || transaction(requires_new: true) { create!(name: name.to_s.squish.truncate(120, omission: ""), **attributes) }
     rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
       named(name)
     end
