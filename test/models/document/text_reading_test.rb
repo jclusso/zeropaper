@@ -71,12 +71,25 @@ class Document::TextReadingTest < ActiveSupport::TestCase
   test "the searchable PDF is built while the AI model reads the scan" do
     mistral = AIProvider.create!(kind: "mistral", api_key: TestKeys::MISTRAL)
     configure_openai(vision_provider: mistral, vision_model: "mistral-ocr-latest", searchable_pdf: true)
+    # Nothing could make it private, so no local read has to come first.
+    Rule.update_all(mark_private: false)
     document = ingest(scanned_text_pdf("PAYROLL SUMMARY\nEmployee salary report\n"), filename: "scan_0008.pdf")
+    archive = File.join(Dir.mktmpdir, "archive.pdf")
+    File.binwrite(archive, text_pdf("PAYROLL SUMMARY"))
+    # Tesseract finishes only once the AI request has gone out, which can
+    # happen only when the two run at the same time.
+    ai_request = WebMock::RequestPattern.new(:post, "https://api.mistral.ai/v1/ocr")
+    overlapped = false
+    Ocr::Tesseract.any_instance.stubs(:call).with do
+      overlapped = 100.times.any? { WebMock::RequestRegistry.instance.times_executed(ai_request).positive? || (sleep(0.05) && false) }
+      true
+    end.returns(Ocr::Result.new(pages: { 1 => "PAYROLL SUMMARY" }, archive_path: archive))
 
     VCR.use_cassette("ocr/mistral_ocr") do
       VCR.use_cassette("metadata/openai_electricity_bill") { process(document) }
     end
 
+    assert overlapped, "Tesseract was still running when the AI model was asked"
     assert_equal "Mistral · mistral-ocr-latest", document.text_source
     assert_match "Employee salary report for March 2026", document.content
     assert document.archive_file.attached?, "the searchable PDF from the parallel Tesseract run is kept"

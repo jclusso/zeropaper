@@ -181,7 +181,7 @@ module Document::Processing
     def processing_jobs
       return [] unless defined?(SolidQueue::Job) && SolidQueue::Job.table_exists?
 
-      SolidQueue::Job.where(class_name: "ProcessDocumentJob").where("arguments::text LIKE ?", "%#{to_global_id}\"%")
+      SolidQueue::Job.where(concurrency_key: ProcessDocumentJob.new(self).concurrency_key, finished_at: nil)
     end
 
     def discard_queued_processing

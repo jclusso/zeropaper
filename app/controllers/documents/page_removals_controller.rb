@@ -7,7 +7,7 @@ class Documents::PageRemovalsController < ApplicationController
     pages = Array(params[:pages]).map(&:to_i)
     # Suggested blank pages left unchecked are kept on purpose.
     kept = @document.suggested_blank_pages - pages
-    @document.remove_pages!(pages, keep_blank: kept)
+    @document.remove_pages!(pages, keep_blank: kept, version: params[:version])
     redirect_to @document, notice: notice_for(pages, kept)
   rescue Document::Pages::EditRefused, Pdf::CommandFailed => error
     redirect_to @document, alert: error.message

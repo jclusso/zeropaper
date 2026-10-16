@@ -20,6 +20,7 @@
     <p class="px-6 py-12 text-center text-sm muted">This document is still processing. Pages can be edited once it is done.</p>
   <% else %>
     <%= form_with url: document_page_removal_path(document), id: "page-removal-form", class: "min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6", data: { turbo_frame: "_top" } do %>
+      <%= hidden_field_tag :version, document.checksum, id: nil %>
       <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
         <% (1..document.page_count.to_i).each do |page| %>
           <% blank = suggested.include?(page) %>
@@ -42,7 +43,7 @@
 
     <div class="flex flex-wrap items-center gap-3 border-t border-border bg-card-header px-5 py-3 sm:px-6">
       <% if document.original_file.attached? %>
-        <%= button_to "Restore original", document_original_restoration_path(document), class: "btn-danger btn-sm", form_class: "mr-auto",
+        <%= button_to "Restore original", document_original_restoration_path(document), params: { version: document.checksum }, class: "btn-danger btn-sm", form_class: "mr-auto",
               form: { data: { turbo_frame: "_top", turbo_confirm: "Restore the upload as it was, with all its pages?" } } %>
       <% else %>
         <span class="mr-auto"></span>

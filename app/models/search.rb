@@ -5,6 +5,10 @@ class Search
   RRF_K = 60
   KEYWORD_CANDIDATES = 100
   SEMANTIC_CANDIDATES = 20
+  # Nearest passages fetched per round, and how many rounds a search may
+  # take before it settles for fewer documents.
+  SEMANTIC_BATCH = 80
+  SEMANTIC_ROUNDS = 5
   TITLE_SIMILARITY = 0.5
 
   attr_reader :query
@@ -57,17 +61,25 @@ class Search
       end
     end
 
+    # Documents ranked by their nearest passage. Each round leaves out the
+    # documents already found, so one long document cannot fill every
+    # candidate, and a document from a later round is never nearer than one
+    # from an earlier round.
     def semantic_ids
       vector = Embedder.embed_query(query)
+      ids = []
       Chunk.transaction do
         Chunk.connection.execute("SET LOCAL hnsw.iterative_scan = strict_order") if self.class.iterative_scan?
-        Chunk.where(document_id: @scope.select(:id))
-          .nearest_neighbors(:embedding, vector, distance: "cosine")
-          .limit(SEMANTIC_CANDIDATES * 4)
-          .pluck(:document_id)
-          .uniq
-          .first(SEMANTIC_CANDIDATES)
+        SEMANTIC_ROUNDS.times do
+          found = Chunk.where(document_id: @scope.select(:id)).where.not(document_id: ids)
+            .nearest_neighbors(:embedding, vector, distance: "cosine")
+            .limit(SEMANTIC_BATCH)
+            .pluck(:document_id)
+          ids |= found
+          break if ids.size >= SEMANTIC_CANDIDATES || found.size < SEMANTIC_BATCH
+        end
       end
+      ids.first(SEMANTIC_CANDIDATES)
     rescue StandardError => error
       Rails.logger.warn("[search] semantic search unavailable: #{error.message}")
       []

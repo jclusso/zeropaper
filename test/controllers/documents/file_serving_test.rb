@@ -44,6 +44,10 @@ class Documents::FileServingTest < ActionDispatch::IntegrationTest
 
     get document_page_path(@document, 1, size: "thumb")
     first = response.body
+    stored = Rails.cache.read([ "page-image", @document.file.blob.key, 1, Documents::PagesController::EDGES["thumb"] ])
+    assert_equal "\xFF\xD8\xFF".b, first.byteslice(0, 3)
+    refute_includes stored.to_s.b, "\xFF\xD8\xFF".b, "the cache holds ciphertext, not the JPEG"
+    assert_equal first, ActiveRecord::Encryption.encryptor.decrypt(stored).b
     Pdf.expects(:render_page).never
     get document_page_path(@document, 1, size: "thumb")
 

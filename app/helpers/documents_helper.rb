@@ -70,7 +70,7 @@ module DocumentsHelper
       items << ReviewItem.new(key: "blank_pages", icon: :grid, tone: "text-warning",
         message: "#{pluralize(pages.size, "page")} #{pages.size == 1 ? "looks" : "look"} blank (#{pages.to_sentence}).",
         actions: safe_join([ tag.button("Review pages", type: "button", class: "btn-secondary btn-sm", command: "show-modal", commandfor: "pages-dialog"),
-          button_to("Not blank", document_page_removal_path(document), class: "btn-ghost btn-sm", title: "Keep these pages and read them") ]))
+          button_to("Not blank", document_page_removal_path(document), params: { version: document.checksum }, class: "btn-ghost btn-sm", title: "Keep these pages and read them") ]))
     end
 
     if document.duplicate_of

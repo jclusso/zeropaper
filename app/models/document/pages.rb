@@ -12,6 +12,8 @@ module Document::Pages
 
   class EditRefused < StandardError; end
 
+  STALE_EDIT = "This document changed since you opened it. Reload it and try again.".freeze
+
   def page_map
     page_record.fetch("map") { (1..page_count.to_i).to_a }
   end
@@ -65,9 +67,12 @@ module Document::Pages
   # so it can be restored. OCR runs again only when the text no longer
   # matches the pages: removing pages OCR skipped drops their (empty) text
   # and reindexes locally, while removing a page that was read or keeping
-  # one that was skipped reads the document again.
-  def remove_pages!(pages, keep_blank: [])
+  # one that was skipped reads the document again. version is the checksum
+  # the edit was chosen against; an edit made against an older file is
+  # refused.
+  def remove_pages!(pages, keep_blank: [], version: checksum)
     raise EditRefused, "This document is still processing." unless editable_pages?
+    raise EditRefused, STALE_EDIT unless version == checksum
 
     pages = pages.map(&:to_i).uniq.sort & (1..page_count).to_a
     raise EditRefused, "A document needs at least one page." if pages.size >= page_count
@@ -77,63 +82,118 @@ module Document::Pages
     skipped = page_record.fetch("ocr_skipped", [])
     reread = (removed - skipped).any? || (confirmed & skipped).any?
 
-    if pages.any?
-      replace_file_without(pages, removed)
+    replacement = upload_replacement_without(pages) if pages.any?
+    swap_in(replacement, version) do
+      changes = { page_record: page_record.merge("confirmed" => (page_record.fetch("confirmed", []) + confirmed).uniq) }
+      if replacement
+        self.content = without_page_texts(pages) if content.present?
+        changes[:page_record]["map"] = page_map - removed
+        changes.merge!(checksum: replacement[:checksum], page_count: page_count - pages.size)
+      end
+      update!(changes)
     end
-    update!(page_record: page_record.merge("confirmed" => (page_record.fetch("confirmed", []) + confirmed).uniq))
     review_resolved!("blank_pages")
 
     if reread
       process_later(extract_metadata: false)
     elsif pages.any?
-      index!
+      reindex
     end
   end
 
   # Puts the upload back. The searchable PDF and thumbnail were made from
-  # the edited pages, so they go too and processing makes new ones.
-  def restore_original!
+  # the edited pages, so they go too and processing makes new ones. The
+  # stored original becomes the file again, so nothing is uploaded.
+  def restore_original!(version: checksum)
     raise EditRefused, "This document is still processing." unless editable_pages?
     raise EditRefused, "There is no original to restore." unless original_file.attached?
+    raise EditRefused, STALE_EDIT unless version == checksum
 
     blob = original_file.blob
-    data = blob.download
-    checksum = Digest::SHA256.hexdigest(data)
-    ensure_checksum_free!(checksum)
+    original_checksum = blob.open { |copy| Digest::SHA256.file(copy.path).hexdigest }
+    ensure_checksum_free!(original_checksum)
 
-    self.file = { io: StringIO.new(data), filename: blob.filename, content_type: blob.content_type }
-    update!(checksum: checksum, page_record: {}, page_count: nil)
-    original_file.purge
-    archive_file.purge
+    swap_in(nil, version) do
+      raise EditRefused, STALE_EDIT unless original_file.blob == blob
+
+      self.file = blob
+      self.original_file = nil
+      self.archive_file = nil
+      update!(checksum: original_checksum, page_record: {}, page_count: nil)
+    end
     process_later(extract_metadata: false)
   end
 
   private
-    # Every replacement file is made before any is swapped in, and the swap
-    # is one save, so a failure partway leaves the document as it was.
-    def replace_file_without(pages, removed)
+    # Every replacement file is made and stored before any is swapped in,
+    # so neither a failure here nor one in storage later can leave the
+    # document pointing at files that are not there.
+    def upload_replacement_without(pages)
+      blobs = {}
       with_file_copy do |path|
         Dir.mktmpdir do |dir|
           output = File.join(dir, "trimmed.pdf")
           Pdf.without_pages(path, pages, output)
-          data = File.binread(output)
-          checksum = Digest::SHA256.hexdigest(data)
+          checksum = Digest::SHA256.file(output).hexdigest
           ensure_checksum_free!(checksum)
           archive = trimmed_archive(pages, dir)
           image = Pdf.render_page(output, 1, edge: 640, format: :jpeg) if pages.include?(1)
 
-          self.original_file = { io: File.open(path), filename: file.filename, content_type: file.content_type } unless original_file.attached?
-          self.file = { io: StringIO.new(data), filename: file.filename, content_type: "application/pdf" }
-          self.archive_file = { io: File.open(archive), filename: archive_file.filename, content_type: "application/pdf" } if archive
-          self.thumbnail = { io: StringIO.new(image), filename: "thumbnail.jpg", content_type: "image/jpeg" } if image
-          self.content = without_page_texts(pages) if content.present?
-          update!(
-            checksum: checksum,
-            page_count: page_count - pages.size,
-            page_record: page_record.merge("map" => page_map - removed)
-          )
+          blobs[:original_file] = upload_blob(File.open(path), file.filename, file.content_type) unless original_file.attached?
+          blobs[:file] = upload_blob(File.open(output), file.filename, "application/pdf")
+          blobs[:archive_file] = upload_blob(File.open(archive), archive_file.filename, "application/pdf") if archive
+          blobs[:thumbnail] = upload_blob(StringIO.new(image), "thumbnail.jpg", "image/jpeg") if image
+          { checksum: checksum, blobs: blobs }
         end
       end
+    rescue StandardError
+      discard_unattached(blobs)
+      raise
+    end
+
+    # The blob row is saved only once its file is stored and there.
+    def upload_blob(io, filename, content_type)
+      blob = ActiveStorage::Blob.build_after_unfurling(io: io, filename: filename, content_type: content_type, service_name: storage_service_name)
+      begin
+        blob.upload_without_unfurling(io)
+        raise ActiveStorage::IntegrityError, "#{filename} was not stored" unless blob.service.exist?(blob.key)
+      rescue StandardError
+        blob.delete
+        raise
+      end
+      blob.tap(&:save!)
+    ensure
+      io.close
+    end
+
+    # Swaps the stored replacement files in under the row lock, once the
+    # document is still the version the edit was made against and still
+    # where those files were stored. The old files go only after commit.
+    def swap_in(replacement, version)
+      blobs = replacement ? replacement[:blobs] : {}
+      with_lock do
+        current = editable_pages? && checksum == version && blobs.values.all? { |blob| blob.service_name == storage_service_name }
+        raise EditRefused, STALE_EDIT unless current
+
+        blobs.each { |name, blob| public_send("#{name}=", blob) }
+        yield
+      end
+    ensure
+      discard_unattached(blobs)
+    end
+
+    def discard_unattached(blobs)
+      blobs.each_value { |blob| blob.purge unless blob.attachments.exists? }
+    end
+
+    # The new pages are in place by now, so an index that cannot be built
+    # (the search model still downloading, say) hands the document to a
+    # processing run, which retries it and shows a failure with Retry.
+    def reindex
+      index!
+    rescue StandardError => error
+      Rails.logger.warn("[pages] document #{id}: reindex failed (#{error.class}), processing again")
+      process_later(extract_metadata: false)
     end
 
     # The searchable PDF has the same pages as the file, so it loses the same

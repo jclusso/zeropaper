@@ -104,7 +104,7 @@ class Message < ApplicationRecord
     def research_jobs
       return [] unless defined?(SolidQueue::Job) && SolidQueue::Job.table_exists?
 
-      SolidQueue::Job.where(class_name: "ResearchJob").where("arguments::text LIKE ?", "%#{to_global_id}\"%")
+      SolidQueue::Job.where(concurrency_key: ResearchJob.new(self).concurrency_key, finished_at: nil)
     end
 
     def broadcast_now

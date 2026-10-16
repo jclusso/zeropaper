@@ -27,7 +27,7 @@ class Documents::PagesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "removing a page returns to the document" do
-    post document_page_removal_path(@document), params: { pages: [ "2" ] }
+    post document_page_removal_path(@document), params: { pages: [ "2" ], version: @document.checksum }
 
     assert_redirected_to document_path(@document)
     assert_equal 2, @document.reload.page_count

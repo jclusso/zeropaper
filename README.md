@@ -64,7 +64,7 @@ The stack has three containers:
 | `db` | `pgvector/pgvector:pg18` | Postgres with the pgvector extension |
 | `docling` | `quay.io/docling-project/docling-serve-cpu` | Local layout-aware OCR (about 4 GB) |
 
-When the job worker starts, it downloads the embedding model (about 400 MB) from Hugging Face into `MODELS_DIR` on the storage volume, unless it is already there. With AI turned off, this is the only outbound request ZeroPaper makes, and it sends nothing about your documents. After that, embeddings are computed without any network access.
+When the job worker starts, it downloads the embedding model (about 400 MB, at a pinned revision) from Hugging Face into `MODELS_DIR` on the storage volume, unless it is already there. With AI turned off, this is the only outbound request ZeroPaper makes, and it sends nothing about your documents. Processing never downloads it: a document that reaches indexing before the download finishes fails that step, and Retry works once the model is ready. After that, embeddings are computed without any network access.
 
 To run fully offline, seed the volume ahead of time: run `bin/rails embedder:prefetch` on a machine with network access and copy `MODELS_DIR` into the volume, or run it once in the container before you cut it off.
 
@@ -85,7 +85,6 @@ Settings that take effect at runtime (AI providers and keys, models, OCR, page c
 | `APP_HOST` | Host name the app is served under. When set, other hosts are refused. |
 | `ASSUME_SSL` | `true` when a reverse proxy terminates TLS. |
 | `FORCE_SSL` | `true` to redirect to HTTPS and use secure cookies. Required on any host reachable from the internet. |
-| `INGEST_DIR` | The ingest folder used until Settings chooses another. Defaults to `storage/ingest` (`/rails/storage/ingest` in Docker). |
 | `MAX_UPLOAD_MB` | Largest file an upload or the ingest folder accepts. Defaults to `250`. Word and Excel files and restore archives may unzip to four times this. |
 
 Passkeys need the app to be reached over HTTPS (or on `localhost`) under a stable host name.
