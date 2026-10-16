@@ -7,7 +7,9 @@
 # Private matches are collected separately and shown to the person, never to
 # the model. Every document handed to the model is checked again before each
 # request of the run, and recorded on the answer so a later question leaves
-# that turn out of its history once the document is private.
+# that turn out of its history once the document is private. That record
+# includes the documents behind the earlier turns the answer was given, so
+# an answer built on an answer is left out as well.
 class Research
   MAX_HISTORY = 20
   # Tool calls per answer. Past this the model is told to answer with what it
@@ -26,6 +28,7 @@ class Research
     @outbound = Outbound.without_documents
     @tool_calls = 0
     @refused_tool_calls = Set.new
+    @history_ids = []
   end
 
   def run
@@ -46,7 +49,7 @@ class Research
     message.finish!(
       content: content,
       cited_document_ids: (content.scan(/\[#(\d+)\]/).flatten.map(&:to_i) & cited_ids.to_a),
-      used_document_ids: cited_ids.to_a,
+      used_document_ids: (cited_ids.to_a | @history_ids),
       private_match_ids: private_match_ids.to_a
     )
   rescue StandardError => error
@@ -63,8 +66,8 @@ class Research
     tool_call.present? && @refused_tool_calls.include?(tool_call.id)
   end
 
-  # Called by tools with the documents a search matched. Shareable ones may
-  # go to the model and be cited; private ones are only remembered.
+  # Called by tools with the documents behind their results. Shareable ones
+  # may go to the model and be cited; private ones are only remembered.
   def shareable(documents)
     private_docs, shared = documents.partition(&:private?)
     private_match_ids.merge(private_docs.map(&:id))
@@ -96,12 +99,17 @@ class Research
       question_message.content
     end
 
-    # Earlier turns, without those that used a document that is private now.
-    # Their documents are checked before each request too.
+    # Earlier turns, without those that carry a document that is private or
+    # deleted now. Their documents are checked before each request too, and
+    # recorded on this answer.
     def load_history(chat)
       history = conversation.shareable_history(before: question_message, limit: MAX_HISTORY)
-      @outbound.release!(Document.where(id: history.flat_map(&:shared_document_ids)).to_a)
-      history.each { |earlier| chat.add_message(role: earlier.role.to_sym, content: earlier.content) }
+      documents = Document.where(id: history.document_ids).to_a
+      raise Outbound::PrivateDocumentError, "A document an earlier answer used is no longer available" if documents.size < history.document_ids.size
+
+      @outbound.release!(documents)
+      @history_ids = history.document_ids
+      history.messages.each { |earlier| chat.add_message(role: earlier.role.to_sym, content: earlier.content) }
     end
 
     def tools

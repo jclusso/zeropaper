@@ -50,11 +50,12 @@ class Outbound
   end
 
   # Raises unless every document is saved and still not private in the
-  # database. Unsaved or deleted documents are refused as well.
+  # database. Unsaved or deleted documents are refused as well. Bypasses the
+  # query cache, which jobs run with, so another process's change is seen.
   def authorize!
     return if documents.empty?
 
-    shareable = Document.shareable.where(id: documents.filter_map(&:id)).pluck(:id).to_set
+    shareable = Document.uncached { Document.shareable.where(id: documents.filter_map(&:id)).pluck(:id).to_set }
     refused = documents.reject { |document| !document.private? && shareable.include?(document.id) }
     raise PrivateDocumentError, "Private documents never leave this machine (#{refused.map { |document| document.id || "unsaved" }.join(", ")})" if refused.any?
   end
@@ -66,7 +67,7 @@ class Outbound
     end
 
     authorize!
-    settings.provider_for(task).chat(model: settings.model_for(task)).tap { |chat| authorize_every_request(chat) }
+    settings.provider_for(task).chat(model: settings.model_for(task)).tap { |chat| authorize_every_request(chat.provider.connection) }
   end
 
   # Reads a file with a dedicated OCR model, such as Mistral Document OCR.
@@ -75,7 +76,7 @@ class Outbound
     raise NotConfiguredError, "Choose an OCR model under AI tasks in Settings to read scans with AI." unless settings.task_configured?(:vision)
 
     authorize!
-    settings.provider_for(:vision).ocr(path, model: settings.model_for(:vision))
+    settings.provider_for(:vision).ocr(path, model: settings.model_for(:vision)) { |provider| authorize_every_request(provider.connection) }
   end
 
   # The provider and model a task would use, for labels and records.
@@ -88,11 +89,10 @@ class Outbound
     # RubyLLM calls a connection's signer on every transport attempt, inside
     # its retry middleware, right before the request is sent. Wrapping it
     # runs authorize! for each turn of a tool-calling chat and for each
-    # retry. Each chat has its own provider and connection, so this never
-    # touches another chat's requests. Refuses to hand out a chat it cannot
-    # check.
-    def authorize_every_request(chat)
-      connection = chat.provider.connection
+    # retry, OCR uploads included. Each chat and OCR call has its own
+    # provider and connection, so this never touches another call's
+    # requests. Refuses to send through a connection it cannot check.
+    def authorize_every_request(connection)
       raise Error, "Cannot check this provider's requests for privacy" unless connection.instance_variable_defined?(:@signer)
 
       signer = connection.instance_variable_get(:@signer)

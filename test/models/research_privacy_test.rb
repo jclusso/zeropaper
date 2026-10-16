@@ -19,9 +19,9 @@ class ResearchPrivacyTest < ActiveSupport::TestCase
   test "turns that used a document that is private now are left out of the next request" do
     @conversation.messages.create!(role: "user", content: "What did the clinic say?")
     @conversation.messages.create!(role: "assistant", status: "complete", content: "The clinic referred you to cardiology [##{@clinic.id}].",
-      cited_document_ids: [ @clinic.id ], used_document_ids: [ @clinic.id ])
+      cited_document_ids: [ @clinic.id ], used_document_ids: [ @clinic.id ], provenance_complete: true)
     @conversation.messages.create!(role: "user", content: "Anything else?")
-    @conversation.messages.create!(role: "assistant", status: "complete", content: "Nothing else came up.")
+    @conversation.messages.create!(role: "assistant", status: "complete", content: "Nothing else came up.", provenance_complete: true)
     @clinic.update!(private: true)
 
     answer = ask("How much is the water bill?",
@@ -68,6 +68,77 @@ class ResearchPrivacyTest < ActiveSupport::TestCase
     assert_equal "complete", answer.status, answer.content
     assert_empty answer.cited_document_ids
     assert_includes answer.used_document_ids, @water.id
+  end
+
+  test "an answer built on an earlier answer carries its documents, three turns on" do
+    first = ask("What did the clinic say?",
+      tool_call("research--read_document", id: @clinic.id),
+      text("The clinic referred you to cardiology [##{@clinic.id}]."))
+    second = ask("Say that in one word.", text("Cardiology."))
+    assert_equal [ @clinic.id ], first.used_document_ids
+    assert_equal [ @clinic.id ], second.used_document_ids, "the second answer was given the first, so it carries the clinic letter"
+
+    @clinic.update!(private: true)
+    @bodies.clear
+    third = ask("How much is the water bill?", text("I would need to look that up."))
+
+    assert_equal "complete", third.status, third.content
+    assert_equal 1, @bodies.size
+    refute_includes @bodies.first, "cardiology"
+    refute_includes @bodies.first, "Cardiology."
+    refute_includes @bodies.first, "Say that in one word."
+    assert_empty third.used_document_ids
+  end
+
+  test "a turn whose document was deleted is left out" do
+    ask("What did the clinic say?",
+      tool_call("research--read_document", id: @clinic.id),
+      text("The clinic referred you to cardiology [##{@clinic.id}]."))
+    @clinic.destroy!
+    @bodies.clear
+
+    ask("Anything else?", text("Nothing else."))
+
+    assert_equal 1, @bodies.size
+    refute_includes @bodies.first, "cardiology"
+    refute_includes @bodies.first, "What did the clinic say?"
+  end
+
+  test "documents behind counts are checked and recorded" do
+    answer = ask("How many documents do I have?",
+      tool_call("research--count_documents"),
+      text("You have some documents."))
+
+    assert_equal "complete", answer.status, answer.content
+    assert_includes answer.used_document_ids, @water.id
+    assert_includes answer.used_document_ids, @clinic.id
+  end
+
+  test "a count whose document went private before the next request stops the run" do
+    clinic_id = @clinic.id
+    count = Research::CountDocuments.instance_method(:execute)
+    Research::CountDocuments.define_method(:execute) do |**arguments|
+      count.bind_call(self, **arguments).tap { Document.where(id: clinic_id).update_all(private: true) }
+    end
+
+    answer = ask("How many documents do I have?", tool_call("research--count_documents"), text("Two."))
+
+    assert_equal "failed", answer.status
+    assert_match "Private documents never leave this machine", answer.content
+    assert_equal 1, @bodies.size, "the count was never sent"
+  ensure
+    Research::CountDocuments.define_method(:execute, count) if count
+  end
+
+  test "documents behind the taxonomy list are checked and recorded" do
+    @water.update!(correspondent: correspondents(:acme_power))
+    answer = ask("Who sends me mail?",
+      tool_call("research--list_taxonomy"),
+      text("Acme Power."))
+
+    assert_equal "complete", answer.status, answer.content
+    assert_includes answer.used_document_ids, @water.id
+    refute_includes answer.used_document_ids, @clinic.id
   end
 
   private

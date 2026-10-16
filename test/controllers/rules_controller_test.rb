@@ -136,4 +136,23 @@ class RulesControllerTest < ActionDispatch::IntegrationTest
     patch rule_path(rule), params: { rule: { enabled: "0" } }
     refute rule.reload.enabled?
   end
+
+  test "saving a mark-private rule says how many existing documents it is marking private" do
+    document_with_text("Diagnosis: seasonal allergies")
+    document_with_text("Second diagnosis")
+    document_with_text(DocumentHelpers::BILL_TEXT)
+
+    post rules_path, params: { rule: { name: "Medical", match_mode: "all", mark_private: "1",
+      conditions: { "0" => { field: "content", operator: "any", value: "diagnosis" } } } }
+
+    assert_redirected_to rules_path
+    assert_equal "Rule added. 2 existing documents match it and are being marked private.", flash[:notice]
+    assert_enqueued_with(job: PrivatizeRuleMatchesJob, args: [ Rule.order(:id).last ])
+
+    patch rule_path(Rule.order(:id).last), params: { rule: { conditions: { "0" => { field: "content", operator: "any", value: "nothing-matches-this" } } } }
+    assert_equal "Rule saved. No existing documents match it.", flash[:notice]
+
+    patch rule_path(Rule.order(:id).last), params: { rule: { name: "Health" } }
+    assert_equal "Rule saved.", flash[:notice]
+  end
 end

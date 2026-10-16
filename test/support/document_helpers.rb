@@ -69,13 +69,16 @@ module DocumentHelpers
   # Renders text to a grayscale image and wraps it as a scan with no text
   # layer, so only OCR can read it.
   def scanned_text_pdf(text)
+    scanned_pdf(scanned_page(text))
+  end
+
+  # A page of text as a scanner would see it, for PdfFactory.build.
+  def scanned_page(text)
     with_pdf_file(text_pdf(text)) do |path|
       Dir.mktmpdir do |dir|
         system("pdftoppm", "-gray", "-r", "200", "-singlefile", path, File.join(dir, "page"), exception: true)
         image = BlankPages::Gray.read(File.join(dir, "page.pgm"))
-        canvas = PdfFactory::Canvas.new(image.width, image.height)
-        canvas.pixels.replace(image.pixels)
-        scanned_pdf(canvas)
+        PdfFactory::Canvas.new(image.width, image.height).tap { |canvas| canvas.pixels.replace(image.pixels) }
       end
     end
   end

@@ -83,10 +83,10 @@ module Document::Processing
     run_step("index") { index! }
     run_step("duplicates") { flag_possible_duplicate }
 
-    raise Stopped unless current_run?
-
-    flag_for_review_after_processing
-    update!(status: "ready", processed_at: Time.current, processing_run: nil)
+    apply_for_current_run do
+      flag_for_review_after_processing
+      update!(status: "ready", processed_at: Time.current, processing_run: nil)
+    end
   rescue Stopped
     Rails.logger.info("[process] document #{id}: run #{@run} stopped")
   rescue StandardError => error
@@ -103,6 +103,17 @@ module Document::Processing
 
   def processing?
     status.in?(%w[pending processing])
+  end
+
+  # Applies what a run received, such as an AI answer, in one transaction
+  # that holds the row lock, and only while the run is still current.
+  # Raises Stopped before writing anything otherwise.
+  def apply_for_current_run
+    transaction do
+      raise Stopped unless current_run?(lock: true)
+
+      yield
+    end
   end
 
   def step_state(name)
@@ -162,12 +173,13 @@ module Document::Processing
     end
 
     # Whether this run may go on: no newer run replaced it, and the stored
-    # privacy is still what this run last read or wrote.
+    # privacy is still what this run last read or wrote. Read past the query
+    # cache, which jobs run with.
     def current_run?(lock: false)
       return true if @run.nil?
 
       scope = self.class.where(id: id)
-      stored_run, stored_private = (lock ? scope.lock : scope).pick(:processing_run, :private)
+      stored_run, stored_private = self.class.uncached { (lock ? scope.lock : scope).pick(:processing_run, :private) }
       stored_run == @run && stored_private == private_in_database
     end
 
@@ -192,9 +204,10 @@ module Document::Processing
       end
     end
 
+    # A stopped run leaves the steps to the run that replaced it.
     def record_step(name, status, detail = nil)
       steps[name] = { "status" => status, "detail" => detail, "at" => Time.current.iso8601 }.compact
-      update_columns(steps: steps, updated_at: Time.current)
+      apply_for_current_run { update_columns(steps: steps, updated_at: Time.current) }
       broadcast_refresh
     end
 
@@ -276,21 +289,27 @@ module Document::Processing
 
     # Embedded text is used where it can be trusted; everything else is read
     # by OCR: scans, pages with a scanner's own OCR layer, and pages whose
-    # text layer extracts as garbage.
+    # text layer extracts as garbage. Privacy rules see every page, blank
+    # ones included, even though blank pages are left out of the text.
     def read_text(path)
       @text_note = nil
+      @ocr_runs = {}
+      read_pages = []
+      @screening_pages = [ [], :skip ]
       if pdf?
         native = NativeText.pdf_pages(path)
         trusted = native.select(&:trusted?).to_h { |page| [ page.number, page.text ] }
-        to_read = pages_to_read - trusted.keys
+        untrusted = (1..page_count.to_i).to_a - trusted.keys
+        @screening_pages = [ untrusted, ocr_mode(native, untrusted) ]
+        read_pages = pages_to_read - trusted.keys
         record_ocr_skipped((1..page_count.to_i).to_a - pages_to_read)
 
-        if to_read.empty?
+        if read_pages.empty?
           self.text_source = "native"
           texts = (1..page_count.to_i).map { |page| trusted[page].to_s }
         else
-          mode = ocr_mode(native, to_read)
-          read = read_scanned_text(path, to_read, mode: mode, embedded: trusted.values)
+          mode = ocr_mode(native, read_pages)
+          read = read_scanned_text(path, read_pages, mode: mode, embedded: trusted.values)
           texts = (1..page_count.to_i).map { |page| trusted[page] || read[page].to_s }
           self.text_source = "#{text_source} + embedded text" if trusted.any?
         end
@@ -299,14 +318,18 @@ module Document::Processing
         record_ocr_skipped([])
       else
         record_ocr_skipped([])
-        read = read_scanned_text(path, [ 1 ])
+        read_pages = [ 1 ]
+        @screening_pages = [ read_pages, :skip ]
+        read = read_scanned_text(path, read_pages)
         texts = [ read[1].to_s ]
       end
 
       self.content = texts.map(&:strip).join(PAGE_BREAK)
       save!
-      screen_for_privacy(content)
+      screen_for_privacy([ content, *skipped_page_texts(path, read_pages) ].join("\n"))
       [ "#{text_source_label} · #{content.to_s.squish.length} characters", @text_note ].compact.join(". ")
+    ensure
+      @ocr_runs&.each_value { |run| FileUtils.rm_rf(File.dirname(run.archive_path)) if run&.archive_path }
     end
 
     def ocr_mode(native, pages)
@@ -327,7 +350,6 @@ module Document::Processing
     # local OCR of these. If the AI model fails, the local engine reads the
     # pages instead. Returns { page => text }.
     def read_scanned_text(path, pages, mode: :skip, embedded: [])
-      @ocr_runs = {}
       ai_reads = settings.ai_reads_scans_for?(self)
       # With nothing to check locally first, Tesseract builds the searchable
       # PDF while the AI model reads the pages.
@@ -335,7 +357,7 @@ module Document::Processing
 
       texts = read_with_ai(path, pages, mode, embedded) if ai_reads
       texts ||= begin
-        engine = settings.local_ocr_provider_for(self)
+        engine = settings.local_ocr_engine
         self.text_source = engine
         engine_run = engine == "tesseract" && searchable ? searchable.value : local_ocr(engine, path, pages, mode)
         engine_run.pages
@@ -345,7 +367,6 @@ module Document::Processing
       texts
     ensure
       finished_searchable_pdf(searchable)
-      @ocr_runs&.each_value { |run| FileUtils.rm_rf(File.dirname(run.archive_path)) if run&.archive_path }
     end
 
     # The searchable-PDF run, in the background when it can overlap with the
@@ -379,9 +400,7 @@ module Document::Processing
 
     # Returns the AI model's page texts, or nil when it could not read them.
     def read_with_ai(path, pages, mode, embedded = [])
-      if needs_privacy_screening?
-        screen_for_privacy([ *embedded, local_ocr(settings.local_ocr_provider_for(self), path, pages, mode).text ].join("\n"))
-      end
+      screen_for_privacy([ *embedded, screening_ocr(path).text ].join("\n")) if needs_privacy_screening?
       return unless settings.ai_reads_scans_for?(self)
       raise Stopped unless current_run?
 
@@ -395,15 +414,33 @@ module Document::Processing
       nil
     end
 
-    # Runs a local engine once per document pass and reuses its result.
-    def local_ocr(engine, path, pages, mode)
-      return @ocr_runs[engine] if @ocr_runs.key?(engine)
+    # Local OCR of every page without trusted text, blank ones included, for
+    # the privacy rules: a page judged blank may still hold text.
+    def screening_ocr(path)
+      pages, mode = @screening_pages
+      local_ocr(settings.local_ocr_engine, path, pages, mode)
+    end
 
-      @ocr_runs[engine] =
+    # What the pages left out as blank say, read locally, while content
+    # rules still need to see them.
+    def skipped_page_texts(path, read_pages)
+      skipped = @screening_pages.first - read_pages
+      return [] if skipped.empty? || !needs_privacy_screening?
+
+      screening_ocr(path).pages.values_at(*skipped).map(&:to_s)
+    end
+
+    # Runs a local engine once per set of pages in a document pass and
+    # reuses its result.
+    def local_ocr(engine, path, pages, mode)
+      key = [ engine, pages, mode ]
+      return @ocr_runs[key] if @ocr_runs.key?(key)
+
+      @ocr_runs[key] =
         if engine == "tesseract"
           Ocr::Tesseract.new(settings).call(path, pages: pages, content_type: content_type, mode: mode)
         else
-          Ocr.engine(engine, settings, document: self).call(path, pages: pages, content_type: content_type)
+          Ocr.engine(engine, settings).call(path, pages: pages, content_type: content_type)
         end
     end
 

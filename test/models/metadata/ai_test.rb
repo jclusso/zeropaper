@@ -93,6 +93,20 @@ class Metadata::AITest < ActiveSupport::TestCase
     assert_not_requested(:post, "https://api.openai.com/v1/responses") { |request| request.body.include?("Discreet Therapy") }
   end
 
+  test "documents whose titles are offered as examples are checked again before each attempt" do
+    example = document_with_text("Harbor Water account 77-31", title: "Harbor Water Bill", metadata_source: "ai")
+    document = ingest(BILL_TEXT, filename: "bill.txt")
+    stub_request(:post, "https://api.openai.com/v1/responses").to_return do
+      Document.where(id: example.id).update_all(private: true)
+      { status: 503, body: { error: { message: "Overloaded", type: "server_error" } }.to_json, headers: { "Content-Type" => "application/json" } }
+    end
+
+    error = assert_raises(Outbound::PrivateDocumentError) { Metadata::AI.new(document).apply }
+
+    assert_match example.id.to_s, error.message
+    assert_requested(:post, "https://api.openai.com/v1/responses", times: 1) { |request| request.body.include?("Harbor Water Bill") }
+  end
+
   test "manually edited details are kept" do
     document = ingest(BILL_TEXT, filename: "bill.txt")
     document.update!(title: "My power bill", metadata_source: "manual")

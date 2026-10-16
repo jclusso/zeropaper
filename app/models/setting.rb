@@ -66,12 +66,13 @@ class Setting < ApplicationRecord
     LOCAL_OCR_PROVIDERS.fetch(local_ocr_provider)
   end
 
-  # The local engine that reads a document. Docling only counts as local
+  # The local engine that reads documents. Docling only counts as local
   # while its address is on this machine or the local network, checked again
-  # now because a name can resolve elsewhere later; when it is not, private
-  # documents are read with Tesseract.
-  def local_ocr_provider_for(document)
-    return "tesseract" if local_ocr_provider == "docling" && document.private? && !docling_local?
+  # now because a name can resolve elsewhere later; when it is not, every
+  # document is read with Tesseract, since local reads include the privacy
+  # screen of shareable documents. Docling checks again before each request.
+  def local_ocr_engine
+    return "tesseract" if local_ocr_provider == "docling" && !docling_local?
 
     local_ocr_provider
   end

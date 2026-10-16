@@ -17,7 +17,7 @@ class RulesController < ApplicationController
   def create
     @rule = Rule.new(rule_params)
     if @rule.save
-      redirect_to rules_path, notice: "Rule added."
+      redirect_to rules_path, notice: [ "Rule added.", existing_documents_note ].compact.join(" ")
     else
       render :new, status: :unprocessable_entity
     end
@@ -28,7 +28,7 @@ class RulesController < ApplicationController
 
   def update
     if @rule.update(rule_params)
-      redirect_to rules_path, notice: "Rule saved."
+      redirect_to rules_path, notice: [ "Rule saved.", existing_documents_note ].compact.join(" ")
     else
       render :edit, status: :unprocessable_entity
     end
@@ -42,6 +42,16 @@ class RulesController < ApplicationController
   private
     def set_rule
       @rule = Rule.find(params[:id])
+    end
+
+    # A mark-private rule also runs over the library; says what it found.
+    def existing_documents_note
+      return unless @rule.privatizes_existing_documents?
+
+      count = @rule.existing_matching_document_ids.size
+      return "No existing documents match it." if count.zero?
+
+      "#{count} existing #{"document".pluralize(count)} #{count == 1 ? "matches" : "match"} it and #{count == 1 ? "is" : "are"} being marked private."
     end
 
     # The form sends names, and a typed name that does not exist yet is

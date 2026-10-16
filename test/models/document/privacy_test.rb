@@ -169,6 +169,7 @@ class Document::PrivacyTest < ActiveSupport::TestCase
   end
 
   test "AI details that arrive after the document went private are not saved" do
+    configure_openai(ai_creates_types: true, ai_creates_tags: true)
     body = YAML.load_file(Rails.root.join("test/vcr_cassettes/metadata/openai_electricity_bill.yml")).dig("http_interactions", 0, "response", "body", "string")
     document = ingest(BILL_TEXT, filename: "bill.txt")
     stub_request(:post, "https://api.openai.com/v1/responses").to_return do
@@ -176,13 +177,108 @@ class Document::PrivacyTest < ActiveSupport::TestCase
       { status: 200, headers: { "Content-Type" => "application/json" }, body: body }
     end
 
-    document.process!
+    assert_no_difference %w[Tag.count Correspondent.count DocumentType.count Tagging.count] do
+      document.process!
+    end
 
     document.reload
     assert document.private?
     assert_nil document.summary
     assert_nil document.ai_model
     assert_nil document.title
+    assert_empty document.tags
+    assert_nil Tag.find_by(name: "Electricity"), "the late answer created no tag"
+  end
+
+  test "a run that went stale while embedding replaces no chunks or vectors" do
+    Setting.instance.update!(ai_enabled: false)
+    document = ingest(BILL_TEXT, filename: "bill.txt")
+    Embedder.stubs(:embed_documents).with { Document.where(id: document.id).update_all(processing_run: "newer"); true }.returns([ FakeEmbedder.vector_for(BILL_TEXT) ])
+
+    document.process!
+
+    document.reload
+    assert_equal 0, document.chunks.count
+    assert_nil document.embedding
+    assert_nil document.search_vector
+    refute_equal "done", document.step_state("index")["status"]
+  end
+
+  test "an \"any\" rule's filename condition marks the document private at ingest" do
+    any_rule_with_filename
+    document = ingest(BILL_TEXT, filename: "medical_photo.txt")
+
+    assert document.private?
+    assert_equal "Matched rule “Medical”", document.private_reason
+    refute document.publicize!, "the filename condition alone still marks it private"
+  end
+
+  test "an \"any\" rule's filename condition decides when the text reads as nothing" do
+    any_rule_with_filename
+    document = document_with_text("", filename: "medical_photo.png")
+
+    document.screen_for_privacy("")
+
+    assert document.reload.private?
+    assert_equal "Matched rule “Medical”", document.private_reason
+  end
+
+  test "a page judged blank is still screened locally before hosted OCR" do
+    private_rule("Diagnosis", field: "content", operator: "any", value: "diagnosis")
+    BlankPages::Detector.any_instance.stubs(:call).returns([ BlankPages::Verdict.new(blank: false, sure: true), BlankPages::Verdict.new(blank: true, sure: false) ])
+    pdf = PdfFactory.build([ scanned_page("Water bill\nAmount due\n"), scanned_page("Diagnosis\nReferral for cardiology\n") ])
+
+    document = process(ingest(pdf, filename: "scan_0006.pdf"))
+
+    assert document.private?, "expected the blank-judged page to be screened, got #{document.content.inspect}"
+    assert_equal [ 2 ], document.suggested_blank_pages
+    assert_no_match(/diagnosis/i, document.content, "blank pages stay out of the text")
+    assert_no_external_requests
+  end
+
+  test "a page judged blank is screened even when the other pages have embedded text" do
+    private_rule("Diagnosis", field: "content", operator: "any", value: "diagnosis")
+    BlankPages::Detector.any_instance.stubs(:call).returns([ BlankPages::Verdict.new(blank: false, sure: true), BlankPages::Verdict.new(blank: true, sure: false) ])
+    pdf = PdfFactory.build([ "Water bill\nAmount due $41.20 by April 1, 2026\nAccount 77-31 Harbor Water\n", scanned_page("Diagnosis\nReferral for cardiology\n") ])
+
+    document = process(ingest(pdf, filename: "scan_0007.pdf"))
+
+    assert document.private?, "expected the blank-judged page to be screened, got #{document.content.inspect}"
+    assert_equal "native", document.text_source
+    assert_no_external_requests
+  end
+
+  test "a new mark-private rule marks matching documents already in the library" do
+    diagnosis = document_with_text("Diagnosis: seasonal allergies")
+    medical = document_with_text("Lab order", filename: "medical_lab.txt")
+    bill = document_with_text(BILL_TEXT)
+
+    rule = Rule.new(name: "Medical", match_mode: "any", mark_private: true, conditions: [
+      { field: "content", operator: "any", value: "diagnosis" }, { field: "filename", operator: "any", value: "medical" }
+    ])
+    assert_enqueued_with(job: PrivatizeRuleMatchesJob, args: [ rule ]) { rule.save! }
+    assert_equal [ diagnosis.id, medical.id ].sort, rule.existing_matching_document_ids.sort
+
+    perform_enqueued_jobs(only: PrivatizeRuleMatchesJob)
+
+    assert diagnosis.reload.private?
+    assert_equal "Matched rule “Medical”", diagnosis.private_reason
+    assert medical.reload.private?
+    refute bill.reload.private?
+    assert_enqueued_with(job: ProcessDocumentJob, args: [ diagnosis, { extract_metadata: true } ])
+  end
+
+  test "turning a mark-private rule on or changing its conditions runs it over the library again" do
+    rule = Rule.create!(name: "Medical", enabled: false, mark_private: true, conditions: [ { field: "content", operator: "any", value: "diagnosis" } ])
+    document = document_with_text("Allergy diagnosis")
+
+    assert_enqueued_with(job: PrivatizeRuleMatchesJob) { rule.update!(enabled: true) }
+    assert_enqueued_with(job: PrivatizeRuleMatchesJob) { rule.update!(conditions: [ { field: "content", operator: "any", value: "allergy" } ]) }
+    assert_no_enqueued_jobs(only: PrivatizeRuleMatchesJob) { rule.update!(name: "Health") }
+    assert_no_enqueued_jobs(only: PrivatizeRuleMatchesJob) { Rule.create!(name: "Filing", conditions: [ { field: "content", operator: "any", value: "allergy" } ], tag_ids: [ tags(:taxes).id ]) }
+
+    perform_enqueued_jobs(only: PrivatizeRuleMatchesJob)
+    assert document.reload.private?
   end
 
   test "a mixed PDF is screened with its embedded text before hosted OCR" do
@@ -277,6 +373,13 @@ class Document::PrivacyTest < ActiveSupport::TestCase
   end
 
   private
+    def any_rule_with_filename
+      Rule.create!(name: "Medical", match_mode: "any", mark_private: true, conditions: [
+        { field: "filename", operator: "any", value: "medical" },
+        { field: "content", operator: "phrase", value: "diagnosis code" }
+      ])
+    end
+
     def private_rule(name, field:, operator:, value:)
       Rule.create!(name: name, conditions: [ { field: field, operator: operator, value: value } ], mark_private: true)
     end
