@@ -11,7 +11,7 @@
         <div><%= form.label :email_address, "Email", class: "label" %><%= form.email_field :email_address, required: true, autocomplete: "username", placeholder: "you@example.com", class: "input" %></div>
         <div>
           <%= label_tag "user_current_password", "Current password", class: "label" %><%= password_field_tag "user[current_password]", nil, id: "user_current_password", autocomplete: "current-password", placeholder: "current password", class: "input" %>
-          <p class="hint">Needed to change your email or password.</p>
+          <p class="hint">Needed to change your email or password. A new password removes your passkeys.</p>
         </div>
       </div>
       <el-disclosure id="password-fields" class="block" <%= "hidden" unless @user.errors[:password].any? %>>
@@ -52,6 +52,10 @@
         <div class="min-w-48 flex-1">
           <label class="label" for="passkey_name">Name</label>
           <input id="passkey_name" class="input" placeholder="e.g. macbook" <%= tag.attributes(no_autofill(data: { passkey_target: "name" })) %>>
+        </div>
+        <div class="min-w-48 flex-1">
+          <label class="label" for="passkey_current_password">Current password</label>
+          <input type="password" id="passkey_current_password" class="input" autocomplete="current-password" placeholder="current password" data-passkey-target="password">
         </div>
         <button type="button" class="btn-secondary" data-action="passkey#register"><%= icon(:plus, class: "size-4") %> Add a passkey</button>
         <p class="w-full text-sm text-danger" data-passkey-target="error" hidden></p>

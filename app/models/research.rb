@@ -50,7 +50,9 @@ class Research
       private_match_ids: private_match_ids.to_a
     )
   rescue StandardError => error
-    Rails.logger.error("[research] message #{message.id}: #{error.class}: #{error.message}")
+    # The message can quote the provider's reply or a document, so only the
+    # class is logged; the person sees it on the message itself.
+    Rails.logger.error("[research] message #{message.id}: #{error.class}")
     message.fail!(error.is_a?(Outbound::Error) ? error.message : "#{error.class.name.demodulize}: #{error.message.truncate(200)}")
   end
 

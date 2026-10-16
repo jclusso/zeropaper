@@ -1,6 +1,8 @@
 require "test_helper"
 
 class ProfilesControllerTest < ActionDispatch::IntegrationTest
+  include CableDisconnects
+
   setup { sign_in_as users(:one) }
 
   test "the theme is a profile setting rendered on the page" do
@@ -67,6 +69,8 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert users(:one).reload.authenticate("new password")
     refute Session.exists?(other.id)
     assert Session.exists?(current.id)
+    assert_equal 1, cable_disconnects(other)
+    assert_equal 0, cable_disconnects(current)
     get profile_path
     assert_response :success
   end

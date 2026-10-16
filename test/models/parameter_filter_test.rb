@@ -9,6 +9,7 @@ class ParameterFilterTest < ActiveSupport::TestCase
     filtered = @filter.filter(
       "document" => { "title" => "Biopsy results", "summary" => "Benign", "correspondent_name" => "City Clinic", "tag_names" => [ "Oncology" ] },
       "q" => "divorce lawyer",
+      "literal" => [ "jane doe" ],
       "query" => "custody",
       "question" => "What did the clinic find?",
       "message" => { "content" => "Follow up on the biopsy" },
@@ -22,13 +23,30 @@ class ParameterFilterTest < ActiveSupport::TestCase
     assert_equal FILTERED, filtered.dig("document", "correspondent_name")
     assert_equal FILTERED, filtered.dig("document", "tag_names")
     assert_equal FILTERED, filtered["q"]
+    assert_equal FILTERED, filtered["literal"]
     assert_equal FILTERED, filtered["query"]
     assert_equal FILTERED, filtered["question"]
     assert_equal FILTERED, filtered.dig("message", "content")
     assert_equal FILTERED, filtered["files"]
     assert_equal FILTERED, filtered["original_filename"]
     assert_equal FILTERED, filtered.dig("rule", "conditions")
-    assert_equal "Medical", filtered.dig("rule", "name")
+    assert_equal FILTERED, filtered.dig("rule", "name")
+  end
+
+  test "correspondent, document type and tag names are filtered, other names are kept" do
+    filtered = @filter.filter(
+      "correspondent" => { "name" => "Harbor Hospital" },
+      "document_type" => { "name" => "Biopsy report" },
+      "tag" => { "name" => "Oncology" },
+      "user" => { "name" => "Jane" },
+      "name" => "Passkey"
+    )
+
+    assert_equal FILTERED, filtered.dig("correspondent", "name")
+    assert_equal FILTERED, filtered.dig("document_type", "name")
+    assert_equal FILTERED, filtered.dig("tag", "name")
+    assert_equal "Jane", filtered.dig("user", "name")
+    assert_equal "Passkey", filtered["name"]
   end
 
   test "existing filters stay and ordinary parameters are kept" do

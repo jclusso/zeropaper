@@ -8,6 +8,9 @@ default: &default
   recover_stuck_research:
     class: RecoverStuckResearchJob
     schedule: every 5 minutes
+  expire_sessions:
+    class: ExpireSessionsJob
+    schedule: every hour at minute 23
   scheduled_backup:
     class: ScheduledBackupJob
     schedule: every hour at minute 7

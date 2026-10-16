@@ -88,7 +88,7 @@ Settings that take effect at runtime (AI providers and keys, models, OCR, page c
 | `INGEST_DIR` | The ingest folder used until Settings chooses another. Defaults to `storage/ingest` (`/rails/storage/ingest` in Docker). |
 | `MAX_UPLOAD_MB` | Largest file an upload or the ingest folder accepts. Defaults to `250`. Word and Excel files and restore archives may unzip to four times this. |
 
-Passkeys need the app to be reached over HTTPS (or on `localhost`) under a stable host name.
+Passkeys need the app to be reached over HTTPS (or on `localhost`) under a stable host name. Adding one asks for the current password, and when outgoing mail is set up the owner gets an email about it. Changing or resetting a password removes the account's passkeys, since one added by whoever knew the old password would otherwise still sign in.
 
 ZeroPaper reads and searches English only for now.
 
@@ -107,7 +107,15 @@ Text that is already in the file (PDFs with a text layer, Word, spreadsheets, pl
 
 ### Ingest folder
 
-Files placed in `./ingest` are imported within a minute and then removed from the folder. Files in `./ingest/private` are imported as private. Duplicates of documents already in the library are removed without importing. Watching can be switched off under Settings › Ingest Folder. To use another folder, such as a scanner's network share, change the left side of the `./ingest` mount in `docker-compose.yml`. Symlinks, and files in symlinked folders, are skipped and left where they are. Files larger than `MAX_UPLOAD_MB` are moved to `.unsupported/`.
+Files placed in `./ingest` are imported within a minute and then removed from the folder. Files in `./ingest/private` are imported as private. Duplicates of documents already in the library are removed without importing. Watching can be switched off under Settings › Ingest Folder. To use another folder, such as a scanner's network share, change the left side of the `./ingest` mount in `docker-compose.yml`. Symlinks, and files in symlinked folders, are skipped and left where they are. Files larger than `MAX_UPLOAD_MB` are moved to `.unsupported/`; if `.unsupported`, or a folder inside it, is a symlink, they are left where they are instead.
+
+Filenames can say what a document is about, so the log names ingest files by a 12-character id instead of their path. To see which file an id stands for, list the ids of the files still in the folder:
+
+```sh
+docker compose exec app bin/rails runner 'Dir.glob("**/*", File::FNM_DOTMATCH, base: Setting.instance.ingest_path).each { |path| puts "#{Ingest::Folder.log_id(path)}  #{path}" }'
+```
+
+The ids are keyed with `SECRET_KEY_BASE`, so they cannot be matched against guessed filenames, and they change if it does.
 
 ### Deploying with Kamal
 

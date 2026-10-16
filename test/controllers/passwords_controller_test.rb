@@ -1,6 +1,8 @@
 require "test_helper"
 
 class PasswordsControllerTest < ActionDispatch::IntegrationTest
+  include CableDisconnects
+
   setup { @user = User.take }
 
   test "the reset pages use the sign-in layout, not the app shell" do
@@ -56,6 +58,23 @@ class PasswordsControllerTest < ActionDispatch::IntegrationTest
 
     follow_redirect!
     assert_notice "Password has been reset"
+  end
+
+  test "a reset removes the user's passkeys" do
+    @user.passkeys.create!(external_id: "abc", public_key: "key", name: "Borrowed laptop")
+
+    put password_path(@user.password_reset_token), params: { password: "a much longer password", password_confirmation: "a much longer password" }
+
+    assert_redirected_to new_session_path
+    assert_empty @user.passkeys.reload
+  end
+
+  test "a reset closes every open connection" do
+    sessions = Array.new(2) { @user.sessions.create! }
+
+    put password_path(@user.password_reset_token), params: { password: "a much longer password", password_confirmation: "a much longer password" }
+
+    sessions.each { |session| assert_equal 1, cable_disconnects(session) }
   end
 
   test "update with non matching passwords" do

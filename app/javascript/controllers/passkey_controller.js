@@ -3,7 +3,7 @@ import { Controller } from "@hotwired/stimulus"
 // WebAuthn ceremonies. The server sends the options as JSON and checks the
 // credential; this only hands them to the browser and back.
 export default class extends Controller {
-  static targets = ["error", "name"]
+  static targets = ["error", "name", "password"]
   static values = { challengeUrl: String, url: String }
 
   connect() {
@@ -18,16 +18,17 @@ export default class extends Controller {
   }
 
   async register() {
+    const start = { current_password: this.hasPasswordTarget ? this.passwordTarget.value : "" }
     await this.run(async (options) => {
       const credential = await navigator.credentials.create({ publicKey: PublicKeyCredential.parseCreationOptionsFromJSON(options) })
       return { credential: credential.toJSON(), name: this.hasNameTarget ? this.nameTarget.value : "" }
-    })
+    }, start)
   }
 
-  async run(ceremony) {
+  async run(ceremony, start = {}) {
     this.showError("")
     try {
-      const options = await this.post(this.challengeUrlValue, {})
+      const options = await this.post(this.challengeUrlValue, start)
       const body = await ceremony(options)
       const result = await this.post(this.urlValue, body)
       Turbo.visit(result.location)

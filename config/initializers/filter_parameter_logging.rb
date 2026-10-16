@@ -9,8 +9,11 @@ Rails.application.config.filter_parameters += [
 
 # What documents say, what people search and ask for, and the details rules
 # match on stay out of the logs too. `q` is matched exactly, since a partial
-# match would hide most parameters.
+# match would hide most parameters. Names of correspondents, document types,
+# tags and rules can say as much as a document does (a clinic, a lawyer), so
+# they are filtered where those forms send them.
 Rails.application.config.filter_parameters += [
-  :title, :summary, :content, :query, :question, :filename, :files, :conditions,
-  :correspondent_name, :document_type_name, :tag_names, /\Aq\z/
+  :title, :summary, :content, :query, :question, :filename, :files, :conditions, :literal,
+  :correspondent_name, :document_type_name, :tag_names, /\Aq\z/,
+  "correspondent.name", "document_type.name", "tag.name", "rule.name"
 ]

@@ -39,6 +39,24 @@ class RateLimitsTest < ActionDispatch::IntegrationTest
     assert_equal "Too many questions. Wait a minute and ask again.", flash[:alert]
   end
 
+  test "retrying an answer counts toward the Research limit" do
+    20.times { post conversations_path, params: { question: "How much was the bill?" } }
+    conversation = users(:one).conversations.last
+    message = conversation.messages.where(role: "assistant").last
+    message.update!(status: "failed")
+
+    assert_no_changes -> { message.reload.status } do
+      post conversation_message_retry_path(conversation, message)
+    end
+    assert_redirected_to conversation_path(conversation)
+    assert_equal "Too many questions. Wait a minute and ask again.", flash[:alert]
+
+    travel 61.seconds do
+      post conversation_message_retry_path(conversation, message)
+      refute_equal "failed", message.reload.status
+    end
+  end
+
   test "reprocessing and page edits share 30 a minute" do
     15.times { post document_reprocessing_path(@document) }
     15.times { post document_page_removal_path(@document), params: { pages: [] } }
