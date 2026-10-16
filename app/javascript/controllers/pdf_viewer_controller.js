@@ -49,6 +49,8 @@ export default class extends Controller {
       // pages render blank.
       this.loadingTask = pdfjsLib.getDocument({
         url: this.urlValue,
+        // The Content Security Policy allows no eval, so PDF.js should not try it.
+        isEvalSupported: false,
         withCredentials: true,
         wasmUrl: "/pdfjs/wasm/",
         cMapUrl: "/pdfjs/cmaps/",

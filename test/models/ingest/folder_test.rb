@@ -33,6 +33,23 @@ class Ingest::FolderTest < ActiveSupport::TestCase
     assert_equal "Added from the private folder", document.private_reason
   end
 
+  test "a copy of a stored document dropped in the private folder makes it private" do
+    settled_file("statement.txt", BILL_TEXT)
+    @folder.scan
+    document = Document.last
+    refute document.private?
+
+    settled_file("private/statement copy.txt", BILL_TEXT)
+    assert_no_difference -> { Document.count } do
+      assert_enqueued_with(job: ProcessDocumentJob) { @folder.scan }
+    end
+
+    document.reload
+    assert document.private?
+    assert_equal "Added from the private folder", document.private_reason
+    refute @root.join("private/statement copy.txt").exist?
+  end
+
   test "files still being written and hidden files are left alone" do
     @root.join("fresh.txt").write("still copying")
     settled_file(".DS_Store", "junk")

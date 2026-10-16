@@ -47,6 +47,11 @@ class Document::ProcessingControlTest < ActiveSupport::TestCase
     assert_nil document.step_state("text")["status"], "the old run stopped before reading text"
   end
 
+  test "one run per document, with a lock that outlasts the longest run" do
+    assert_equal 1, ProcessDocumentJob.concurrency_limit
+    assert_operator ProcessDocumentJob.concurrency_duration, :>, Ocr::Tesseract::TIMEOUT
+  end
+
   test "turning pages upright can be switched off" do
     Setting.instance.update!(auto_rotate_pages: false)
     Orientation.expects(:pdf_rotations).never

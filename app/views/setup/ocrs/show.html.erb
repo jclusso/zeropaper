@@ -25,7 +25,7 @@
       <div data-reveal-target="content" <%= "hidden" unless @setting.local_ocr_provider == "docling" %>>
         <%= form.label :docling_url, "Docling URL", class: "label" %>
         <%= form.url_field :docling_url, no_autofill(placeholder: "http://docling:5001", class: "input font-mono", disabled: @setting.local_ocr_provider != "docling") %>
-        <p class="hint">The docling-serve container. In the bundled Docker Compose setup this is http://docling:5001.</p>
+        <p class="hint">The docling-serve container. In the bundled Docker Compose setup this is http://docling:5001. It must be on this machine or the local network.</p>
       </div>
     </fieldset>
 

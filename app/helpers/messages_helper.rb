@@ -3,19 +3,19 @@ module MessagesHelper
   READING = /\AReading document #(\d+)\z/
 
   # Renders an answer's Markdown and turns [#123] markers into links to the
-  # cited documents. Raw HTML in the answer is escaped by Commonmarker.
+  # cited documents.
   def render_answer(message)
-    html = Commonmarker.to_html(message.content.to_s, options: { render: { unsafe: false }, extension: { table: true, strikethrough: true, autolink: true } })
-    titles = Document.shareable.where(id: html.scan(CITATION).flatten.map(&:to_i)).pluck(:id, :title).to_h
-    html = html.gsub(CITATION) do
-      id = Regexp.last_match(1).to_i
-      if titles.key?(id)
-        link_to(titles[id].presence || "Document #{id}", document_path(id), class: "citation inline-block max-w-56 truncate align-bottom", title: "Open document", data: { turbo_frame: "_top" })
-      else
-        ""
+    render_markdown(message.content, autolink: true) do |html|
+      titles = Document.shareable.where(id: html.scan(CITATION).flatten.map(&:to_i)).pluck(:id, :title).to_h
+      html.gsub(CITATION) do
+        id = Regexp.last_match(1).to_i
+        if titles.key?(id)
+          link_to(titles[id].presence || "Document #{id}", document_path(id), class: "citation inline-block max-w-56 truncate align-bottom", title: "Open document", data: { turbo_frame: "_top" })
+        else
+          ""
+        end
       end
     end
-    sanitize(html, tags: %w[p br strong em del a ul ol li h1 h2 h3 h4 blockquote code pre table thead tbody tr th td hr], attributes: %w[href class title data-turbo-frame])
   end
 
   # Step labels with "Reading document #12" turned into the document's title,

@@ -17,6 +17,7 @@ class Setting < ApplicationRecord
   validates :local_ocr_provider, inclusion: { in: LOCAL_OCR_PROVIDERS.keys }
   validates :review_confidence_threshold, numericality: { in: 0..1 }
   validates :docling_url, presence: true, if: -> { local_ocr_provider == "docling" }
+  validate :docling_url_is_local, if: -> { docling_url.present? && docling_url_changed? }
   validate :tasks_have_models
   validate :ingest_dir_usable, if: -> { ingest_enabled? && ingest_dir_changed? && ingest_dir.present? }
 
@@ -26,11 +27,16 @@ class Setting < ApplicationRecord
     first || create!(from_environment)
   end
 
+  # DOCLING_URL is only used when it is local; otherwise documents are read
+  # with Tesseract.
   def self.from_environment
-    {
-      docling_url: ENV["DOCLING_URL"].presence,
-      local_ocr_provider: ENV["DOCLING_URL"].present? ? "docling" : "tesseract"
-    }.compact
+    docling_url = ENV["DOCLING_URL"].presence
+    if docling_url && !LocalNetwork.url?(docling_url)
+      Rails.logger.warn("[settings] ignoring DOCLING_URL #{docling_url}: Docling must run on this machine or the local network")
+      docling_url = nil
+    end
+
+    { docling_url: docling_url, local_ocr_provider: docling_url ? "docling" : "tesseract" }.compact
   end
 
   def provider_for(task)
@@ -57,6 +63,20 @@ class Setting < ApplicationRecord
 
   def local_ocr_label
     LOCAL_OCR_PROVIDERS.fetch(local_ocr_provider)
+  end
+
+  # The local engine that reads a document. Docling only counts as local
+  # while its address is on this machine or the local network, checked again
+  # now because a name can resolve elsewhere later; when it is not, private
+  # documents are read with Tesseract.
+  def local_ocr_provider_for(document)
+    return "tesseract" if local_ocr_provider == "docling" && document.private? && !docling_local?
+
+    local_ocr_provider
+  end
+
+  def docling_local?
+    LocalNetwork.url?(docling_url)
   end
 
   # Scans are read by the OCR model when AI is on and one is chosen. The
@@ -98,6 +118,10 @@ class Setting < ApplicationRecord
       elsif !File.writable?(ingest_dir)
         errors.add(:ingest_dir, "is not writable by ZeroPaper")
       end
+    end
+
+    def docling_url_is_local
+      errors.add(:docling_url, "must be on this machine or the local network, such as http://zeropaper-docling:5001") unless docling_local?
     end
 
     def tasks_have_models

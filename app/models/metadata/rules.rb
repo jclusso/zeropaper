@@ -1,7 +1,8 @@
 # Fills in a document's details without AI: correspondent, type and tags by
 # name and by Rules, the date by finding dates in the text, and a title from
 # the first meaningful line or the filename. Private documents always get
-# their details this way.
+# their details this way. Details from a person or from AI (kept when a
+# document is made private) are not replaced; only empty fields are filled.
 module Metadata
   class Rules
     MONTH_PATTERN = (Date::MONTHNAMES.compact + Date::ABBR_MONTHNAMES.compact).uniq.join("|")
@@ -17,7 +18,7 @@ module Metadata
     def initialize(document)
       @document = document
       @text = document.content.to_s.tr(Document::PAGE_BREAK, "\n")
-      @overwrite = document.metadata_source != "manual"
+      @overwrite = document.metadata_source.in?([ nil, "rules" ])
     end
 
     def apply
@@ -27,8 +28,10 @@ module Metadata
       assign(:document_date, find_date)
       assign(:title, DocumentTitle.clean(find_title, date: @document.document_date))
 
-      @document.metadata_source = "rules" if @overwrite
-      @document.confidence = nil
+      if @overwrite
+        @document.metadata_source = "rules"
+        @document.confidence = nil
+      end
       @document.save!
     end
 

@@ -38,7 +38,7 @@ class ArchiveTest < ActiveSupport::TestCase
     restored_private = Document.find_by!(original_filename: "diagnosis.txt")
     assert restored_private.private?
     assert_equal "test_private", restored_private.file.blob.service_name
-    assert_no_hosted_ai_requests
+    assert_no_external_requests
   end
 
   test "export can leave private documents out" do
@@ -46,6 +46,60 @@ class ArchiveTest < ActiveSupport::TestCase
     export.process!
 
     assert_equal 1, export.documents_count
+  end
+
+  test "restore runs this library's mark-private rules before a document can be shared" do
+    export = Export.create!(user: users(:one), include_private: false)
+    export.process!
+    data = export.archive.download
+    Document.destroy_all
+    Rule.create!(name: "Power bills", conditions: [ { field: "content", operator: "phrase", value: "Amount due" } ], mark_private: true)
+
+    restore!(data)
+
+    restored = Document.find_by!(original_filename: "statement.txt")
+    assert restored.private?
+    assert_equal "Matched rule “Power bills”", restored.private_reason
+    assert_equal "test_private", restored.file.blob.service_name
+    assert_equal "test_private", restored.thumbnail.blob.service_name if restored.thumbnail.attached?
+    assert_no_external_requests
+  end
+
+  test "restore runs filename and source rules too" do
+    export = Export.create!(user: users(:one), include_private: false)
+    export.process!
+    data = export.archive.download
+    Document.destroy_all
+    Rule.create!(name: "Restored files", conditions: [ { field: "source", operator: "is", value: "restore" } ], mark_private: true)
+
+    restore!(data)
+
+    assert Document.find_by!(original_filename: "statement.txt").private?
+  end
+
+  test "an export without private documents leaves out what could describe them" do
+    surgeon = Correspondent.create!(name: "Secret Surgeon")
+    biopsy = DocumentType.create!(name: "Biopsy Report")
+    @private.update!(correspondent: surgeon, document_type: biopsy, tag_names: [ "Oncology" ])
+    Rule.create!(name: "File surgeon letters", conditions: [ { field: "content", operator: "phrase", value: "pathology" } ], correspondent: surgeon)
+    Rule.create!(name: "Tag bills", conditions: [ { field: "content", operator: "phrase", value: "Amount due" } ], tag_ids: [ Tag.named("Utilities").id ])
+
+    shareable = manifest(include_private: false)
+    names = %w[correspondents document_types tags].to_h { |key| [ key, shareable[key].map { |record| record["name"] } ] }
+    refute_includes names["correspondents"], "Secret Surgeon"
+    refute_includes names["document_types"], "Biopsy Report"
+    refute_includes names["tags"], "Oncology"
+    assert_includes names["correspondents"], "Acme Power"
+    assert_includes names["tags"], "Utilities"
+    rules = shareable["rules"].map { |rule| rule["name"] }
+    assert_includes rules, "Tag bills"
+    refute_includes rules, "File surgeon letters", "a rule naming a private-only correspondent is left out"
+    assert shareable["rules"].none? { |rule| rule["mark_private"] }, "mark-private rules are left out"
+    refute_includes rules, "Private: City Clinic"
+
+    everything = manifest(include_private: true)
+    assert_includes everything["correspondents"].map { |record| record["name"] }, "Secret Surgeon"
+    assert_includes everything["rules"].map { |rule| rule["name"] }, "Private: City Clinic"
   end
 
   test "restoring skips documents already in the library" do
@@ -85,4 +139,20 @@ class ArchiveTest < ActiveSupport::TestCase
     assert rule.mark_private?
     assert_equal Correspondent.named("Harbor Hospital"), rule.correspondent
   end
+
+  private
+    def restore!(data)
+      restore = Restore.new(user: users(:one))
+      restore.archive.attach(io: StringIO.new(data), filename: "export.zip", content_type: "application/zip")
+      restore.save!
+      restore.process!
+      assert_equal "ready", restore.status, restore.error
+      restore
+    end
+
+    def manifest(include_private:)
+      export = Export.create!(user: users(:one), include_private: include_private)
+      export.process!
+      JSON.parse(Zip::File.open_buffer(StringIO.new(export.archive.download)).read("manifest.json"))
+    end
 end

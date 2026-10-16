@@ -65,6 +65,6 @@ class ResearchTest < ActiveSupport::TestCase
 
     assert_equal "failed", @message.reload.status
     assert_match "Choose a provider and model", @message.content
-    assert_no_hosted_ai_requests
+    assert_no_external_requests
   end
 end

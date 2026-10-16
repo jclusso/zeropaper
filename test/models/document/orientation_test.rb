@@ -89,7 +89,7 @@ class Document::OrientationTest < ActiveSupport::TestCase
 
     assert_equal({ "1" => 180 }, document.page_record["rotated"])
     assert_equal "test_private", document.file.blob.service_name
-    assert_no_hosted_ai_requests
+    assert_no_external_requests
   end
 
   private

@@ -14,8 +14,7 @@ module Ocr
   def self.engine(provider, settings, document: nil)
     case provider
     when "tesseract" then Tesseract.new(settings)
-    when "docling" then Docling.new(settings)
-    when "ai" then AI.new(settings, document)
+    when "docling" then Docling.new(settings, document)
     else raise ArgumentError, "unknown OCR provider #{provider}"
     end
   end

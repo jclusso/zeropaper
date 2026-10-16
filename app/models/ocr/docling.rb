@@ -1,14 +1,23 @@
 # Local layout-aware OCR through the docling-serve container in the compose
-# file. Counts as local: it runs next to the app and keeps nothing.
+# file. Counts as local only while its address is on this machine or the
+# local network: it runs next to the app and keeps nothing. That is checked
+# again before a private document is sent.
 module Ocr
   class Docling
     PAGE_BREAK = "<!-- zeropaper:page-break -->".freeze
 
-    def initialize(settings)
+    class NotLocalError < StandardError; end
+
+    def initialize(settings, document = nil)
       @settings = settings
+      @document = document
     end
 
     def call(path, pages:, content_type:)
+      if @document&.private? && !@settings.docling_local?
+        raise NotLocalError, "Docling at #{@settings.docling_url} is not on this machine or the local network, so it cannot read private documents"
+      end
+
       Ocr.with_selected_pages(path, pages, content_type) do |file_path, numbers|
         markdown = convert(file_path, content_type)
         texts = markdown.split(PAGE_BREAK)

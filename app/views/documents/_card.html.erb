@@ -12,7 +12,8 @@
           <span class="truncate"><%= progress[:label] %></span>
           <% if progress[:step] %><span class="ml-auto shrink-0 muted tabular-nums"><%= progress[:step] %>/<%= progress[:steps] %></span><% end %>
         </p>
-        <div class="mt-1.5 h-1 bg-muted"><div class="h-full bg-strong-accent transition-[width] duration-500" style="width: <%= (progress[:fraction] * 100).round %>%"></div></div>
+        <progress class="mt-1.5 block h-1 w-full appearance-none bg-muted [&::-moz-progress-bar]:bg-strong-accent [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-strong-accent [&::-webkit-progress-value]:transition-[width] [&::-webkit-progress-value]:duration-500"
+          max="100" value="<%= (progress[:fraction] * 100).round %>" aria-label="<%= progress[:label] %>"></progress>
       </div>
     <% end %>
   </div>

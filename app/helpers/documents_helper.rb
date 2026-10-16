@@ -156,11 +156,10 @@ module DocumentsHelper
     tag.span(icon(name, class: "size-3", "stroke-width": "2.5"), class: "flex size-5 shrink-0 items-center justify-center rounded-xs border #{classes}")
   end
 
-  # One page of extracted text. Raw HTML in Markdown is escaped by Commonmarker.
+  # One page of extracted text.
   def page_text(document, text)
     if document.markdown_text?
-      html = Commonmarker.to_html(text, options: { render: { unsafe: false, hardbreaks: true }, extension: { table: true, strikethrough: true } })
-      tag.div(html.html_safe, class: "prose-answer wrap-anywhere")
+      tag.div(render_markdown(text, hardbreaks: true), class: "prose-answer wrap-anywhere")
     else
       tag.div(text, class: "whitespace-pre-wrap wrap-anywhere font-mono text-[13px] leading-6")
     end

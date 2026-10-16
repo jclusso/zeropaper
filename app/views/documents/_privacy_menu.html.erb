@@ -29,10 +29,10 @@
     <div class="flex justify-end border-t border-border p-2">
       <% if document.private? %>
         <%= button_to "Make not private", document_privacy_path(document), method: :delete, class: "btn-secondary btn-sm",
-              form: { data: { turbo_confirm: "This document will be processed again, which can send its file and text to the AI providers in Settings. Continue?" } } %>
+              form: { data: { turbo_confirm: publicize_confirmation(document), turbo_confirm_title: "Make Not Private?", turbo_confirm_button: "Make not private" } } %>
       <% else %>
         <%= button_to document_privacy_path(document), class: "btn-secondary btn-sm",
-              form: { data: { turbo_confirm: "Mark private and process it again on this machine? Details made by AI are discarded, but anything already sent to a provider cannot be recalled." } } do %>
+              form: { data: { turbo_confirm: "Mark private and process it again on this machine? Nothing more is sent to AI providers. Details AI already returned are kept, since what was sent cannot be recalled." } } do %>
           <%= icon(:lock, class: "size-3.5") %> Make private
         <% end %>
       <% end %>
