@@ -37,6 +37,7 @@ module ZeroPaper
     config.assets.paths << Rails.root.join("vendor/pdfjs")
 
     config.x.ingest_dir = ENV.fetch("INGEST_DIR") { Rails.root.join("storage/ingest").to_s }
+    config.x.backup_dir = ENV.fetch("BACKUP_DIR") { Rails.root.join("storage/backups").to_s }
     # Uploads larger than this are refused. Office files and backup archives
     # may expand to four times as much.
     config.x.max_upload_bytes = ENV.fetch("MAX_UPLOAD_MB", 250).to_i.megabytes
