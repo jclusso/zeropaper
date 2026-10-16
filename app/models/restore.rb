@@ -6,6 +6,8 @@
 # A backup made with another key, such as one from a previous install, is
 # restored with that key, which is kept only until the restore finishes.
 class Restore < ApplicationRecord
+  include RunsAlone
+
   STATUSES = %w[pending processing ready failed].freeze
 
   belongs_to :user, optional: true
@@ -21,18 +23,21 @@ class Restore < ApplicationRecord
     RestoreJob.perform_later(self)
   end
 
+  # Runs once per restore, however often its job does.
   def process!
-    update!(status: "processing", error: nil)
-    path = Backup.file(filename) or raise "#{filename} is no longer in the backup folder."
+    run_alone do
+      update!(status: "processing", error: nil)
+      path = Backup.file(filename) or raise "#{filename} is no longer in the backup folder."
 
-    Backup.open_zip(path, key_bytes) do |zip|
-      reader = Archive::Reader.new(zip, restored_by: user)
-      reader.verify!
-      reader.each_result do |result|
-        increment!(result == :restored ? :restored_count : :skipped_count)
+      Backup.open_zip(path, key_bytes) do |zip|
+        reader = Archive::Reader.new(zip, restored_by: user, own_key: key_bytes == Setting.instance.backup_key_bytes)
+        reader.verify!
+        reader.each_result do |result|
+          increment!(result == :restored ? :restored_count : :skipped_count)
+        end
       end
+      update!(status: "ready", key: nil)
     end
-    update!(status: "ready", key: nil)
   rescue StandardError => error
     update!(status: "failed", error: error.message.truncate(1_000), key: nil)
   end

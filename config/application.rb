@@ -41,6 +41,8 @@ module ZeroPaper
     # Uploads larger than this are refused. Office files and backup archives
     # may expand to four times as much.
     config.x.max_upload_bytes = ENV.fetch("MAX_UPLOAD_MB", 250).to_i.megabytes
+    # A backup holds the whole library, so its cap is far larger.
+    config.x.max_backup_bytes = ENV.fetch("MAX_BACKUP_GB", 500).to_i.gigabytes
     config.x.models_dir = ENV.fetch("MODELS_DIR") { Rails.root.join("storage/models").to_s }
   end
 end

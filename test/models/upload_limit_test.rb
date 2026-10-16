@@ -44,7 +44,7 @@ class UploadLimitTest < ActiveSupport::TestCase
 
   test "a restore archive with an entry that unzips past the limit is refused" do
     with_zip("manifest.json" => "{}", "documents/1/file/bomb.txt" => "0" * 5.megabytes) do |path|
-      assert_raises(UploadLimit::Exceeded) { Archive::Reader.new(path).each_result { } }
+      assert_raises(Archive::Reader::TooLarge) { Archive::Reader.new(path).each_result { } }
     end
     assert_equal 0, Document.count
   end

@@ -86,7 +86,8 @@ Settings that take effect at runtime (AI providers and keys, models, OCR, page c
 | `ASSUME_SSL` | `true` when a reverse proxy terminates TLS. |
 | `FORCE_SSL` | `true` to redirect to HTTPS and use secure cookies. Required on any host reachable from the internet. |
 | `INGEST_DIR` | The ingest folder used until Settings chooses another. Defaults to `storage/ingest` (`/rails/storage/ingest` in Docker). |
-| `MAX_UPLOAD_MB` | Largest file an upload or the ingest folder accepts. Defaults to `250`. Word and Excel files and restore archives may unzip to four times this. |
+| `MAX_UPLOAD_MB` | Largest file an upload or the ingest folder accepts. Defaults to `250`. Word and Excel files, older exports and backups made with another key may unzip to four times this for each file. |
+| `MAX_BACKUP_GB` | Largest backup ZeroPaper makes, accepts as an upload or restores, both as the file and as everything it unzips to. Defaults to `500`. |
 
 Passkeys need the app to be reached over HTTPS (or on `localhost`) under a stable host name.
 

@@ -35,7 +35,7 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
     get backups_path
     assert_select "td", text: /#{backup.filename}/
     assert_select "td", text: /0 documents · #{users(:one).name}/
-    assert_select "form[action='#{backup_restoration_path(id)}'] input[name=key]", count: 0
+    assert_select "form[action='#{backup_restoration_path(id)}'] input[name=backup_key]", count: 0
 
     get backup_path(id)
     assert_response :success
@@ -97,13 +97,125 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
 
     get backups_path
     assert_select "td", text: /Made with key #{Backup::Key.id(Backup::Key.parse(other))}/
-    assert_select "form[action='#{backup_restoration_path(id)}'] input[name=key]"
+    assert_select "form[action='#{backup_restoration_path(id)}'] input[name=backup_key]"
 
     post backup_restoration_path(id)
     assert_equal "Key is not the key this backup was made with", flash[:alert]
 
-    post backup_restoration_path(id), params: { key: other }
+    post backup_restoration_path(id), params: { backup_key: other }
     assert_redirected_to backups_path(anchor: "restores")
+  end
+
+  test "a pasted backup key never reaches the log" do
+    other = Backup::Key.generate
+    id = put_sealed(build_zip, key: Backup::Key.parse(other)).delete_suffix(Backup::EXTENSION)
+    log = StringIO.new
+    previous = ActionController::Base.logger
+    ActionController::Base.logger = ActiveSupport::Logger.new(log)
+
+    post backup_restoration_path(id), params: { backup_key: other }
+    assert_redirected_to backups_path(anchor: "restores")
+    # The old field name, from a page loaded before an upgrade.
+    post backup_restoration_path(id), params: { key: other }
+
+    assert_match %(Parameters: {"backup_key" => "[FILTERED]"), log.string
+    assert_match %(Parameters: {"key" => "[FILTERED]"), log.string
+    refute_includes log.string, other
+    refute_includes log.string, other.delete_prefix("zpkey-")
+  ensure
+    ActionController::Base.logger = previous
+  end
+
+  test "malformed files in the folder are listed as unreadable and the page still loads" do
+    [ "[1]", { version: 1, made_at: "2026-99-99T00:00:00Z", key_id: "abcd1234", nonce: "AAAA" }.to_json ].each_with_index do |header, index|
+      put_backup(Backup::Envelope::MAGIC + [ header.bytesize ].pack("N") + header, "zeropaper-2026-01-0#{index + 1}-000000.zpbackup")
+    end
+    put_sealed(build_zip, made_at: 1.day.ago)
+
+    get backups_path
+
+    assert_response :success
+    assert_select "td span.text-danger", text: "Cannot be read", count: 2
+    assert_select "td", text: /0 documents/, count: 0
+  end
+
+  test "an upload with a crafted header is refused with a message" do
+    header = { version: 1, made_at: "2026-99-99T00:00:00Z", key_id: "abcd1234", nonce: "AAAA" }.to_json
+    upload = Rack::Test::UploadedFile.new(StringIO.new(Backup::Envelope::MAGIC + [ header.bytesize ].pack("N") + header), "application/octet-stream", true, original_filename: "x.zpbackup")
+
+    post backups_uploads_path, params: { archive: upload }
+
+    assert_redirected_to backups_path
+    assert_equal "This backup is damaged.", flash[:alert]
+    assert_empty Backup.files
+  end
+
+  test "an upload that unzips past the limit is refused before it is read" do
+    Rails.configuration.x.stubs(:max_upload_bytes).returns(1.megabyte)
+    bomb = Zip::OutputStream.write_buffer do |zip|
+      zip.put_next_entry("manifest.json")
+      zip.write({ format: Archive::FORMAT, version: Archive::VERSION }.to_json)
+      zip.put_next_entry("documents/1/file/bomb.txt")
+      zip.write("0" * 5.megabytes)
+    end.string
+    Zlib.expects(:crc32).never
+
+    post backups_uploads_path, params: { archive: Rack::Test::UploadedFile.new(StringIO.new(bomb), "application/zip", true, original_filename: "old.zip") }
+
+    assert_redirected_to backups_path
+    assert_equal "documents/1/file/bomb.txt unzips to more than the 4 MB limit.", flash[:alert]
+    assert_empty Backup.files
+  end
+
+  test "an upload missing a document's details is refused with a message" do
+    zip = build_zip({ "documents/1/content.txt" => "", "documents/1/file/a.txt" => "x" })
+
+    post backups_uploads_path, params: { archive: Rack::Test::UploadedFile.new(StringIO.new(zip), "application/zip", true, original_filename: "old.zip") }
+
+    assert_equal "documents/1/document.json is missing", flash[:alert]
+    assert_empty Backup.files
+  end
+
+  test "a restore whose backup unzips past the limit fails in its job before reading anything" do
+    Rails.configuration.x.stubs(:max_upload_bytes).returns(1.megabyte)
+    other = Backup::Key.generate
+    name = put_sealed(Zip::OutputStream.write_buffer do |zip|
+      zip.put_next_entry("manifest.json")
+      zip.write({ format: Archive::FORMAT, version: Archive::VERSION }.to_json)
+      zip.put_next_entry("documents/1/file/bomb.txt")
+      zip.write("0" * 5.megabytes)
+    end.string, key: Backup::Key.parse(other))
+    Zlib.expects(:crc32).never
+
+    perform_enqueued_jobs { post backup_restoration_path(name.delete_suffix(Backup::EXTENSION)), params: { backup_key: other } }
+
+    restore = Restore.last
+    assert_equal "failed", restore.status
+    assert_equal "documents/1/file/bomb.txt unzips to more than the 4 MB limit.", restore.error
+  end
+
+  test "an uploaded backup is marked as uploaded and can be downloaded" do
+    upload = Rack::Test::UploadedFile.new(StringIO.new(build_zip), "application/zip", true, original_filename: "old.zip")
+    post backups_uploads_path, params: { archive: upload }
+    name = Backup.files.sole.basename.to_s
+    assert name.end_with?("-uploaded.zpbackup")
+
+    get backup_path(name.delete_suffix(Backup::EXTENSION))
+
+    assert_response :success
+    assert_equal Backup.files.sole.binread, response.body
+    assert_equal "private, no-store", response.headers["Cache-Control"]
+    assert_match "attachment", response.headers["Content-Disposition"]
+  end
+
+  test "a backup deleted after it was listed is not served" do
+    id = put_sealed(build_zip).delete_suffix(Backup::EXTENSION)
+    Backup.stubs(:file_for).with(id).returns(Pathname(@backup_dir).join("gone.zpbackup"))
+
+    get backup_path(id)
+
+    assert_redirected_to backups_path
+    assert_equal "That backup is no longer in the backup folder.", flash[:alert]
   end
 
   test "a name outside the folder listing is not restored or served" do

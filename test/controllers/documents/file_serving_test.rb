@@ -38,6 +38,37 @@ class Documents::FileServingTest < ActionDispatch::IntegrationTest
     assert_equal private_pdf.byteslice(5, 10), response.body
   end
 
+  test "PDFs, images and plain text are shown inline in a sandbox" do
+    get document_file_path(@document)
+    assert_response :success
+    assert_match(/\Ainline/, response.headers["Content-Disposition"])
+    assert_equal "sandbox", response.headers["Content-Security-Policy"]
+
+    thumbnail = Vips::Image.black(20, 20).write_to_buffer(".jpg")
+    @document.thumbnail.attach(io: StringIO.new(thumbnail), filename: "thumbnail.jpg", content_type: "image/jpeg")
+    get document_thumbnail_path(@document)
+    assert_response :success
+    assert_equal thumbnail, response.body
+    assert_equal "image/jpeg", response.media_type
+    assert_match(/\Ainline/, response.headers["Content-Disposition"])
+
+    text = ingest("Plain words", filename: "notes.txt")
+    get document_file_path(text)
+    assert_match(/\Ainline/, response.headers["Content-Disposition"])
+  end
+
+  test "any other type is only downloaded, even when asked to show it" do
+    %w[text/html image/svg+xml text/markdown text/csv].each do |type|
+      @document.file.blob.update!(content_type: type)
+
+      get document_file_path(@document)
+
+      assert_response :success
+      assert_match(/\Aattachment/, response.headers["Content-Disposition"], type)
+      assert_equal "sandbox", response.headers["Content-Security-Policy"]
+    end
+  end
+
   test "page images are rendered once and then served from the cache" do
     original = Rails.cache
     Rails.cache = ActiveSupport::Cache::MemoryStore.new

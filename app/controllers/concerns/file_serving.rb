@@ -3,15 +3,22 @@
 module FileServing
   extend ActiveSupport::Concern
 
+  # Types a browser shows without running anything. Anything else, such as
+  # HTML or SVG from a crafted backup, is only ever downloaded, so it cannot
+  # act as a page on this site, and every file is sandboxed as well.
+  INLINE_TYPES = %w[application/pdf image/png image/jpeg image/gif image/webp image/tiff image/heic text/plain].freeze
+
   private
     # Streams files from the disk service instead of reading them into
     # memory, and answers a single byte range (the PDF viewer asks for
     # these).
     def send_attachment(attachment, disposition: :inline)
       blob = attachment.blob
+      disposition = :attachment unless blob.content_type.in?(INLINE_TYPES)
       options = { filename: blob.filename.to_s, type: blob.content_type, disposition: disposition }
       response.headers["Cache-Control"] = "private, max-age=3600"
       response.headers["Accept-Ranges"] = "bytes"
+      response.headers["Content-Security-Policy"] = "sandbox"
 
       if (range = requested_range(blob.byte_size))
         response.headers["Content-Range"] = "bytes #{range.begin}-#{range.end}/#{blob.byte_size}"

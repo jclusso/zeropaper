@@ -12,17 +12,20 @@ class ArchiveTest < ActiveSupport::TestCase
   end
 
   test "a backup then restore brings documents back without sending anything out" do
+    blank = ingest("No words here", filename: "photo.txt")
+    blank.update!(content: nil, status: "ready")
     backup = Backup.create!(user: users(:one))
     backup.process!
     assert_equal "ready", backup.status, backup.error
-    assert_equal 2, backup.documents_count
+    assert_equal 3, backup.documents_count
 
     Document.destroy_all
     restore = Restore.create!(user: users(:one), filename: backup.filename)
     restore.process!
 
     assert_equal "ready", restore.status, restore.error
-    assert_equal 2, restore.restored_count
+    assert_equal 3, restore.restored_count
+    assert_equal "", Document.find_by!(original_filename: "photo.txt").content.to_s
 
     restored = Document.find_by!(original_filename: "statement.txt")
     assert_equal "March statement", restored.title
@@ -164,11 +167,165 @@ class ArchiveTest < ActiveSupport::TestCase
     assert_empty stalled.chunks
 
     Embedder.unstub(:embed_documents)
+    Rule.create!(name: "Power bills", conditions: [ { field: "content", operator: "phrase", value: "Amount due" } ], mark_private: true)
     second = restore!(name)
 
     assert_operator second.restored_count, :>=, 1
     assert_equal "ready", stalled.reload.status
     assert stalled.chunks.any?
+    assert stalled.private?, "this library's rules run again before a resumed document is ready"
+    assert_equal "Matched rule “Power bills”", stalled.private_reason
+  end
+
+  test "a private copy in the backup makes the shareable document already here private" do
+    name = Backup.create!(user: users(:one)).tap(&:process!).filename
+    @private.update!(private: false, private_reason: nil)
+    refute @private.reload.private?
+
+    restore = restore!(name)
+
+    assert_equal 2, restore.skipped_count
+    assert @private.reload.private?
+    assert_equal "Uploaded as private", @private.private_reason
+  end
+
+  test "a restore runs once, however often its job does" do
+    name = back_up_and_clear
+    restore = restore!(name)
+
+    Archive::Reader.expects(:new).never
+    restore.process!
+
+    assert_equal "ready", restore.reload.status
+    assert_equal 2, restore.restored_count
+  end
+
+  test "a document missing its details or holding a file ZeroPaper does not keep restores nothing" do
+    svg = %(<svg xmlns="http://www.w3.org/2000/svg"><text y="20">hi</text></svg>)
+    html = "<h1>Sign in again</h1><form action='/session' method='post'>"
+    {
+      { "documents/1/content.txt" => "x", "documents/1/file/a.txt" => "x" } => "documents/1/document.json is missing",
+      { "documents/1/document.json" => "[1]", "documents/1/file/a.txt" => "x" } => "documents/1/document.json is damaged.",
+      document_entries("evil.svg", svg) => "evil.svg holds a image/svg+xml file, which ZeroPaper does not keep.",
+      document_entries("page.html", html) => "page.html holds a text/html file, which ZeroPaper does not keep.",
+      document_entries("a.txt", "x").merge("documents/1/thumbnail.jpg" => svg) => "a.txt holds a image/svg+xml file, which ZeroPaper does not keep."
+    }.each do |entries, message|
+      Document.destroy_all
+      error = assert_raises(Archive::Reader::InvalidArchive) { upload_file(build_zip(entries)) { |upload| Backup.import(upload) } }
+      assert_equal message, error.message
+
+      name = put_sealed(build_zip(entries), made_at: 1.day.ago)
+      restore = Restore.create!(user: users(:one), filename: name)
+      restore.process!
+      assert_equal "failed", restore.status
+      assert_equal message, restore.error
+      assert_equal 0, Document.count
+      File.delete(File.join(@backup_dir, name))
+    end
+  end
+
+  test "a restored file's type comes from its bytes, not from the backup's details" do
+    Document.destroy_all
+    name = put_sealed(build_zip(document_entries("notes.txt", "Plain words", content_type: "text/html")))
+
+    restore!(name)
+
+    document = Document.find_by!(original_filename: "notes.txt")
+    assert_equal "text/plain", document.content_type
+    assert_equal "text/plain", document.file.blob.content_type
+  end
+
+  test "a restore whose backup unzips past the limits fails before reading anything" do
+    Rails.configuration.x.stubs(:max_upload_bytes).returns(1.megabyte)
+    other = Backup::Key.generate
+    name = put_sealed(Zip::OutputStream.write_buffer do |zip|
+      zip.put_next_entry("manifest.json")
+      zip.write({ format: Archive::FORMAT, version: Archive::VERSION }.to_json)
+      zip.put_next_entry("documents/1/file/bomb.txt")
+      zip.write("0" * 5.megabytes)
+    end.string, key: Backup::Key.parse(other))
+    Zlib.expects(:crc32).never
+
+    restore = Restore.create!(user: users(:one), filename: name, key: other)
+    perform_enqueued_jobs { restore.process_later }
+
+    assert_equal "failed", restore.reload.status
+    assert_equal "documents/1/file/bomb.txt unzips to more than the 4 MB limit.", restore.error
+  end
+
+  test "a backup made with this key restores files larger than a since lowered upload limit" do
+    Document.destroy_all
+    data = "0" * 5.megabytes
+    entries = document_entries("big.txt", data).merge("documents/1/content.txt" => "Big file")
+    name = put_sealed(build_zip(entries))
+    Rails.configuration.x.stubs(:max_upload_bytes).returns(1.megabyte)
+
+    restore!(name)
+
+    assert_equal data.bytesize, Document.find_by!(original_filename: "big.txt").file.byte_size
+  end
+
+  test "a document's text has its own limit, whatever the key" do
+    Document.destroy_all
+    stub_const(Archive::Reader, :MAX_CONTENT_BYTES, 1.megabyte) do
+      name = put_sealed(build_zip(document_entries("a.txt", "x").merge("documents/1/content.txt" => "x" * 2.megabytes)))
+
+      restore = Restore.create!(user: users(:one), filename: name)
+      restore.process!
+
+      assert_equal "failed", restore.status
+      assert_equal "documents/1/content.txt unzips to more than the 1 MB limit.", restore.error
+      assert_equal 0, Document.count
+    end
+  end
+
+  test "a damaged archive PDF in a later document fails the check and restores nothing" do
+    Document.destroy_all
+    pdf = "%PDF-1.4\n#{"intact " * 20_000}\n%%EOF\n"
+    entries = {
+      "documents/1/document.json" => { checksum: Digest::SHA256.hexdigest("first"), original_filename: "first.txt" }.to_json,
+      "documents/1/file/first.txt" => "first",
+      "documents/2/document.json" => { checksum: Digest::SHA256.hexdigest("second"), original_filename: "second.txt" }.to_json,
+      "documents/2/file/second.txt" => "second",
+      "documents/2/archive.pdf" => pdf
+    }
+    zip = build_zip(entries).b
+    # Change bytes past what is read to tell the file's type, leaving the CRC as it was.
+    offset = zip.index(pdf.b) + pdf.bytesize - 20
+    zip[offset, 6] = "broken"
+    name = put_sealed(zip)
+
+    error = assert_raises(Archive::Reader::InvalidArchive) do
+      Backup.open_zip(Backup.file(name), Setting.instance.backup_key_bytes) { |path| Archive::Reader.new(path).verify! }
+    end
+    assert_equal "documents/2/archive.pdf is damaged.", error.message
+
+    restore = Restore.create!(user: users(:one), filename: name)
+    restore.process!
+
+    assert_equal "failed", restore.status
+    assert_equal 0, Document.count
+  end
+
+  test "a backup sealed ahead of this clock restores" do
+    Document.destroy_all
+    name = put_sealed(build_zip(document_entries("ahead.txt", "From a fast clock")), made_at: 2.hours.from_now)
+
+    restore!(name)
+
+    assert Document.exists?(original_filename: "ahead.txt")
+  end
+
+  test "a restore whose backup decrypts past the whole backup limit stops" do
+    name = back_up_and_clear
+    Rails.configuration.x.stubs(:max_backup_bytes).returns(1.kilobyte)
+
+    restore = Restore.create!(user: users(:one), filename: name)
+    perform_enqueued_jobs { restore.process_later }
+
+    assert_equal "failed", restore.reload.status
+    assert_equal "This backup is larger than the 1 KB backup limit (MAX_BACKUP_GB).", restore.error
+    assert_empty Dir.children(@scratch_dir)
   end
 
   private
@@ -177,6 +334,15 @@ class ArchiveTest < ActiveSupport::TestCase
       backup.process!
       Document.destroy_all
       backup.filename
+    end
+
+    # A document's entries as a backup holds them.
+    def document_entries(filename, data, content_type: "application/pdf")
+      {
+        "documents/1/document.json" => { checksum: Digest::SHA256.hexdigest(data), original_filename: filename, content_type: content_type, title: filename }.to_json,
+        "documents/1/content.txt" => data,
+        "documents/1/file/#{filename}" => data
+      }
     end
 
     def restore!(name)
