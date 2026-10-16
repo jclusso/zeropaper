@@ -1,0 +1,8 @@
+<div class="flex rounded-sm border border-border p-0.5" role="group" aria-label="View">
+  <% { "pages" => [ "Pages", :document ], "text" => [ "Text", :menu ], "side" => [ "Side by side", :panel ] }.each do |mode, (label, icon_name)| %>
+    <button type="button" class="flex h-7 items-center gap-1.5 rounded-xs px-2 text-xs font-semibold muted hover:text-foreground aria-pressed:bg-subtle aria-pressed:text-foreground"
+      aria-pressed="<%= mode == "pages" %>" title="<%= label %>" data-reading-mode-target="button" data-action="reading-mode#select" data-reading-mode-mode-param="<%= mode %>">
+      <%= icon(icon_name, class: "size-4") %><span class="hidden lg:inline"><%= label %></span>
+    </button>
+  <% end %>
+</div>

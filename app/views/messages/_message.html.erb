@@ -1,0 +1,64 @@
+<% if message.user? %>
+  <div id="<%= dom_id(message) %>" class="flex justify-end">
+    <div class="max-w-[80%] whitespace-pre-wrap break-words rounded-sm bg-muted px-4 py-2.5 text-sm leading-6"><%= message.content %></div>
+  </div>
+<% else %>
+  <article id="<%= dom_id(message) %>" class="min-w-0" data-message-status="<%= message.status %>" aria-busy="<%= message.streaming? %>">
+    <%= render "messages/steps", message: message %>
+
+    <% if message.content.present? && message.status != "failed" %>
+      <div class="prose-answer mt-3" <%= "data-streaming" if message.streaming? %>><%= render_answer(message) %></div>
+    <% end %>
+
+    <% if message.status == "failed" %>
+      <div class="callout-danger mt-3 text-sm">
+        <p class="flex items-center gap-2 font-semibold text-danger"><%= icon(:warning, class: "size-4") %> Research stopped</p>
+        <p class="mt-1 muted"><%= message.content.to_s.sub(/\A.*?Research stopped: /m, "").presence || "Something went wrong." %></p>
+        <p class="mt-2 text-xs muted">Ask the question again to retry.</p>
+      </div>
+    <% end %>
+
+    <% if message.status == "complete" %>
+      <% sources = message.cited_documents.values %>
+      <% if sources.any? %>
+        <div class="mt-4">
+          <p class="mb-1.5 text-[0.7rem] font-medium uppercase tracking-wider muted">Sources</p>
+          <ul class="flex flex-wrap gap-2">
+            <% sources.each do |document| %>
+              <li>
+                <%= link_to document_path(document), data: { turbo_frame: "_top" },
+                      class: "flex max-w-xs items-center gap-2 rounded-sm border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-strong-accent/50" do %>
+                  <%= icon(:document, class: "size-3.5 shrink-0 text-strong-accent") %>
+                  <span class="truncate"><%= document.display_title %></span>
+                  <span class="shrink-0 muted"><%= document.display_date.strftime("%b %-d, %Y") %></span>
+                <% end %>
+              </li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <% if message.private_match_ids.any? %>
+        <div class="mt-4 text-xs">
+          <p class="flex flex-wrap items-center gap-1.5 muted">
+            <%= private_badge %>
+            <%= pluralize(message.private_match_ids.size, "document") %> also matched but stayed off the AI, so this answer leaves them out.
+          </p>
+          <ul class="mt-1.5 flex flex-wrap gap-1.5">
+            <% message.private_matches.limit(10).each do |document| %>
+              <li><%= link_to document.display_title, document_path(document), class: "citation", data: { turbo_frame: "_top" } %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <div class="mt-3 flex items-center gap-1 text-xs muted">
+        <button type="button" class="btn-ghost h-7 gap-1.5 px-2 text-xs normal-case tracking-normal" data-controller="clipboard"
+          data-clipboard-text-value="<%= message.content %>" data-action="clipboard#copy" aria-label="Copy answer">
+          <%= icon(:copy, class: "size-3.5") %><span data-clipboard-target="label">Copy</span>
+        </button>
+        <%= time_tag message.updated_at, message.updated_at.to_fs(:short), class: "px-1" %>
+      </div>
+    <% end %>
+  </article>
+<% end %>

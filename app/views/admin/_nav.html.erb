@@ -1,0 +1,21 @@
+<%# The admin menu. Settings sections live on one page because they save together. %>
+<% on_settings = controller_name == "settings" %>
+<nav class="sticky top-24 hidden h-fit w-48 shrink-0 space-y-5 lg:block" aria-label="Admin">
+  <div>
+    <p class="eyebrow px-3 pb-2">Settings</p>
+    <div class="space-y-0.5">
+      <% { "ai" => "AI Providers", "ai-tasks" => "AI Tasks", "ocr" => "OCR", "page-cleanup" => "Page Cleanup", "review" => "Review", "folder" => "Ingest Folder" }.each do |anchor, label| %>
+        <%= link_to label, on_settings ? "##{anchor}" : settings_path(anchor: anchor),
+              class: "nav-link #{"nav-link-active" if anchor == "ai" && controller_name == "ai_providers"}" %>
+      <% end %>
+    </div>
+  </div>
+  <div>
+    <p class="eyebrow px-3 pb-2">Manage</p>
+    <div class="space-y-0.5">
+      <%= nav_link_to "Users", users_path, icon: :users, active: controller_name == "users" %>
+      <%= nav_link_to "Export", exports_path, icon: :download, active: controller_name == "exports" %>
+      <%= nav_link_to "Restore", new_restore_path, icon: :upload, active: controller_name == "restores" %>
+    </div>
+  </div>
+</nav>

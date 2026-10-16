@@ -1,0 +1,64 @@
+<% content_for :title, @document.display_title %>
+<% content_for :full_bleed, true %>
+<% content_for :head do %><%= stylesheet_link_tag "pdf_viewer", "data-turbo-track": "reload" if document_viewer_kind(@document) == :pdf %><% end %>
+<%= turbo_stream_from @document %>
+
+<% readable = document_viewer_kind(@document).in?(%i[pdf image]) %>
+<div class="group/view flex h-[calc(100dvh-3.5rem)] flex-col" data-view="pages"
+  data-controller="toggle tabs<%= " reading-mode" if readable %>" data-toggle-key-value="document-panel"
+  <%= "data-action=pdf-viewer:page->reading-mode#follow" if readable %>>
+  <div class="flex flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-2.5">
+    <%= link_to documents_path, class: "btn-icon", "aria-label": "Back to library" do %><%= icon(:chevron_left, class: "size-4") %><% end %>
+    <div class="min-w-0 flex-1">
+      <h1 class="truncate text-sm font-bold"><%= @document.display_title %></h1>
+      <p class="truncate text-xs muted">
+        <%= [ @document.display_date.to_fs(:long), @document.correspondent&.name, @document.document_type&.name,
+              (pluralize(@document.page_count, "page") if @document.pdf? && @document.page_count) ].compact.join(" · ") %>
+      </p>
+    </div>
+    <div class="flex flex-wrap items-center gap-1.5">
+      <%= render "documents/view_switch" if readable %>
+      <%= render "documents/privacy_menu", document: @document %>
+      <% if @document.pdf? && @document.page_count.to_i > 1 %>
+        <button type="button" class="btn-secondary btn-sm" command="show-modal" commandfor="pages-dialog" title="Remove or restore pages"
+          <%= "data-controller=auto-open" if params[:review] == "pages" %>>
+          <%= icon(:grid, class: "size-4") %><span class="hidden md:inline">Pages</span>
+        </button>
+      <% end %>
+      <%= render "documents/download_button", document: @document %>
+      <button type="button" class="btn-secondary btn-sm" data-action="toggle#toggle" data-toggle-target="button" aria-expanded="true" title="Show or hide details">
+        <%= icon(:panel, class: "size-4") %><span class="hidden md:inline">Details</span>
+      </button>
+    </div>
+  </div>
+
+  <% if (summary = processing_summary(@document)) %>
+    <div class="flex items-center gap-3 border-b border-strong-accent/30 bg-strong-accent/[0.06] px-4 py-2 text-sm" id="<%= dom_id(@document, :progress) %>">
+      <%= icon(:refresh, class: "size-4 shrink-0 animate-spin text-strong-accent") %>
+      <p class="min-w-0 flex-1"><%= summary %></p>
+      <button type="button" class="btn-ghost btn-sm" data-action="tabs#select toggle#show" data-tabs-name-param="processing">View progress</button>
+      <%= render "documents/processing_actions", document: @document %>
+    </div>
+  <% end %>
+  <%= render "documents/review_bar", document: @document %>
+
+  <div class="relative flex min-h-0 flex-1">
+    <div class="bg-grid relative min-w-0 flex-1 group-data-[view=text]/view:hidden">
+      <%= render "documents/viewers/#{document_viewer_kind(@document)}", document: @document %>
+    </div>
+    <% if readable %>
+      <div class="relative hidden min-w-0 flex-1 bg-background group-data-[view=side]/view:block group-data-[view=side]/view:border-l group-data-[view=side]/view:border-border group-data-[view=text]/view:block">
+        <%= render "documents/reader", document: @document %>
+      </div>
+    <% end %>
+
+    <aside class="absolute inset-y-0 right-0 z-10 w-full max-w-sm overflow-y-auto border-l border-border bg-background shadow-xl md:static md:w-96 md:shadow-none"
+      data-toggle-target="content">
+      <%= render "documents/panel", document: @document %>
+    </aside>
+  </div>
+</div>
+
+<% if @document.pdf? && @document.page_count.to_i > 1 %>
+  <%= render "documents/pages/dialog", document: @document %>
+<% end %>

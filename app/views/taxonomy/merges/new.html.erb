@@ -1,0 +1,38 @@
+<% noun = resource_class.model_name.human.downcase %>
+<% content_for :title, "Merge #{@record.name}" %>
+<div class="mx-auto max-w-2xl">
+  <%= page_header "Merge “#{@record.name}”", "Move everything onto another #{noun} and delete this one." %>
+
+  <% if @targets.empty? %>
+    <div class="card card-body py-10 text-center text-sm muted">There is no other <%= noun %> to merge into.</div>
+  <% else %>
+    <%= form_with url: polymorphic_path([ @record, :merge ]), method: :post, class: "card",
+          data: { turbo_confirm: "Move #{pluralize(@documents_count, "document")} from “#{@record.name}” and delete it? Rules that use it are updated too.",
+                  turbo_confirm_title: "Merge #{noun.pluralize}?", turbo_confirm_button: "Merge" } do %>
+      <div class="card-body space-y-5">
+        <div>
+          <span class="label">Merging</span>
+          <p class="font-bold"><%= @record.name %></p>
+          <p class="hint"><%= pluralize(@documents_count, "document") %></p>
+        </div>
+        <div>
+          <label class="label" for="merge_target">Into</label>
+          <%= render "shared/combobox", name: "target_id", id: "merge_target", value: nil, placeholder: "Choose a #{noun}",
+                options: @targets.map { |target| [ "#{target.name} (#{pluralize(target.documents_count.to_i, "document")})", target.id ] } %>
+        </div>
+        <ul class="list-disc space-y-1 pl-5 text-sm muted">
+          <li>Its documents move to the <%= noun %> you choose.</li>
+          <li>Rules that set or add it are updated to use that <%= noun %>.</li>
+          <% if @record.is_a?(Correspondent) && @record.private_documents? %>
+            <li>Its documents are private, so the <%= noun %> you choose will keep documents private too.</li>
+          <% end %>
+          <li>“<%= @record.name %>” is deleted.</li>
+        </ul>
+      </div>
+      <div class="flex justify-end gap-2 border-t border-border bg-card-header px-5 py-3 sm:px-6">
+        <%= link_to "Cancel", polymorphic_path(resource_class), class: "btn-ghost" %>
+        <%= button_tag type: :submit, class: "btn-primary" do %><%= icon(:check, class: "size-4") %> Merge<% end %>
+      </div>
+    <% end %>
+  <% end %>
+</div>

@@ -1,0 +1,9 @@
+<%# locals: (type:, message:) %>
+<% alert = type.to_sym == :alert %>
+<div class="pointer-events-auto flex w-full items-start gap-3 rounded-sm border bg-popover p-3.5 text-sm shadow-lg transition duration-200 ease-out data-closed:translate-y-2 data-closed:opacity-0 sm:data-closed:translate-x-4 sm:data-closed:translate-y-0 <%= alert ? "border-danger/40" : "border-border" %>"
+  data-controller="toast" data-toast-delay-value="<%= alert ? 8000 : 4000 %>" data-closed
+  data-action="mouseenter->toast#pause mouseleave->toast#resume" role="<%= alert ? "alert" : "status" %>">
+  <%= icon(alert ? :warning : :check, class: "mt-0.5 size-4 shrink-0 #{alert ? "text-danger" : "text-success"}") %>
+  <p class="min-w-0 flex-1"><%= message %></p>
+  <button type="button" class="-m-1 p-1 opacity-60 hover:opacity-100" data-action="toast#dismiss" aria-label="Dismiss"><%= icon(:x, class: "size-4") %></button>
+</div>

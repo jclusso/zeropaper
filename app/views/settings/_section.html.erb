@@ -1,0 +1,7 @@
+<section id="<%= id %>" class="card scroll-mt-24">
+  <div class="card-header">
+    <h2 class="section-title"><%= title %></h2>
+    <% if local_assigns[:description] %><p class="mt-1 text-xs muted"><%= description %></p><% end %>
+  </div>
+  <div class="card-body space-y-5"><%= yield %></div>
+</section>

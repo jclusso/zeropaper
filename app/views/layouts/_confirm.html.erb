@@ -1,0 +1,19 @@
+<%# Shown by confirm.js for every data-turbo-confirm. %>
+<dialog id="confirm-dialog" data-turbo-permanent aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message"
+  class="m-auto w-[calc(100%-2rem)] max-w-md bg-transparent p-0 text-foreground backdrop:bg-black/60 backdrop:backdrop-blur-[2px]">
+  <form method="dialog" class="card bg-card">
+    <div class="flex gap-4 p-6">
+      <span data-confirm-icon class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-strong-accent/10 text-strong-accent">
+        <%= icon(:warning, class: "size-5") %>
+      </span>
+      <div class="min-w-0 space-y-2">
+        <h2 id="confirm-dialog-title" class="font-semibold" data-confirm-title>Are you sure?</h2>
+        <p id="confirm-dialog-message" class="text-sm muted" data-confirm-message></p>
+      </div>
+    </div>
+    <div class="flex flex-col-reverse gap-2 border-t border-border px-6 py-4 sm:flex-row sm:justify-end">
+      <button type="submit" value="cancel" class="btn" autofocus>Cancel</button>
+      <button type="submit" value="confirm" class="btn-primary" data-confirm-button>Confirm</button>
+    </div>
+  </form>
+</dialog>

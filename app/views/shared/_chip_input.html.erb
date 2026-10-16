@@ -1,0 +1,52 @@
+<%#
+  Box of chips for picking several values: type to filter the options, Enter,
+  Tab or a comma adds, Backspace removes the last chip. Fires
+  `chip-input:change` when focus leaves after the chips changed.
+
+  locals:
+    name:         field name for each chip's hidden input, e.g. "tag_ids[]"
+    options:      [[label, value, chip_class], ...]
+    selected:     values already chosen
+    creatable:    true lets people type a new label; the value is then the label itself
+    id:           id for the text box
+    placeholder:  shown in the empty text box
+    data:         data attributes for the wrapper (Stimulus actions)
+%>
+<% chip_class_for = ->(value) { "#{value || "inline-flex items-center rounded-xs border px-1.5 py-px text-[0.7rem] font-medium border-border bg-subtle text-foreground"} gap-1 pr-0.5" } %>
+<% selected_values = Array(selected).map(&:to_s) %>
+<% chosen = selected_values.filter_map { |value| options.find { |option| option[1].to_s == value } || ([ value, value ] if local_assigns[:creatable]) } %>
+<%= tag.div data: { controller: "chip-input", chip_input_creatable_value: local_assigns.fetch(:creatable, false) }.merge(local_assigns[:data] || {}) do %>
+  <%= hidden_field_tag name, "", id: nil %>
+  <div class="input flex h-auto min-h-9 cursor-text flex-wrap items-center gap-1.5 py-1.5" data-action="click->chip-input#focus">
+    <span class="contents" data-chip-input-target="chips">
+      <% chosen.each do |label, value, chip_class| %>
+        <span class="<%= chip_class_for.call(chip_class) %>" data-chip-input-target="token" data-value="<%= value %>" data-label="<%= label %>">
+          <span data-role="label"><%= label %></span>
+          <input type="hidden" name="<%= name %>" value="<%= value %>" data-role="value">
+          <button type="button" class="rounded-xs px-0.5 opacity-60 hover:opacity-100" data-action="chip-input#remove" aria-label="Remove <%= label %>">×</button>
+        </span>
+      <% end %>
+    </span>
+    <el-autocomplete class="relative min-w-24 flex-1">
+      <input type="text" id="<%= local_assigns[:id] %>" class="h-5 w-full bg-transparent px-1.5 text-xs text-foreground outline-none placeholder:text-muted-foreground"
+             placeholder="<%= local_assigns[:placeholder] || "Choose" %>" <%= tag.attributes(no_autofill) %> spellcheck="false"
+             data-chip-input-target="input" data-action="keydown->chip-input#keydown change->chip-input#chosen">
+      <el-options anchor="bottom start" popover class="menu max-h-64 w-56 overflow-auto" data-chip-input-target="list">
+        <% options.each do |label, value, chip_class| %>
+          <el-option value="<%= label %>" data-value="<%= value %>" data-label="<%= label %>" data-chip-class="<%= chip_class_for.call(chip_class) %>"
+                     data-chip-input-target="option" class="menu-item aria-selected:bg-muted">
+            <% if chip_class %><span class="<%= chip_class %>"><%= label %></span><% else %><%= label %><% end %>
+          </el-option>
+        <% end %>
+      </el-options>
+    </el-autocomplete>
+  </div>
+  <div hidden data-chip-input-target="stash"></div>
+  <template data-chip-input-target="template">
+    <span class="<%= chip_class_for.call(nil) %>" data-chip-input-target="token" data-value="" data-label="">
+      <span data-role="label"></span>
+      <input type="hidden" name="<%= name %>" value="" data-role="value">
+      <button type="button" class="rounded-xs px-0.5 opacity-60 hover:opacity-100" data-action="chip-input#remove" aria-label="Remove">×</button>
+    </span>
+  </template>
+<% end %>

@@ -1,0 +1,15 @@
+<li class="flex items-center gap-3 px-5 py-3" data-upload-row data-state="queued">
+  <%= icon(:document, class: "size-4 shrink-0 muted") %>
+  <div class="min-w-0 flex-1">
+    <div class="flex items-baseline justify-between gap-3">
+      <p class="truncate text-sm" data-field="name"></p>
+      <span class="shrink-0 text-xs tabular-nums muted" data-field="size"></span>
+    </div>
+    <div class="mt-1.5 h-1 bg-muted" data-field="track">
+      <div class="h-full w-0 bg-strong-accent transition-[width] duration-150 in-data-[state=failed]:bg-danger in-data-[state=skipped]:bg-warning" data-field="bar"></div>
+    </div>
+    <p class="mt-1 text-xs muted" data-field="status">Queued</p>
+  </div>
+  <a class="btn-ghost btn-sm" data-field="link" hidden>Open</a>
+  <button type="button" class="btn-icon" data-field="remove" aria-label="Remove from queue"><%= icon(:x, class: "size-4") %></button>
+</li>

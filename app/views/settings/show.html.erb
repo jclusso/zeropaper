@@ -1,0 +1,117 @@
+<% content_for :title, "Settings" %>
+<div>
+    <%= page_header "Settings", "How documents are read, filed and searched. ZeroPaper reads English documents." %>
+    <div class="space-y-6">
+      <%= render layout: "settings/section", locals: { id: "ai", title: "AI Providers", description: "Services ZeroPaper may call through RubyLLM. Keys are stored encrypted." } do %>
+        <% providers = AIProvider.alphabetically.to_a %>
+        <% if providers.any? %>
+          <ul class="divide-y divide-border border border-border">
+            <% providers.each do |provider| %>
+              <li class="flex flex-wrap items-center gap-3 px-4 py-3">
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-bold"><%= provider.name %> <% if provider.name != provider.label %><span class="font-normal muted">· <%= provider.label %></span><% end %></p>
+                  <p class="mt-0.5 truncate text-xs muted">
+                    <%= provider.api_key.present? ? "Key saved" : "No key" %><% if provider.base_url %> · <span class="font-mono"><%= provider.base_url %></span><% end %>
+                    <% used = Setting::TASKS.select { |task, _| @setting.provider_for(task) == provider }.values %>
+                    <% if used.any? %> · Used for <%= used.map { |label| label == "OCR" ? label : label.downcase }.to_sentence %><% end %>
+                  </p>
+                </div>
+                <%= button_to "Test", ai_provider_check_path(provider), class: "btn-secondary btn-sm" %>
+                <%= link_to "Edit", edit_ai_provider_path(provider), class: "btn-ghost btn-sm" %>
+                <%= button_to ai_provider_path(provider), method: :delete, class: "btn-icon-danger", "aria-label": "Remove #{provider.name}",
+                      form: { data: { turbo_confirm: "Remove #{provider.name}? Tasks that use it will need another provider." } } do %><%= icon(:trash, class: "size-4") %><% end %>
+              </li>
+            <% end %>
+          </ul>
+        <% else %>
+          <p class="text-sm muted">No providers yet. Without one, ZeroPaper reads scans locally and files documents with rules.</p>
+        <% end %>
+        <%= link_to new_ai_provider_path, class: "btn-secondary btn-sm" do %><%= icon(:plus, class: "size-4") %> Add provider<% end %>
+      <% end %>
+
+      <%= form_with model: @setting, url: settings_path, method: :patch, class: "space-y-6", data: { controller: "ai-gate" } do |form| %>
+        <%= form_errors(@setting) %>
+
+        <%= render layout: "settings/section", locals: { id: "ai-tasks", title: "AI Tasks", description: "Which provider and model each job uses. Private documents are never sent." } do %>
+          <%= render "settings/toggle", form: form, field: :ai_enabled, title: "Use AI", description: "Off means everything runs on this machine: local OCR and rule-based details. Research needs it on.",
+                data: { ai_gate_target: "toggle", action: "ai-gate#update" } %>
+          <% if AIProvider.exists? %>
+            <%= render "settings/ai_gated", ai_enabled: @setting.ai_enabled? do %>
+              <% Setting::TASKS.each do |task, label| %>
+                <%= render "ai_providers/task_row", setting: @setting, task: task, label: label %>
+              <% end %>
+            <% end %>
+          <% else %>
+            <p class="hint">Add a provider above to assign models.</p>
+          <% end %>
+          <%= render "settings/ai_gated", ai_enabled: @setting.ai_enabled?, inline_hint: true do %>
+            <%= render "settings/toggle", form: form, field: :ai_creates_types, title: "Let AI create new document types",
+                  description: "Useful while your library is new. Turn off once your types are settled; AI then only picks from existing ones.",
+                  aside: render("settings/ai_hint", ai_enabled: @setting.ai_enabled?) %>
+            <%= render "settings/toggle", form: form, field: :ai_creates_tags, title: "Let AI create new tags",
+                  description: "Useful while your library is new. Turn off once your tags are settled; AI then only picks from existing ones.",
+                  aside: render("settings/ai_hint", ai_enabled: @setting.ai_enabled?) %>
+          <% end %>
+        <% end %>
+
+        <%= render layout: "settings/section", locals: { id: "ocr", title: "OCR", description: "How text is read from scans and photos. Files with embedded text skip OCR." } do %>
+          <div>
+            <span class="label">Active OCR</span>
+            <p class="text-xl font-bold" id="active_ocr"><%= @setting.active_ocr_label %></p>
+            <p class="hint"><%= active_ocr_note(@setting) %></p>
+          </div>
+          <div class="space-y-4" data-controller="reveal" data-reveal-when-value="docling">
+            <div>
+              <label class="label" for="setting_local_ocr_provider">Fallback engine</label>
+              <%= render "shared/select", name: "setting[local_ocr_provider]", value: @setting.local_ocr_provider, id: "setting_local_ocr_provider",
+                    options: Setting::LOCAL_OCR_PROVIDERS.invert.to_a, data: { reveal_target: "source", action: "change->reveal#update" } %>
+              <p class="hint"><%= fallback_explanation %></p>
+            </div>
+            <div data-reveal-target="content" <%= "hidden" unless @setting.local_ocr_provider == "docling" %>>
+              <%= form.label :docling_url, "Docling URL", class: "label" %>
+              <%= form.url_field :docling_url, no_autofill(placeholder: "http://docling:5001", class: "input font-mono", disabled: @setting.local_ocr_provider != "docling") %>
+              <p class="hint">The docling-serve container. In the bundled Docker Compose setup this is http://docling:5001.</p>
+            </div>
+          </div>
+          <%= render "settings/toggle", form: form, field: :searchable_pdf, title: "Make scans searchable", description: "Adds a text layer with Tesseract so text in the viewer can be selected and found." %>
+        <% end %>
+
+        <%= render layout: "settings/section", locals: { id: "page-cleanup", title: "Page Cleanup", description: "Fixes common scanning problems before text is read. Runs on this machine, and the original upload is always kept." } do %>
+          <%= render "settings/toggle", form: form, field: :auto_rotate_pages, title: "Turn pages upright", description: "Pages scanned upside down or sideways are turned. Only pages with enough text to be sure are changed." %>
+          <%= render "settings/toggle", form: form, field: :blank_page_detection, title: "Find blank pages", description: "Empty sheets and pages that only show print bleeding through are left out of OCR and offered for removal." %>
+          <%= render "settings/ai_gated", ai_enabled: @setting.ai_enabled?, inline_hint: true do %>
+            <%= render "settings/toggle", form: form, field: :blank_page_ai_check, title: "Check unclear pages with AI",
+                  description: "Pages the local check cannot settle are sent to the OCR model. Spends tokens.",
+                  aside: render("settings/ai_hint", ai_enabled: @setting.ai_enabled?) %>
+          <% end %>
+        <% end %>
+
+        <%= render layout: "settings/section", locals: { id: "review", title: "Review" } do %>
+          <%= render "settings/toggle", form: form, field: :always_require_review, title: "Send every new document to the inbox" %>
+          <div class="max-w-xs">
+            <%= form.label :review_confidence_threshold, "Review below confidence", class: "label" %>
+            <%= form.number_field :review_confidence_threshold, min: 0, max: 1, step: 0.05, placeholder: "0.7", class: "input" %>
+            <p class="hint">Between 0 and 1. AI details less certain than this go to the inbox.</p>
+          </div>
+        <% end %>
+
+        <%= render layout: "settings/section", locals: { id: "folder", title: "Ingest Folder", description: "Files dropped in the folder are added within a minute and then removed from it." } do %>
+          <%= render "settings/toggle", form: form, field: :ingest_enabled, title: "Watch a folder" %>
+          <div>
+            <%= form.label :ingest_dir, "Folder", class: "label" %>
+            <%= form.text_field :ingest_dir, no_autofill(placeholder: Rails.configuration.x.ingest_dir, class: "input font-mono", spellcheck: false) %>
+            <p class="hint">Leave empty to use <code class="break-all"><%= Rails.configuration.x.ingest_dir %></code>. With Docker, use a path inside the container that the compose file mounts.</p>
+          </div>
+          <div>
+            <span class="label flex items-center gap-1.5"><%= private_badge(interactive: false) %> folder</span>
+            <code class="block break-all text-xs"><%= @setting.private_ingest_path %></code>
+            <p class="hint">Files here are imported as private. It is created automatically.</p>
+          </div>
+        <% end %>
+
+        <div class="sticky bottom-4 flex justify-end">
+          <%= form.submit "Save settings", class: "btn-primary shadow-lg" %>
+        </div>
+      <% end %>
+    </div>
+  </div>

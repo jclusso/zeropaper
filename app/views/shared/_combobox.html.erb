@@ -1,0 +1,61 @@
+<%#
+  Searchable dropdown used for every choice in the app. The text box shows an
+  option's label; a hidden input carries its value and fires `change`, so
+  `data:` (Stimulus targets and actions) goes on that hidden input.
+
+  locals:
+    name:        field name of the hidden input
+    options:     [[label, value], ...]
+    value:       selected value
+    id:          id for the text box (labels point at it)
+    placeholder: shown when nothing is chosen
+    creatable:   true lets people type a new name; the value is then the label itself
+    clearable:   true adds a button that clears the choice
+    data:        data attributes for the hidden input
+    disabled:    disables both inputs
+    mono:        monospace option labels
+%>
+<% creatable = local_assigns.fetch(:creatable, false) %>
+<% clearable = local_assigns.fetch(:clearable, false) %>
+<% disabled = local_assigns.fetch(:disabled, false) %>
+<% choices = options.map { |label, option_value| [ label.to_s, (creatable ? label : option_value).to_s ] } %>
+<% current = value.to_s %>
+<% selected = choices.find { |_label, option_value| option_value == current } %>
+<% shown = selected&.first || (creatable ? current : "") %>
+<div class="relative" data-controller="combobox" data-combobox-creatable-value="<%= creatable %>">
+  <%= hidden_field_tag name, current, id: nil, disabled: disabled, data: (local_assigns[:data] || {}).merge(combobox_target: "value") %>
+  <el-autocomplete class="relative block">
+    <input type="text" <%= tag.attributes(id: local_assigns[:id], value: shown, placeholder: local_assigns[:placeholder] || "Choose", disabled: disabled) %>
+           class="input <%= clearable ? "pr-14" : "pr-9" %> <%= "font-mono" if local_assigns[:mono] %>"
+           <%= tag.attributes(no_autofill) %> spellcheck="false"
+           data-combobox-target="input" data-action="input->combobox#typed change->combobox#commit keydown->combobox#keydown focus->combobox#focused click->combobox#clicked blur->combobox#blurred">
+    <button type="button" class="absolute inset-y-0 right-0 flex items-center px-2.5 muted" aria-label="Show options" tabindex="-1">
+      <%= icon(:chevron_down, class: "size-4") %>
+    </button>
+    <el-options anchor="bottom start" popover data-combobox-target="list"
+                class="menu max-h-64 w-(--input-width) overflow-auto data-leave:transition data-leave:transition-discrete data-leave:duration-100 data-leave:ease-in data-closed:data-leave:opacity-0">
+      <% choices.each do |label, option_value| %>
+        <el-option value="<%= label %>" data-value="<%= option_value %>" data-label="<%= label %>" data-combobox-target="option" <%= "data-selected" if option_value == current && current.present? %>
+                   class="group/option menu-item relative pr-9 aria-selected:bg-muted data-selected:font-bold <%= "font-mono text-xs" if local_assigns[:mono] %>">
+          <span class="block truncate"><%= label %></span>
+          <span class="absolute inset-y-0 right-0 hidden items-center pr-3 text-strong-accent group-data-selected/option:flex"><%= icon(:check, class: "size-4") %></span>
+        </el-option>
+      <% end %>
+    </el-options>
+  </el-autocomplete>
+  <% if creatable %>
+    <%# Kept out of the list until a new name is typed, so filtering cannot show it. %>
+    <div hidden data-combobox-target="stash">
+      <el-option value="" data-combobox-target="create" class="menu-item text-strong-accent aria-selected:bg-muted">
+        <%= icon(:plus, class: "size-4") %><span class="truncate">Create “<span data-combobox-target="createLabel"></span>”</span>
+      </el-option>
+    </div>
+  <% end %>
+  <% if clearable %>
+    <button type="button" class="absolute inset-y-0 right-8 flex items-center px-1 muted hover:text-foreground" aria-label="Clear" tabindex="-1"
+            data-combobox-target="clear" data-action="combobox#clear" <%= "hidden" if current.blank? || disabled %>>
+      <%= icon(:x, class: "size-3.5") %>
+    </button>
+  <% end %>
+  <p class="menu absolute inset-x-0 top-full mt-1 px-2.5 py-2 text-sm muted" data-combobox-target="empty" hidden>No matches</p>
+</div>

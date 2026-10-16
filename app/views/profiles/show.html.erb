@@ -1,0 +1,77 @@
+<% content_for :title, "Profile" %>
+<div class="mx-auto max-w-3xl space-y-6">
+  <%= page_header "Profile", "Your account, appearance and sign-in methods." %>
+
+  <section class="card">
+    <div class="card-header"><h2 class="section-title">Account</h2></div>
+    <%= form_with model: @user, url: profile_path, method: :patch, class: "card-body space-y-5" do |form| %>
+      <%= form_errors(@user) %>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div><%= form.label :name, class: "label" %><%= form.text_field :name, required: true, placeholder: "your name", class: "input" %></div>
+        <div><%= form.label :email_address, "Email", class: "label" %><%= form.email_field :email_address, required: true, autocomplete: "username", placeholder: "you@example.com", class: "input" %></div>
+      </div>
+      <el-disclosure id="password-fields" class="block" <%= "hidden" unless @user.errors[:password].any? || @user.errors[:current_password].any? %>>
+        <div class="grid gap-4 rounded-sm border border-border bg-subtle p-4 sm:grid-cols-3">
+          <div><%= label_tag "user_current_password", "Current password", class: "label" %><%= password_field_tag "user[current_password]", nil, id: "user_current_password", autocomplete: "current-password", placeholder: "current password", class: "input" %></div>
+          <div><%= form.label :password, "New password", class: "label" %><%= form.password_field :password, autocomplete: "new-password", minlength: 8, maxlength: 72, placeholder: "new password", class: "input" %></div>
+          <div><%= form.label :password_confirmation, "Confirm", class: "label" %><%= form.password_field :password_confirmation, autocomplete: "new-password", maxlength: 72, placeholder: "confirm password", class: "input" %></div>
+        </div>
+      </el-disclosure>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <button type="button" command="--toggle" commandfor="password-fields" class="btn-ghost btn-sm"><%= icon(:key, class: "size-4") %> Change password</button>
+        <%= form.submit "Save", class: "btn-primary" %>
+      </div>
+    <% end %>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <h2 class="section-title">Passkeys</h2>
+      <p class="mt-1 text-sm muted">Sign in with Touch ID, Face ID, Windows Hello or a security key instead of a password.</p>
+    </div>
+    <div class="card-body">
+      <% if @user.passkeys.any? %>
+        <ul class="mb-5 divide-y divide-border border-y border-border">
+          <% @user.passkeys.order(:created_at).each do |passkey| %>
+            <li class="flex items-center gap-3 py-3">
+              <%= icon(:key, class: "size-5 muted") %>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium"><%= passkey.name %></p>
+                <p class="text-xs muted">Added <%= passkey.created_at.to_date.to_fs(:long) %><%= ", last used #{time_ago_in_words(passkey.last_used_at)} ago" if passkey.last_used_at %></p>
+              </div>
+              <%= button_to "Remove", passkey_path(passkey), method: :delete, class: "btn-danger btn-sm", form: { data: { turbo_confirm: "Remove this passkey?" } } %>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+
+      <div class="flex flex-wrap items-end gap-3" data-controller="passkey" data-passkey-challenge-url-value="<%= passkeys_challenge_path %>" data-passkey-url-value="<%= passkeys_path %>">
+        <div class="min-w-48 flex-1">
+          <label class="label" for="passkey_name">Name</label>
+          <input id="passkey_name" class="input" placeholder="e.g. macbook" <%= tag.attributes(no_autofill(data: { passkey_target: "name" })) %>>
+        </div>
+        <button type="button" class="btn-secondary" data-action="passkey#register"><%= icon(:plus, class: "size-4") %> Add a passkey</button>
+        <p class="w-full text-sm text-danger" data-passkey-target="error" hidden></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header"><h2 class="section-title">Appearance</h2></div>
+    <%= form_with model: @user, url: profile_path, method: :patch, class: "card-body", data: { controller: "auto-submit", turbo: false } do |form| %>
+      <fieldset>
+        <legend class="label">Theme</legend>
+        <div class="grid gap-3 sm:grid-cols-3">
+          <% { "system" => :computer, "light" => :sun, "dark" => :moon }.each do |value, name| %>
+            <label class="group relative flex cursor-pointer items-center gap-3 rounded-sm border border-border bg-card px-4 py-3 transition has-checked:border-strong-accent has-checked:bg-strong-accent/[0.06]">
+              <%= form.radio_button :theme, value, class: "sr-only", data: { action: "auto-submit#submit" } %>
+              <%= icon(name, class: "size-5 muted group-has-checked:text-strong-accent") %>
+              <span class="text-sm font-medium"><%= ApplicationHelper::THEMES[value] %></span>
+            </label>
+          <% end %>
+        </div>
+      </fieldset>
+      <noscript><div class="mt-4 flex justify-end"><%= form.submit "Save", class: "btn-primary" %></div></noscript>
+    <% end %>
+  </section>
+</div>

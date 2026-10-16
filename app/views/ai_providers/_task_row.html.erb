@@ -1,0 +1,24 @@
+<% provider = setting.provider_for(task) %>
+<div class="grid gap-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] sm:items-start" data-controller="task-model"
+     data-task-model-url-value="<%= ai_provider_models_path("__PROVIDER__", task: task) %>">
+  <div>
+    <div class="mb-1.5 flex h-5 items-center gap-1.5">
+      <label class="label mb-0" for="setting_<%= task %>_provider_id"><%= label %></label>
+      <% if (task_description = AIProvidersHelper::TASK_DESCRIPTIONS[task.to_s]) %>
+        <%= render "shared/info_tip", text: task_description, id: "task_tip_#{task}", about: label %>
+      <% end %>
+    </div>
+    <%= render "shared/select", name: "setting[#{task}_provider_id]", value: provider&.id, id: "setting_#{task}_provider_id",
+          options: task_provider_options(task), placeholder: "Choose a provider",
+          data: { task_model_target: "provider", action: "change->task-model#providerChanged" } %>
+  </div>
+  <div>
+    <div class="mb-1.5 flex h-5 items-center"><span class="label mb-0">Model</span></div>
+    <%= turbo_frame_tag "model_#{task}", data: { task_model_target: "frame" }, hidden: provider.nil? && task.to_s == "vision" do %>
+      <%= render "ai_providers/model_picker", provider: provider, task: task, value: setting.model_for(task) %>
+    <% end %>
+    <% if task.to_s == "vision" %>
+      <p class="hint" data-task-model-target="none" <%= "hidden" if provider %>>The fallback engine does OCR.</p>
+    <% end %>
+  </div>
+</div>

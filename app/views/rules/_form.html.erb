@@ -1,0 +1,72 @@
+<%= form_with model: rule, class: "space-y-6", data: { controller: "rule-conditions" } do |form| %>
+  <%= form_errors(rule) %>
+
+  <section class="card">
+    <div class="card-body grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+      <div>
+        <%= form.label :name, class: "label" %>
+        <%= form.text_field :name, no_autofill(required: true, autofocus: rule.new_record?, placeholder: "e.g. bank statements", class: "input") %>
+      </div>
+      <div class="sm:w-56"><%= render "shared/switch", form: form, field: :enabled, title: "Enabled", description: "Turned off, the rule never runs." %></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header flex flex-wrap items-center gap-3">
+      <h2 class="section-title flex-1">When</h2>
+      <div class="w-48">
+        <%= render "shared/select", name: "rule[match_mode]", value: rule.match_mode, options: Rule::MATCH_MODES.invert.to_a, id: "rule_match_mode" %>
+      </div>
+      <span class="text-xs muted">match</span>
+    </div>
+    <div class="card-body space-y-3">
+      <div class="space-y-3" data-rule-conditions-target="list">
+        <% (rule.conditions.presence || [ { "field" => "content", "operator" => "any", "value" => "" } ]).each_with_index do |condition, index| %>
+          <%= render "rules/condition", condition: condition, index: index %>
+        <% end %>
+      </div>
+      <button type="button" class="btn-ghost btn-sm" data-action="rule-conditions#add"><%= icon(:plus, class: "size-4") %> Add condition</button>
+      <p class="hint">Text matching ignores case and matches whole words. Separate words with spaces or commas.</p>
+    </div>
+    <template data-rule-conditions-target="template">
+      <%= render "rules/condition", condition: { "field" => "content", "operator" => "any", "value" => "" }, index: "__INDEX__" %>
+    </template>
+  </section>
+
+  <section class="card">
+    <div class="card-header"><h2 class="section-title">Then</h2></div>
+    <div class="card-body space-y-5">
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label class="label" for="rule_correspondent_id">Set correspondent</label>
+          <%= render "shared/combobox", name: "rule[correspondent_id]", value: rule.correspondent_id, id: "rule_correspondent_id",
+                options: Correspondent.alphabetically.pluck(:name, :id), placeholder: "Leave as is", clearable: true %>
+        </div>
+        <div>
+          <label class="label" for="rule_document_type_id">Set type</label>
+          <%= render "shared/combobox", name: "rule[document_type_id]", value: rule.document_type_id, id: "rule_document_type_id",
+                options: DocumentType.alphabetically.pluck(:name, :id), placeholder: "Leave as is", clearable: true %>
+        </div>
+      </div>
+
+      <div>
+        <label class="label" for="rule_tag_ids">Add tags</label>
+        <%= render "shared/tag_input", name: "rule[tag_ids][]", selected: rule.tags.alphabetically, by: :id, id: "rule_tag_ids" %>
+        <p class="hint">Choose from existing tags. <%= link_to "Create a tag", new_tag_path, class: "link" %> first to add a new one.</p>
+      </div>
+
+      <%= render "shared/switch", form: form, field: :mark_private, title: safe_join([ "Mark as ", private_badge(interactive: false) ]),
+            description: "Checked on this machine before anything is sent: filename and source when the file arrives, text after local OCR." %>
+    </div>
+  </section>
+
+  <div class="flex items-center justify-between border-t border-border pt-5">
+    <% if rule.persisted? %>
+      <%= link_to "Delete rule", rule_path(rule), class: "btn-danger", data: { turbo_method: :delete, turbo_confirm: "Delete the rule “#{rule.name}”? Documents keep what it already set." } %>
+    <% else %><span></span><% end %>
+    <div class="flex gap-2">
+      <%= link_to "Cancel", rules_path, class: "btn-ghost" %>
+      <%= form.submit "Save", class: "btn-primary" %>
+    </div>
+  </div>
+<% end %>

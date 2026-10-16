@@ -1,0 +1,24 @@
+<%# Model combobox: pick one of the provider's models or type any model id. With no list to offer it is a plain text field. %>
+<% options = provider ? provider.model_options(task) : [] %>
+<% field = capture do %>
+  <input type="text" name="setting[<%= task %>_model]" value="<%= value %>" id="setting_<%= task %>_model" class="input <%= "pr-9" if options.any? %> font-mono"
+         <%= tag.attributes(no_autofill) %> spellcheck="false" placeholder="<%= options.any? ? "choose or type a model" : "type a model id" %>">
+<% end %>
+<% if options.any? %>
+  <el-autocomplete class="relative block">
+    <%= field %>
+    <button type="button" class="absolute inset-y-0 right-0 flex items-center px-2.5 muted" aria-label="Show models">
+      <%= icon(:chevron_down, class: "size-4") %>
+    </button>
+    <el-options anchor="bottom start" popover class="menu max-h-64 w-(--input-width) overflow-auto data-leave:transition data-leave:transition-discrete data-leave:duration-100 data-leave:ease-in data-closed:data-leave:opacity-0">
+      <% options.each do |model| %>
+        <el-option value="<%= model %>" class="menu-item font-mono text-xs aria-selected:font-bold"><%= model %></el-option>
+      <% end %>
+    </el-options>
+  </el-autocomplete>
+<% else %>
+  <%= field %>
+<% end %>
+<% if provider && options.empty? %>
+  <p class="hint">Could not list <%= provider.label %> models. Type the model id.</p>
+<% end %>

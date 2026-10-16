@@ -1,0 +1,34 @@
+<%# locals: (pairs:) %>
+<% if pairs.any? %>
+  <% noun = resource_class.model_name.human.downcase %>
+  <section class="card mb-6" aria-labelledby="similar-names-title">
+    <div class="card-header flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h2 id="similar-names-title" class="section-title">Similar names</h2>
+        <p class="mt-1 text-xs muted">These might be the same <%= noun %>. Merging moves documents and rules onto the one you keep.</p>
+      </div>
+    </div>
+    <ul class="divide-y divide-border">
+      <% pairs.each do |pair| %>
+        <li class="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 sm:px-6" id="<%= "similar_pair_#{[ pair.keep.id, pair.merge.id ].minmax.join("_")}" %>">
+          <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-sm">
+            <span class="font-medium"><%= pair.merge.name %></span>
+            <span class="text-xs muted tabular-nums">(<%= pluralize(pair.merge.documents_count.to_i, "document") %>)</span>
+            <%= icon(:arrow_right, class: "size-4 muted") %>
+            <span class="font-bold"><%= pair.keep.name %></span>
+            <span class="text-xs muted tabular-nums">(<%= pluralize(pair.keep.documents_count.to_i, "document") %>)</span>
+            <span class="badge-slate"><%= pair.reason %></span>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <%= button_to "Dismiss", polymorphic_path([ resource_class.model_name.singular.to_sym, :merge_dismissals ]),
+                  params: { keep_id: pair.keep.id, merge_id: pair.merge.id }, class: "btn-ghost btn-sm", title: "These are different, stop suggesting them",
+                  form: { data: { turbo_confirm: "“#{pair.merge.name}” and “#{pair.keep.name}” are different #{noun.pluralize} and won’t be suggested again.",
+                                  turbo_confirm_title: "Keep them separate?", turbo_confirm_button: "Dismiss" } } %>
+            <%= render "taxonomy/merge_button", from: pair.keep, into: pair.merge, label: "Keep “#{pair.merge.name}” instead", button_class: "btn-secondary btn-sm" %>
+            <%= render "taxonomy/merge_button", from: pair.merge, into: pair.keep, label: "Merge", button_class: "btn-primary btn-sm" %>
+          </div>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+<% end %>

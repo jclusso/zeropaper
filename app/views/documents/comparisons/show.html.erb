@@ -1,0 +1,58 @@
+<% content_for :title, "Compare documents" %>
+<% comparison = document_comparison(@document, @other) %>
+
+<div class="mx-auto max-w-6xl space-y-6">
+  <div class="flex items-center gap-3">
+    <%= link_to @document, class: "btn-icon", "aria-label": "Back to the document" do %><%= icon(:chevron_left, class: "size-4") %><% end %>
+    <div class="min-w-0">
+      <h1 class="page-title">Compare documents</h1>
+      <p class="mt-1 text-sm muted">Decide whether these are the same document and which one to keep.</p>
+    </div>
+  </div>
+
+  <section class="card card-body flex flex-wrap items-center gap-x-6 gap-y-3" id="comparison-summary">
+    <div>
+      <p class="text-3xl font-bold tabular-nums <%= comparison.similarity >= 90 ? "text-warning" : "text-foreground" %>"><%= comparison.similarity %>%</p>
+      <p class="text-xs muted">similar by <%= comparison.similarity_basis %></p>
+    </div>
+    <ul class="flex flex-wrap gap-2">
+      <% comparison.facts.each do |fact| %>
+        <li class="badge-slate" data-comparison-fact><%= fact %></li>
+      <% end %>
+    </ul>
+  </section>
+
+  <div class="grid gap-4 md:grid-cols-2">
+    <%= render "documents/comparisons/column", document: @document, other: @other, heading: "This document" %>
+    <%= render "documents/comparisons/column", document: @other, other: @document, heading: @document.duplicate_of == @other ? "Possible original" : "Other document" %>
+  </div>
+
+  <section class="card overflow-x-auto">
+    <table class="w-full min-w-[36rem] text-sm">
+      <thead class="bg-card-header text-left text-xs uppercase tracking-wide muted">
+        <tr>
+          <th class="w-40 px-4 py-2.5 font-semibold"><span class="sr-only">Detail</span></th>
+          <th class="px-4 py-2.5 font-semibold">This document</th>
+          <th class="px-4 py-2.5 font-semibold"><%= @document.duplicate_of == @other ? "Possible original" : "Other document" %></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-border">
+        <% comparison.rows(self).each do |row| %>
+          <tr class="<%= row.same? ? "muted" : "bg-warning/[0.06]" %>" data-comparison-row="<%= row.label %>" data-same="<%= row.same? %>">
+            <th scope="row" class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide <%= row.same? ? "" : "text-warning" %>"><%= row.label %></th>
+            <td class="px-4 py-2.5 <%= "font-medium text-foreground" unless row.same? %>"><%= row.left.presence || "None" %></td>
+            <td class="px-4 py-2.5 <%= "font-medium text-foreground" unless row.same? %>"><%= row.right.presence || "None" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card flex flex-col items-center gap-2 bg-card-header px-5 py-4 text-center sm:px-6" id="comparison-actions">
+    <p class="text-sm muted">Use <strong class="text-foreground">Keep this one</strong> under the document you want. If they are different documents, keep both.</p>
+    <% if @document.duplicate_of == @other %>
+      <%= button_to "Not duplicates, keep both", document_duplicate_dismissal_path(@document), class: "btn-secondary btn-sm",
+            form: { data: { turbo_confirm: "Keep both documents and stop flagging them as duplicates?", turbo_confirm_title: "Not duplicates?", turbo_confirm_button: "Keep both" } } %>
+    <% end %>
+  </section>
+</div>

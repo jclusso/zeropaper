@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="system" class="h-full">
+  <head>
+    <%= render "layouts/head" %>
+  </head>
+
+  <body class="bg-grid h-full">
+    <div class="flex min-h-full flex-col items-center justify-center px-4 py-12">
+      <div class="mb-8 flex items-center gap-2.5">
+        <%= render "layouts/logo" %>
+        <span class="text-lg font-bold tracking-tight">ZeroPaper</span>
+      </div>
+      <div class="w-full <%= content_for?(:wide) ? "max-w-xl" : "max-w-sm" %>">
+        <%= render "layouts/flash" %>
+        <%= yield %>
+      </div>
+    </div>
+    <%= render "layouts/toasts" %>
+    <%= render "layouts/confirm" %>
+  </body>
+</html>

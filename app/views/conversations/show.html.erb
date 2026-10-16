@@ -1,0 +1,28 @@
+<% content_for :title, @conversation.title %>
+<% content_for :full_bleed, true %>
+<%= turbo_stream_from @conversation %>
+<%= render layout: "conversations/shell", locals: { conversations: @conversations, current: @conversation } do %>
+  <header class="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4 sm:px-6">
+    <%= link_to conversations_path, class: "btn-icon lg:hidden", "aria-label": "All research" do %><%= icon(:chevron_left, class: "size-4") %><% end %>
+    <h1 class="min-w-0 flex-1 truncate text-sm font-semibold" title="<%= @conversation.title %>"><%= @conversation.title %></h1>
+    <%= button_to conversation_path(@conversation), method: :delete, class: "btn-icon-danger", "aria-label": "Delete conversation",
+          form: { data: { turbo_confirm: "Delete this conversation? Its answers can't be recovered.", turbo_confirm_button: "Delete conversation" } } do %>
+      <%= icon(:trash, class: "size-4") %>
+    <% end %>
+  </header>
+
+  <div class="relative min-h-0 flex-1 overflow-y-auto" data-chat-target="scroller" data-action="scroll->chat#scrolled">
+    <div class="mx-auto max-w-3xl space-y-8 px-4 pb-8 pt-8 sm:px-6" id="messages" data-chat-target="messages">
+      <%= render partial: "messages/message", collection: @conversation.messages, as: :message %>
+    </div>
+  </div>
+
+  <div class="pointer-events-none absolute inset-x-0 bottom-32 flex justify-center">
+    <button type="button" class="btn-secondary btn-sm pointer-events-auto shadow-lg" data-chat-target="jump" data-action="chat#jumpToLatest" hidden>
+      <%= icon(:chevron_down, class: "size-4") %> Jump to latest
+    </button>
+  </div>
+
+  <%= render "conversations/composer", url: conversation_messages_path(@conversation), placeholder: "ask a follow-up question",
+        disabled: @conversation.busy? %>
+<% end %>

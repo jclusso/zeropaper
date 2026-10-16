@@ -1,0 +1,39 @@
+<header class="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur sm:px-5">
+  <button type="button" class="btn-icon lg:hidden" data-action="sidebar#open" aria-label="Open navigation"><%= icon(:menu, class: "size-5") %></button>
+  <%= link_to root_path, class: "flex items-center gap-2.5 lg:w-[13.25rem]" do %>
+    <%= render "layouts/logo" %>
+    <span class="hidden text-base font-bold tracking-tight sm:inline">ZeroPaper</span>
+  <% end %>
+
+  <%= form_with url: search_path, method: :get, class: "relative max-w-xl flex-1", data: { turbo_frame: "_top" } do |form| %>
+    <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center muted"><%= icon(:search, class: "size-4") %></span>
+    <%= form.search_field :q, value: (params[:q] if controller_name == "searches"), placeholder: "search documents", **no_autofill(class: "input pl-9", "aria-label": "Search documents") %>
+  <% end %>
+
+  <div class="ml-auto flex items-center gap-2">
+    <%= link_to new_document_path, class: "btn-primary hidden sm:inline-flex" do %><%= icon(:upload, class: "size-4") %> Upload<% end %>
+
+    <el-dropdown class="relative">
+      <button type="button" class="btn-secondary h-9 gap-2 px-2.5 normal-case tracking-normal" aria-label="Account">
+        <span class="flex size-6 items-center justify-center rounded-xs bg-strong-accent text-[0.7rem] font-bold text-strong-accent-foreground"><%= current_user&.name.to_s.first.upcase %></span>
+        <span class="hidden max-w-32 truncate text-sm font-medium md:inline"><%= current_user&.name %></span>
+        <%= icon(:chevron_down, class: "size-3.5 muted") %>
+      </button>
+      <el-menu anchor="bottom end" popover class="menu w-56">
+        <div class="border-b border-border px-2.5 py-2">
+          <p class="truncate text-sm font-medium"><%= current_user&.name %></p>
+          <p class="truncate text-xs muted"><%= current_user&.email_address %></p>
+        </div>
+        <div class="py-1">
+          <%= link_to profile_path, class: "menu-item" do %><%= icon(:user, class: "size-4 muted") %> Profile<% end %>
+          <% if current_user&.admin? %>
+            <%= link_to settings_path, class: "menu-item" do %><%= icon(:cog, class: "size-4 muted") %> Admin<% end %>
+          <% end %>
+        </div>
+        <div class="border-t border-border pt-1">
+          <%= button_to session_path, method: :delete, class: "menu-item", form_class: "contents" do %><%= icon(:logout, class: "size-4 muted") %> Sign out<% end %>
+        </div>
+      </el-menu>
+    </el-dropdown>
+  </div>
+</header>

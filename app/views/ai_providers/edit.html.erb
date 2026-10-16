@@ -1,0 +1,14 @@
+<% content_for :title, "Edit #{@provider.name}" %>
+<div>
+  <%= page_header "Edit #{@provider.name}" %>
+  <div class="card card-body">
+    <%= form_with model: @provider, url: ai_provider_path(@provider), method: :patch, class: "space-y-6", data: { turbo: false } do |form| %>
+      <%= form_errors(@provider) %>
+      <%= render "ai_providers/fields", form: form, provider: @provider %>
+      <div class="flex justify-end gap-2 border-t border-border pt-5">
+        <%= link_to "Cancel", settings_path(anchor: "ai"), class: "btn-ghost" %>
+        <%= form.submit "Save", class: "btn-primary" %>
+      </div>
+    <% end %>
+  </div>
+</div>

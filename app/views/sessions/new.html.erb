@@ -1,0 +1,30 @@
+<% content_for :title, "Sign in" %>
+<div class="card card-body">
+  <h1 class="text-lg font-bold">Sign in</h1>
+  <p class="mt-1 text-sm muted">Welcome back to your archive.</p>
+
+  <div class="mt-6" data-controller="passkey" data-passkey-challenge-url-value="<%= sessions_passkey_challenge_path %>" data-passkey-url-value="<%= sessions_passkey_path %>">
+    <button type="button" class="btn-secondary w-full" data-action="passkey#signIn">
+      <%= icon(:fingerprint, class: "size-4") %> Sign in with a passkey
+    </button>
+    <p class="mt-2 text-sm text-danger" data-passkey-target="error" hidden></p>
+    <div class="my-6 flex items-center gap-3 text-xs uppercase tracking-wider muted">
+      <span class="h-px flex-1 bg-border"></span>or<span class="h-px flex-1 bg-border"></span>
+    </div>
+  </div>
+
+  <%= form_with url: session_path, class: "space-y-4" do |form| %>
+    <div>
+      <%= form.label :email_address, "Email", class: "label" %>
+      <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username webauthn", value: params[:email_address], placeholder: "you@example.com", class: "input" %>
+    </div>
+    <div>
+      <div class="flex items-center justify-between">
+        <%= form.label :password, class: "label" %>
+        <%= link_to "Forgot password?", new_password_path, class: "text-xs link mb-1.5" %>
+      </div>
+      <%= form.password_field :password, required: true, autocomplete: "current-password", maxlength: 72, placeholder: "your password", class: "input" %>
+    </div>
+    <%= form.submit "Sign in", class: "btn-primary w-full" %>
+  <% end %>
+</div>

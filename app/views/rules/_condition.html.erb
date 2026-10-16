@@ -1,0 +1,20 @@
+<% source = condition["field"] == "source" %>
+<% prefix = "rule[conditions][#{index}]" %>
+<% text_operators = Rule::OPERATORS.slice(*Rule::TEXT_OPERATORS).invert.to_a %>
+<div class="grid gap-2 rounded-sm border border-border bg-subtle p-2 sm:grid-cols-[10rem_11rem_1fr_auto]" data-rule-conditions-target="row">
+  <%= render "shared/select", name: "#{prefix}[field]", value: condition["field"], options: Rule::FIELDS.invert.to_a, id: "rule_conditions_#{index}_field",
+        data: { action: "change->rule-conditions#fieldChanged" } %>
+  <div data-role="text-operator" <%= "hidden" if source %>>
+    <%= render "shared/select", name: "#{prefix}[operator]", value: (source ? "any" : condition["operator"]), options: text_operators, disabled: source %>
+  </div>
+  <div data-role="source-operator" <%= "hidden" unless source %>>
+    <%= render "shared/select", name: "#{prefix}[operator]", value: "is", options: [ [ Rule::OPERATORS["is"], "is" ] ], disabled: !source %>
+  </div>
+  <div data-role="text-value" <%= "hidden" if source %>>
+    <input type="text" name="<%= prefix %>[value]" value="<%= condition["value"] unless source %>" class="input" placeholder="statement, iban" aria-label="Value" <%= tag.attributes(no_autofill) %> <%= "disabled" if source %>>
+  </div>
+  <div data-role="source-value" <%= "hidden" unless source %>>
+    <%= render "shared/select", name: "#{prefix}[value]", value: (condition["value"] if source), options: Rule::SOURCES.invert.to_a, placeholder: "Choose a source", disabled: !source %>
+  </div>
+  <button type="button" class="btn-icon self-center justify-self-end" data-action="rule-conditions#remove" aria-label="Remove condition"><%= icon(:x, class: "size-4") %></button>
+</div>

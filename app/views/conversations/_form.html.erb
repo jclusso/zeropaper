@@ -1,0 +1,10 @@
+<%# Composer. Enter sends, Shift+Enter adds a line; chat_controller grows it and locks it while an answer streams. %>
+<%= form_with url: url, class: "relative", data: { action: "keydown->chat#keydown", chat_target: "form" } do |form| %>
+  <%= form.label :question, placeholder, class: "sr-only" %>
+  <%= form.text_area :question, rows: 1, required: true, placeholder: placeholder, autofocus: true,
+        **no_autofill(data: { chat_target: "input", action: "input->chat#resize" }), disabled: local_assigns[:disabled],
+        class: "textarea block max-h-60 min-h-14 resize-none py-4 pl-4 pr-14 text-sm leading-6 shadow-lg" %>
+  <button type="submit" class="btn-primary absolute bottom-2.5 right-2.5 size-9 p-0" aria-label="Send" data-chat-target="send" <%= "disabled" if local_assigns[:disabled] %>>
+    <%= icon(:paper_plane, class: "size-4") %>
+  </button>
+<% end %>

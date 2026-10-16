@@ -1,0 +1,8 @@
+<%# Admin pages: the app shell with the admin menu beside the page. %>
+<% content_for :admin_page do %>
+  <div class="mx-auto flex max-w-6xl gap-8">
+    <%= render "admin/nav" %>
+    <div class="min-w-0 flex-1"><%= yield %></div>
+  </div>
+<% end %>
+<%= render template: "layouts/application", locals: { admin_page: true } %>

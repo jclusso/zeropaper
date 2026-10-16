@@ -1,0 +1,27 @@
+<%# Provider fields, shared by Settings and the setup wizard. %>
+<div class="space-y-4" data-controller="provider-kind" data-provider-kind-requirements-value="<%= provider_kind_requirements %>">
+  <div class="grid gap-4 sm:grid-cols-2">
+    <div>
+      <label class="label" for="ai_provider_kind">Provider</label>
+      <%= render "shared/select", name: "ai_provider[kind]", value: provider.kind, id: "ai_provider_kind", options: provider_kind_options,
+            data: { provider_kind_target: "kind", action: "change->provider-kind#update" } %>
+    </div>
+    <div>
+      <%= form.label :name, class: "label" %>
+      <%= form.text_field :name, no_autofill(class: "input", placeholder: "defaults to the provider's name") %>
+    </div>
+  </div>
+
+  <div data-provider-kind-target="key">
+    <%= form.label :api_key, "API key", class: "label" %>
+    <%= api_key_field(form, provider) %>
+    <p class="hint" data-provider-kind-target="keyRequirement"></p>
+  </div>
+
+  <div data-provider-kind-target="baseUrl">
+    <%= form.label :base_url, "Address", class: "label" %>
+    <%= form.url_field :base_url, no_autofill(class: "input font-mono", placeholder: "http://ollama:11434") %>
+    <p class="hint" data-provider-kind-target="baseUrlRequirement"></p>
+  </div>
+  <button type="button" class="link text-xs" data-provider-kind-target="customEndpoint" data-action="provider-kind#revealEndpoint">Use a custom endpoint</button>
+</div>

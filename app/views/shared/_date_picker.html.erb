@@ -1,0 +1,59 @@
+<%#
+  Date field with a calendar popover, styled like the other dropdowns. The
+  visible text field shows a friendly date and accepts typed dates; a hidden
+  field carries the real value (YYYY-MM-DD) under `name`, and fires `change`
+  when it changes, so form actions such as auto-submit keep working.
+
+  locals:
+    name:        param name for the hidden field
+    value:       a Date or "YYYY-MM-DD" string, or nil
+    id:          id for the text field (labels point at it)
+    placeholder: text when empty (default "Choose a date")
+    clearable:   show a clear button when set (default true)
+    min:, max:   optional bounds, Date or "YYYY-MM-DD"
+    data:        data attributes for the hidden field, e.g. { action: "change->auto-submit#submit" }
+%>
+<% date = local_assigns[:value].is_a?(Date) ? local_assigns[:value] : (Date.iso8601(local_assigns[:value].to_s) rescue nil) %>
+<% iso = ->(bound) { bound.respond_to?(:iso8601) ? bound.iso8601 : bound.to_s.presence } %>
+<% clearable = local_assigns.fetch(:clearable, true) %>
+<div class="relative" data-controller="date-picker"
+     data-date-picker-clearable-value="<%= clearable %>"
+     <%= tag.attributes(data: { date_picker_min_value: iso.(local_assigns[:min]), date_picker_max_value: iso.(local_assigns[:max]) }.compact) %>>
+  <%= hidden_field_tag name, date&.iso8601, id: nil, data: (local_assigns[:data] || {}).merge(date_picker_target: "hidden") %>
+
+  <div class="relative">
+    <input type="text" <%= tag.attributes(id: local_assigns[:id], value: date&.strftime("%b %-d, %Y"), placeholder: local_assigns[:placeholder] || "Choose a date") %>
+           class="input pr-16" <%= tag.attributes(no_autofill) %> spellcheck="false"
+           aria-haspopup="dialog" aria-expanded="false" data-date-picker-target="input"
+           data-action="keydown->date-picker#inputKeydown blur->date-picker#inputBlurred click->date-picker#open">
+    <div class="absolute inset-y-0 right-0 flex items-center gap-0.5 pr-1">
+      <button type="button" class="date-picker-icon" aria-label="Clear date" tabindex="-1" data-date-picker-target="clear"
+              data-action="date-picker#clear" <%= "hidden" unless clearable && date %>><%= icon(:x, class: "size-3.5") %></button>
+      <button type="button" class="date-picker-icon" aria-label="Open calendar" tabindex="-1" data-action="date-picker#toggle"><%= icon(:calendar, class: "size-4") %></button>
+    </div>
+  </div>
+
+  <div popover="manual" role="dialog" aria-label="Choose a date" class="date-picker-panel" data-date-picker-target="panel"
+       data-action="keydown->date-picker#panelKeydown">
+    <div class="flex items-center gap-1">
+      <button type="button" class="date-picker-nav" aria-label="Previous year" data-action="date-picker#previousYear"><%= icon(:chevron_left, class: "size-3.5") %><%= icon(:chevron_left, class: "-ml-2.5 size-3.5") %></button>
+      <button type="button" class="date-picker-nav" aria-label="Previous month" data-action="date-picker#previousMonth"><%= icon(:chevron_left, class: "size-4") %></button>
+      <p class="flex-1 text-center text-sm font-bold" aria-live="polite" data-date-picker-target="title"></p>
+      <button type="button" class="date-picker-nav" aria-label="Next month" data-action="date-picker#nextMonth"><%= icon(:chevron_right, class: "size-4") %></button>
+      <button type="button" class="date-picker-nav" aria-label="Next year" data-action="date-picker#nextYear"><%= icon(:chevron_right, class: "size-3.5") %><%= icon(:chevron_right, class: "-ml-2.5 size-3.5") %></button>
+    </div>
+
+    <div class="mt-2 grid grid-cols-7 text-center text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground" aria-hidden="true">
+      <% %w[Su Mo Tu We Th Fr Sa].each do |day| %><span class="py-1"><%= day %></span><% end %>
+    </div>
+    <div class="grid grid-cols-7 gap-0.5" role="grid" data-date-picker-target="grid"></div>
+    <template data-date-picker-target="dayTemplate">
+      <button type="button" role="gridcell" tabindex="-1" class="date-picker-day" data-action="date-picker#pick"></button>
+    </template>
+
+    <div class="mt-2 flex items-center justify-between border-t border-border pt-2">
+      <button type="button" class="btn-ghost btn-sm" data-action="date-picker#today">Today</button>
+      <button type="button" class="btn-ghost btn-sm" data-action="date-picker#clear" <%= "hidden" unless clearable %>>Clear</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,7 @@
+<%# locals: (document:) %>
+<div class="flex items-center gap-1.5">
+  <%= button_to "Restart", document_reprocessing_path(document), class: "btn-secondary btn-sm",
+        form: { data: { turbo_confirm: "Start processing this document again from the beginning?", turbo_confirm_title: "Restart processing", turbo_confirm_button: "Restart" } } %>
+  <%= button_to "Stop", document_processing_path(document), method: :delete, class: "btn-danger btn-sm",
+        form: { data: { turbo_confirm: "The current step finishes, then processing stops. You can retry later.", turbo_confirm_title: "Stop processing", turbo_confirm_button: "Stop" } } %>
+</div>

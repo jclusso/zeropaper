@@ -1,0 +1,37 @@
+<% content_for :title, @query.presence || "Search" %>
+<div class="mx-auto max-w-5xl">
+  <%= form_with url: search_path, method: :get, class: "mb-4" do |form| %>
+    <div class="flex flex-col gap-3 sm:flex-row">
+      <div class="relative flex-1">
+        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center muted"><%= icon(:search, class: "size-5") %></span>
+        <%= form.search_field :q, value: @query, autofocus: @query.blank?, **no_autofill(placeholder: "search, e.g. “invoices from acme last spring”", class: "input py-3 pl-10 text-base") %>
+      </div>
+      <%= form.submit "Search", class: "btn-primary" %>
+    </div>
+    <p class="hint">Dates, correspondents and document types in your search fill in the filters. Use #tag for a tag.</p>
+  <% end %>
+
+  <% if @query.present? || @filters.any? %>
+    <%= render "documents/filters", filters: @filters %>
+
+    <% Array(flash[:read_as_filters]).each do |chip| %>
+      <p class="mb-3 text-sm muted">
+        “<%= chip["phrase"] %>” is set as a filter.
+        <%= link_to "Search it as words instead", search_path(q: [ @query, chip["phrase"] ].compact_blank.join(" "), literal: @literal + [ chip["phrase"] ],
+              **@filters.except(*chip["keys"]).symbolize_keys), class: "link" %>
+      </p>
+    <% end %>
+
+    <p class="mb-3 text-sm muted"><%= pluralize(@documents.size, "result") %><%= " (showing the top 60)" if @documents.size >= 60 %></p>
+    <% if @documents.empty? %>
+      <div class="card card-body py-12 text-center text-sm muted">Nothing matched. Try fewer or different words.</div>
+    <% else %>
+      <div class="space-y-2">
+        <% terms = @keywords.to_s.scan(/[[:alnum:]]{3,}/) %>
+        <% @documents.each do |document| %>
+          <%= render "documents/row", document: document, snippet: document.snippet_for(@keywords), terms: terms %>
+        <% end %>
+      </div>
+    <% end %>
+  <% end %>
+</div>

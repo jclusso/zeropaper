@@ -1,0 +1,3 @@
+<%= turbo_frame_tag "model_#{@task}" do %>
+  <%= render "ai_providers/model_picker", provider: @provider, task: @task, value: @value %>
+<% end %>

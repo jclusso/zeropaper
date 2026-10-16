@@ -1,0 +1,15 @@
+<% content_for :title, "Pages of #{@document.display_title}" %>
+<% if turbo_frame_request? %>
+  <%= turbo_frame_tag dom_id(@document, :pages) do %>
+    <%= render "documents/pages/editor", document: @document %>
+  <% end %>
+<% else %>
+  <div class="mx-auto max-w-5xl">
+    <%= link_to @document, class: "btn-ghost btn-sm mb-4" do %><%= icon(:chevron_left, class: "size-4") %> <%= @document.display_title %><% end %>
+    <div class="card">
+      <%= turbo_frame_tag dom_id(@document, :pages) do %>
+        <%= render "documents/pages/editor", document: @document %>
+      <% end %>
+    </div>
+  </div>
+<% end %>

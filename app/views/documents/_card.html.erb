@@ -1,0 +1,35 @@
+<%= link_to document, id: dom_id(document, :card), class: "group card card-interactive relative flex flex-col" do %>
+  <div class="relative aspect-[3/4] overflow-hidden border-b border-border bg-subtle">
+    <% if document.thumbnail.attached? %>
+      <%= image_tag document_thumbnail_path(document, v: document.thumbnail.blob.id), alt: "", loading: "lazy", class: "size-full object-cover object-top transition duration-300 group-hover:scale-[1.02] #{"opacity-60" if document.processing?}" %>
+    <% else %>
+      <div class="flex size-full items-center justify-center muted"><%= icon(document_kind_icon(document), class: "size-10") %></div>
+    <% end %>
+    <% if (progress = processing_progress(document)) %>
+      <div class="absolute inset-x-0 bottom-0 bg-card/95 px-3 py-2 backdrop-blur-sm">
+        <p class="flex items-center gap-1.5 text-xs font-medium">
+          <%= icon(:refresh, class: "size-3.5 animate-spin text-strong-accent") %>
+          <span class="truncate"><%= progress[:label] %></span>
+          <% if progress[:step] %><span class="ml-auto shrink-0 muted tabular-nums"><%= progress[:step] %>/<%= progress[:steps] %></span><% end %>
+        </p>
+        <div class="mt-1.5 h-1 bg-muted"><div class="h-full bg-strong-accent transition-[width] duration-500" style="width: <%= (progress[:fraction] * 100).round %>%"></div></div>
+      </div>
+    <% end %>
+  </div>
+  <%# Overlays sit outside the cropped thumbnail so the Private tooltip is not cut off, on a solid backing so they read on any page. %>
+  <% if document.private? || document.status == "failed" %>
+    <div class="absolute left-2 top-2 z-10 flex flex-wrap gap-1 rounded-sm bg-card/90 p-0.5 shadow-sm backdrop-blur-sm"><%= privacy_badge(document) %><%= status_badge(document) unless document.processing? %></div>
+  <% end %>
+  <% if document.needs_review? && !document.processing? %>
+    <span class="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-sm bg-card/90 px-1.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-warning shadow-sm backdrop-blur-sm"><span class="size-1.5 bg-warning"></span>Review</span>
+  <% end %>
+  <div class="flex flex-1 flex-col gap-1 p-3">
+    <p class="line-clamp-2 text-sm font-bold leading-snug"><%= document.display_title %></p>
+    <p class="truncate text-xs muted"><%= document.processing? ? "Processing…" : [ document.correspondent&.name, document.display_date.to_fs(:long) ].compact.join(" · ") %></p>
+    <% if document.tags.any? %>
+      <div class="mt-auto flex flex-wrap gap-1 pt-1.5">
+        <% document.tags.first(3).each do |document_tag| %><%= tag_chip(document_tag, link: false) %><% end %>
+      </div>
+    <% end %>
+  </div>
+<% end %>

@@ -1,0 +1,28 @@
+en:
+  activerecord:
+    models:
+      ai_provider: "AI provider"
+    attributes:
+      ai_provider:
+        api_key: "API key"
+        base_url: "Base URL"
+        kind: "Provider"
+      setting:
+        local_ocr_provider: "Fallback engine"
+        docling_url: "Docling URL"
+        searchable_pdf: "Searchable PDF"
+        ingest_dir: "Ingest folder"
+        extraction_model: "Document details model"
+        extraction_provider: "Document details provider"
+        research_model: "Research model"
+        research_provider: "Research provider"
+        vision_model: "OCR model"
+        vision_provider: "OCR provider"
+        review_confidence_threshold: "Review confidence"
+      user:
+        email_address: "Email"
+      rule:
+        match_mode: "Match"
+        mark_private: "Mark private"
+      document:
+        document_date: "Date"

@@ -1,0 +1,7 @@
+<%# locals: (from:, into:, label:, button_class:) %>
+<% noun = from.model_name.human.downcase %>
+<% moving = from.respond_to?(:documents_count) ? from.documents_count.to_i : nil %>
+<%= button_to label, polymorphic_path([ from, :merge ]), params: { target_id: into.id }, class: button_class,
+      form: { data: { turbo_frame: "_top",
+                      turbo_confirm: "Move #{moving ? pluralize(moving, "document") : "its documents"} from “#{from.name}” to “#{into.name}” and delete “#{from.name}”? Rules that use it are updated too.",
+                      turbo_confirm_title: "Merge #{noun.pluralize}?", turbo_confirm_button: "Merge" } } %>

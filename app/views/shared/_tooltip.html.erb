@@ -1,0 +1,11 @@
+<%# Wraps a badge (or any inline element) with a tooltip shown on hover or focus.
+    Use as a layout: render layout: "shared/tooltip", locals: { text: "…", tone: "danger" } do … end %>
+<% tooltip_id = "tip-#{SecureRandom.hex(4)}" %>
+<% border = { "danger" => "border-danger/40", "private" => "border-private/30" }.fetch(local_assigns[:tone].to_s, "border-border") %>
+<span class="group/tip relative inline-flex align-middle" tabindex="0" aria-describedby="<%= tooltip_id %>">
+  <%= yield %>
+  <span id="<%= tooltip_id %>" role="tooltip"
+    class="pointer-events-none invisible absolute left-0 top-full z-50 mt-1.5 w-72 rounded-sm border <%= border %> bg-popover p-3 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-foreground opacity-0 shadow-lg transition-opacity group-hover/tip:visible group-hover/tip:opacity-100 group-focus-within/tip:visible group-focus-within/tip:opacity-100">
+    <%= text %>
+  </span>
+</span>

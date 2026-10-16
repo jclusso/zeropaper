@@ -1,0 +1,26 @@
+<%= link_to document, class: "card card-interactive flex items-center gap-4 p-3" do %>
+  <div class="h-16 w-12 shrink-0 overflow-hidden rounded-xs border border-border bg-subtle">
+    <% if document.thumbnail.attached? %>
+      <%= image_tag document_thumbnail_path(document, v: document.thumbnail.blob.id), alt: "", loading: "lazy", class: "size-full object-cover object-top" %>
+    <% else %>
+      <div class="flex size-full items-center justify-center muted"><%= icon(document_kind_icon(document), class: "size-5") %></div>
+    <% end %>
+  </div>
+  <div class="min-w-0 flex-1">
+    <div class="flex flex-wrap items-center gap-2">
+      <p class="truncate text-sm font-bold"><%= document.display_title %></p>
+      <%= privacy_badge(document) %><%= status_badge(document) %>
+    </div>
+    <p class="mt-0.5 truncate text-xs muted">
+      <%= [ document.display_date.to_fs(:long), document.correspondent&.name, document.document_type&.name ].compact.join(" · ") %>
+    </p>
+    <% if local_assigns[:snippet].present? %>
+      <p class="mt-1 line-clamp-2 text-xs muted"><%= highlight(snippet, local_assigns[:terms].to_a, highlighter: '<mark class="bg-strong-accent/20 px-0.5 text-foreground">\1</mark>') %></p>
+    <% elsif document.summary.present? %>
+      <p class="mt-1 line-clamp-2 text-xs muted"><%= document.summary %></p>
+    <% end %>
+  </div>
+  <div class="hidden shrink-0 flex-wrap justify-end gap-1 sm:flex">
+    <% document.tags.first(3).each do |document_tag| %><%= tag_chip(document_tag, link: false) %><% end %>
+  </div>
+<% end %>

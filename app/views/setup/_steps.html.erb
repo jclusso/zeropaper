@@ -1,0 +1,11 @@
+<%# Step indicator for the setup wizard. current: 1, 2 or 3. %>
+<ol class="mb-6 grid grid-cols-3 gap-2 text-xs" aria-label="Setup steps">
+  <% [ "Account", "AI", "OCR" ].each.with_index(1) do |name, number| %>
+    <% state = number < current ? :done : (number == current ? :current : :next) %>
+    <li class="border-t-2 pt-2 <%= { done: "border-strong-accent", current: "border-strong-accent", next: "border-border" }[state] %>"
+        <%= "aria-current=step" if state == :current %>>
+      <span class="eyebrow <%= "text-strong-accent" unless state == :next %>">Step <%= number %></span>
+      <span class="mt-0.5 block font-bold <%= "muted" if state == :next %>"><%= name %></span>
+    </li>
+  <% end %>
+</ol>

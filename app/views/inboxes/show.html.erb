@@ -1,0 +1,59 @@
+<% content_for :title, "Inbox" %>
+<%= page_header "Inbox", "Documents that need a look: uncertain details, possible duplicates, blank pages and failures." %>
+
+<% if @documents.empty? %>
+  <div class="card card-body flex flex-col items-center py-16 text-center">
+    <span class="flex size-12 items-center justify-center rounded-sm border border-success/40 bg-success/10 text-success"><%= icon(:check, class: "size-6") %></span>
+    <p class="mt-4 font-medium">All caught up.</p>
+    <p class="mt-1 text-sm muted">New documents land here when something needs your attention.</p>
+  </div>
+<% else %>
+  <ul class="space-y-3">
+    <% @documents.each do |document| %>
+      <li class="card flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+        <%= link_to document, class: "flex min-w-0 flex-1 items-center gap-4" do %>
+          <div class="h-20 w-16 shrink-0 overflow-hidden rounded-xs border border-border bg-subtle">
+            <% if document.thumbnail.attached? %>
+              <%= image_tag document_thumbnail_path(document, v: document.thumbnail.blob.id), alt: "", loading: "lazy", class: "size-full object-cover object-top" %>
+            <% else %>
+              <div class="flex size-full items-center justify-center muted"><%= icon(document_kind_icon(document), class: "size-6") %></div>
+            <% end %>
+          </div>
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <p class="truncate font-bold"><%= document.display_title %></p>
+              <%= privacy_badge(document) %>
+            </div>
+            <p class="mt-0.5 truncate text-sm muted"><%= [ document.correspondent&.name || "No correspondent", document.document_date&.to_fs(:long) || "No date", document.document_type&.name ].compact.join(" · ") %></p>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              <% document.review_reasons.each do |reason| %>
+                <% label = Document::Reviewable::REASONS.fetch(reason, reason.humanize) %>
+                <% if reason == "failed" && document.error.present? %>
+                  <%= render layout: "shared/tooltip", locals: { text: document.error, tone: "danger" } do %><span class="badge-red cursor-help"><%= label %></span><% end %>
+                <% else %>
+                  <span class="<%= reason == "failed" ? "badge-red" : "badge-amber" %>"><%= label %></span>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+        <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+          <% if document.duplicate_of %>
+            <%= link_to "Compare", document_comparison_path(document), class: "btn-ghost btn-sm" %>
+            <%= button_to "Not a duplicate", document_duplicate_dismissal_path(document), class: "btn-secondary btn-sm" %>
+          <% end %>
+          <% if document.review_reasons.include?("blank_pages") && document.pdf? %>
+            <%= link_to "Review pages", document_path(document, review: "pages"), class: "btn-secondary btn-sm" %>
+          <% end %>
+          <% if document.status == "failed" %>
+            <%= button_to "Try again", document_reprocessing_path(document), class: "btn-secondary btn-sm" %>
+          <% end %>
+          <% if document.only_needs_a_check? %>
+            <%= button_to document_review_path(document), class: "btn-primary btn-sm" do %><%= icon(:check, class: "size-3.5") %> Looks good<% end %>
+          <% end %>
+          <%= button_to document_path(document), method: :delete, class: "btn-icon-danger", "aria-label": "Delete", form: { data: { turbo_confirm: "Delete “#{document.display_title}” permanently?" } } do %><%= icon(:trash, class: "size-4") %><% end %>
+        </div>
+      </li>
+    <% end %>
+  </ul>
+<% end %>

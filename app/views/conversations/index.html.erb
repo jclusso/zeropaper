@@ -1,0 +1,44 @@
+<% content_for :title, "Research" %>
+<% content_for :full_bleed, true %>
+<%= render layout: "conversations/shell", locals: { conversations: @conversations.first(30) } do %>
+  <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+    <div class="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-4 py-10 sm:px-6">
+      <div class="text-center">
+        <h1 class="text-2xl font-bold tracking-tight">What do you want to know?</h1>
+        <p class="mx-auto mt-3 max-w-xl text-sm muted">
+          Research searches and reads across your library, counts and totals what it finds, and links every claim to its source.
+        </p>
+      </div>
+
+      <% if Setting.instance.task_configured?(:research) %>
+        <div class="mt-8">
+          <%= render "conversations/form", url: conversations_path, placeholder: "ask about your documents" %>
+        </div>
+        <ul class="mt-4 flex flex-wrap justify-center gap-2" aria-label="Examples">
+          <% [ "Which insurance policies renew in the next three months?", "What did we spend on electricity in 2025?", "When was the car last serviced?" ].each do |example| %>
+            <li>
+              <button type="button" class="rounded-sm border border-border bg-card px-3 py-1.5 text-xs muted transition-colors hover:border-strong-accent/50 hover:text-foreground"
+                data-action="chat#fill" data-chat-text-param="<%= example %>"><%= example %></button>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <div class="card card-body mt-8 text-center text-sm">
+          Research needs AI turned on with a provider and model for research.
+          <% if current_user.admin? %><%= link_to "Set it up in Settings", settings_path(anchor: "ai-tasks"), class: "link" %><% else %>Ask an admin to set it up.<% end %>
+        </div>
+      <% end %>
+
+      <% if @conversations.any? %>
+        <div class="mt-12 lg:hidden">
+          <h2 class="mb-2 section-title">Recent</h2>
+          <ul class="card divide-y divide-border">
+            <% @conversations.first(15).each do |conversation| %>
+              <li><%= link_to conversation.title, conversation, class: "block truncate px-4 py-3 text-sm hover:bg-muted" %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>

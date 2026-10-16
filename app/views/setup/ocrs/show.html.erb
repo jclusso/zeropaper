@@ -1,0 +1,37 @@
+<% content_for :title, "Set up OCR" %>
+<% content_for :wide, true %>
+<%= render "setup/steps", current: 3 %>
+<div class="card card-body">
+  <h1 class="text-lg font-bold">OCR</h1>
+  <p class="mt-1 text-sm muted">Files with embedded text, like most PDFs and Word files, skip OCR. Scans and photos need it.</p>
+
+  <%= form_with model: @setting, url: setup_ocr_path, method: :patch, class: "mt-6 space-y-8" do |form| %>
+    <%= form_errors(@setting) %>
+
+    <div>
+      <span class="label">Active OCR</span>
+      <p class="text-xl font-bold" id="active_ocr"><%= @setting.active_ocr_label %></p>
+      <p class="hint"><%= active_ocr_note(@setting) %></p>
+    </div>
+
+    <fieldset class="space-y-3" data-controller="reveal" data-reveal-when-value="docling">
+      <legend class="section-title mb-1">Fallback engine</legend>
+      <p class="hint mb-3"><%= fallback_explanation %></p>
+      <% Setting::LOCAL_OCR_PROVIDERS.each_key do |key| %>
+        <%= render "setup/ocrs/engine", field: :local_ocr_provider, key: key, title: Setting::LOCAL_OCR_PROVIDERS[key],
+              description: AIProvidersHelper::LOCAL_OCR_DESCRIPTIONS[key], checked: @setting.local_ocr_provider == key, available: true,
+              data: { action: "change->reveal#update" } %>
+      <% end %>
+      <div data-reveal-target="content" <%= "hidden" unless @setting.local_ocr_provider == "docling" %>>
+        <%= form.label :docling_url, "Docling URL", class: "label" %>
+        <%= form.url_field :docling_url, no_autofill(placeholder: "http://docling:5001", class: "input font-mono", disabled: @setting.local_ocr_provider != "docling") %>
+        <p class="hint">The docling-serve container. In the bundled Docker Compose setup this is http://docling:5001.</p>
+      </div>
+    </fieldset>
+
+    <div class="flex items-center justify-between gap-3">
+      <%= link_to "Back", @setting.ai_enabled? ? setup_models_path : setup_ai_choice_path, class: "btn-ghost" %>
+      <%= form.submit "Finish setup", class: "btn-primary" %>
+    </div>
+  <% end %>
+</div>

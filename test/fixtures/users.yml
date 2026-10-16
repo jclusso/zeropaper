@@ -1,0 +1,15 @@
+<% password_digest = BCrypt::Password.create("password") %>
+
+one:
+  email_address: one@example.com
+  password_digest: <%= password_digest %>
+  name: Ada Admin
+  admin: true
+  webauthn_id: webauthn-one
+
+two:
+  email_address: two@example.com
+  password_digest: <%= password_digest %>
+  name: Bea Member
+  admin: false
+  webauthn_id: webauthn-two

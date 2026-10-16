@@ -1,0 +1,50 @@
+<% content_for :title, taxonomy_title(resource_class) %>
+<div class="mx-auto max-w-5xl">
+  <%= page_header taxonomy_title(resource_class), taxonomy_description(resource_class) do %>
+    <%= link_to url_for(action: :new), class: "btn-primary" do %><%= icon(:plus, class: "size-4") %> Add<% end %>
+  <% end %>
+
+  <% if @records.many? %>
+    <%= turbo_frame_tag "similar_names", src: polymorphic_path([ resource_class.model_name.singular.to_sym, :similar_names ]), loading: :lazy %>
+  <% end %>
+
+  <% if @records.empty? %>
+    <div class="card card-body py-12 text-center text-sm muted">Nothing here yet. Names are also added when AI fills in a document’s details.</div>
+  <% else %>
+    <div class="card overflow-x-auto">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Auto-match</th>
+            <th class="text-right">Documents</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @records.each do |record| %>
+            <tr>
+              <td class="font-bold">
+                <div class="flex flex-wrap items-center gap-2">
+                  <% if record.is_a?(Tag) %><%= tag_chip(record, link: false) %><% else %><%= record.name %><% end %>
+                  <% if record.is_a?(Correspondent) && record.private_documents? %><%= private_badge(label: "Private documents") %><% end %>
+                </div>
+              </td>
+              <td><%= record.auto_match? ? tag.span("By name", class: "badge-green") : tag.span("Off", class: "badge-slate") %></td>
+              <td class="text-right tabular-nums">
+                <% count = @counts[record.id].to_i %>
+                <%= count.positive? ? link_to(count, taxonomy_documents_path(record), class: "link") : tag.span("0", class: "muted") %>
+              </td>
+              <td class="text-right">
+                <div class="flex justify-end gap-1">
+                  <% if @records.many? %><%= link_to "Merge into…", polymorphic_path([ :new, record, :merge ]), class: "btn-ghost btn-sm" %><% end %>
+                  <%= link_to "Edit", url_for(action: :edit, id: record), class: "btn-ghost btn-sm" %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</div>

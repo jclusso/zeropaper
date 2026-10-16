@@ -1,0 +1,2 @@
+Decoders, fonts and character maps PDF.js loads at runtime, from pdfjs-dist 6.4.299.
+Update them together with vendor/javascript/pdfjs-dist.js and pdf.worker.js.

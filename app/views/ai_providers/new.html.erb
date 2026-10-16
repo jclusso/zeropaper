@@ -1,0 +1,14 @@
+<% content_for :title, "Add an AI provider" %>
+<div>
+  <%= page_header "Add an AI provider", "Keys are stored encrypted. Private documents are never sent to any provider." %>
+  <div class="card card-body">
+    <%= form_with model: @provider, url: ai_providers_path, class: "space-y-6", data: { turbo: false } do |form| %>
+      <%= form_errors(@provider) %>
+      <%= render "ai_providers/fields", form: form, provider: @provider %>
+      <div class="flex justify-end gap-2 border-t border-border pt-5">
+        <%= link_to "Cancel", settings_path(anchor: "ai"), class: "btn-ghost" %>
+        <%= form.submit "Save", class: "btn-primary" %>
+      </div>
+    <% end %>
+  </div>
+</div>

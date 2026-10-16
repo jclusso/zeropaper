@@ -1,0 +1,35 @@
+<%#
+  On/off switch over a real checkbox, so forms submit normally.
+
+  locals:
+    form + field:        builder field (adds the usual hidden "0"), or
+    name + checked:      a plain field (value "1")
+    title:               label text
+    description:         optional text under the title
+    data:                data attributes for the checkbox
+    id, disabled
+    inline:              switch before a short label, for toolbars
+    title_icon:          optional icon name shown before the title
+    aside:               optional HTML shown on the title's line, e.g. a hint
+%>
+<% data = local_assigns[:data] || {} %>
+<% box_options = { class: "switch-input", data: data, disabled: local_assigns[:disabled] } %>
+<% box_options[:id] = local_assigns[:id] if local_assigns[:id] %>
+<% box = local_assigns[:form] ? form.check_box(field, box_options) : check_box_tag(name, local_assigns.fetch(:value, "1"), local_assigns[:checked], box_options.merge(id: local_assigns[:id] || name.to_s.parameterize(separator: "_"))) %>
+<% track = capture do %>
+  <span class="switch"><%= box %><span class="switch-knob" aria-hidden="true"></span></span>
+<% end %>
+<% heading = capture do %>
+  <span class="flex flex-wrap items-center gap-x-1.5 <%= local_assigns[:inline] ? "text-sm" : "font-bold" %>"><%= icon(title_icon, class: "size-4 #{local_assigns[:title_icon_class]}") if local_assigns[:title_icon] %><%= title %><%= local_assigns[:aside] %></span>
+<% end %>
+<% if local_assigns[:inline] %>
+  <label class="inline-flex cursor-pointer items-center gap-2.5"><%= track %><%= heading %></label>
+<% else %>
+  <label class="flex cursor-pointer items-start justify-between gap-4 text-sm">
+    <span class="min-w-0">
+      <%= heading %>
+      <% if local_assigns[:description].present? %><span class="mt-0.5 block text-xs font-normal muted"><%= description %></span><% end %>
+    </span>
+    <%= track %>
+  </label>
+<% end %>

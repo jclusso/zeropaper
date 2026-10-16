@@ -1,0 +1,31 @@
+<div class="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 lg:hidden">
+  <span class="flex items-center gap-2.5"><%= render "layouts/logo" %><span class="font-bold">ZeroPaper</span></span>
+  <button type="button" class="btn-icon" data-action="sidebar#close" aria-label="Close navigation"><%= icon(:x) %></button>
+</div>
+
+<nav class="flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-5">
+  <div class="space-y-0.5">
+    <%= nav_link_to "Library", documents_path, icon: :library, active: controller_name == "documents" && action_name != "new" %>
+    <%= nav_link_to "Inbox", inbox_path, icon: :inbox, count: Document.in_inbox.count %>
+    <%= nav_link_to "Research", conversations_path, icon: :sparkles, active: controller_name.in?(%w[conversations messages]) %>
+    <%= nav_link_to "Upload", new_document_path, icon: :upload %>
+  </div>
+
+  <div>
+    <p class="eyebrow px-3 pb-2">Organize</p>
+    <div class="space-y-0.5">
+      <%= nav_link_to "Correspondents", correspondents_path, icon: :building, active: controller_name == "correspondents" %>
+      <%= nav_link_to "Document Types", document_types_path, icon: :document, active: controller_name == "document_types" %>
+      <%= nav_link_to "Tags", tags_path, icon: :tag, active: controller_name == "tags" %>
+      <%= nav_link_to "Rules", rules_path, icon: :rules, active: controller_name == "rules" %>
+    </div>
+  </div>
+
+  <% if current_user&.admin? %>
+    <div>
+      <div class="space-y-0.5">
+        <%= nav_link_to "Admin", settings_path, icon: :cog, active: controller_name.in?(%w[settings users exports restores ai_providers]) %>
+      </div>
+    </div>
+  <% end %>
+</nav>

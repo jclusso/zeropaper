@@ -1,0 +1,30 @@
+<% content_for :title, "Set up ZeroPaper" %>
+<% content_for :wide, true %>
+<%= render "setup/steps", current: 1 %>
+<div class="card card-body">
+  <h1 class="text-lg font-bold">Create the admin account</h1>
+  <p class="mt-1 text-sm muted">You can add other people later. Next you choose whether to use AI, then how scans are read.</p>
+
+  <%= form_with model: @user, url: setup_path, class: "mt-6 space-y-4" do |form| %>
+    <%= form_errors(@user) %>
+    <div>
+      <%= form.label :name, class: "label" %>
+      <%= form.text_field :name, required: true, autofocus: true, autocomplete: "name", placeholder: "your name", class: "input" %>
+    </div>
+    <div>
+      <%= form.label :email_address, "Email", class: "label" %>
+      <%= form.email_field :email_address, required: true, autocomplete: "username", placeholder: "you@example.com", class: "input" %>
+    </div>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div>
+        <%= form.label :password, class: "label" %>
+        <%= form.password_field :password, required: true, minlength: 8, maxlength: 72, autocomplete: "new-password", placeholder: "new password", class: "input" %>
+      </div>
+      <div>
+        <%= form.label :password_confirmation, "Confirm password", class: "label" %>
+        <%= form.password_field :password_confirmation, required: true, maxlength: 72, autocomplete: "new-password", placeholder: "confirm password", class: "input" %>
+      </div>
+    </div>
+    <%= form.submit "Continue", class: "btn-primary w-full" %>
+  <% end %>
+</div>

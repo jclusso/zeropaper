@@ -1,0 +1,62 @@
+<% content_for :title, "Library" %>
+<% @documents.select(&:processing?).each do |document| %>
+  <%= turbo_stream_from document %>
+<% end %>
+
+<%= page_header "Library", "#{number_with_delimiter(@total)} #{"document".pluralize(@total)}" do %>
+  <div class="inline-flex rounded-sm border border-border bg-card p-0.5">
+    <%= link_to documents_path(filter_query(@filters, view: nil)), class: ["flex h-8 items-center gap-1.5 rounded-xs px-2.5 text-xs font-semibold uppercase tracking-wide", @view == "grid" ? "bg-muted text-foreground" : "muted hover:text-foreground"], title: "Grid", "aria-label": "Grid view" do %><%= icon(:grid, class: "size-4") %><span class="hidden sm:inline">Grid</span><% end %>
+    <%= link_to documents_path(filter_query(@filters, view: "timeline")), class: ["flex h-8 items-center gap-1.5 rounded-xs px-2.5 text-xs font-semibold uppercase tracking-wide", @view == "timeline" ? "bg-muted text-foreground" : "muted hover:text-foreground"], title: "Timeline", "aria-label": "Timeline view" do %><%= icon(:timeline, class: "size-4") %><span class="hidden sm:inline">Timeline</span><% end %>
+  </div>
+  <%= link_to new_document_path, class: "btn-primary sm:hidden" do %><%= icon(:upload, class: "size-4") %> Upload<% end %>
+<% end %>
+
+<%= render "documents/filters", filters: @filters, view: @view %>
+
+<% if @documents.empty? %>
+  <div class="card card-body flex flex-col items-center py-16 text-center">
+    <%= icon(:library, class: "size-10 muted") %>
+    <% if @filters.any? %>
+      <p class="mt-4 font-medium">No documents match these filters.</p>
+      <%= link_to "Clear filters", documents_path(view: (@view if @view == "timeline")), class: "mt-2 text-sm link" %>
+    <% else %>
+      <p class="mt-4 font-medium">Your library is empty.</p>
+      <p class="mt-1 max-w-md text-sm muted">Upload scans, PDFs and office files, or drop them into the ingest folder. ZeroPaper reads them and fills in the details.</p>
+      <%= link_to new_document_path, class: "btn-primary mt-5" do %><%= icon(:upload, class: "size-4") %> Upload documents<% end %>
+    <% end %>
+  </div>
+<% elsif @view == "timeline" %>
+  <div class="space-y-8">
+    <% @documents.group_by { |document| document.display_date.beginning_of_month }.each do |month, documents| %>
+      <section>
+        <h2 class="sticky top-14 z-10 -mx-1 mb-3 bg-background/90 px-1 py-2 text-xs font-bold uppercase tracking-wider backdrop-blur">
+          <%= month_heading(month) %> <span class="font-normal muted">· <%= documents.size %></span>
+        </h2>
+        <ol class="relative ml-2 space-y-2 border-l border-border pl-6">
+          <% documents.each do |document| %>
+            <li class="relative">
+              <span class="absolute -left-[1.83rem] top-4 size-2 bg-strong-accent ring-4 ring-background"></span>
+              <%= render "documents/row", document: document %>
+            </li>
+          <% end %>
+        </ol>
+      </section>
+    <% end %>
+  </div>
+<% else %>
+  <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+    <%= render partial: "documents/card", collection: @documents, as: :document %>
+  </div>
+<% end %>
+
+<% if @page > 1 || @next_page %>
+  <nav class="mt-8 flex items-center justify-between" aria-label="Pagination">
+    <% if @page > 1 %>
+      <%= link_to documents_path(filter_query(@filters, view: (@view if @view == "timeline"), page: @page - 1)), class: "btn-secondary" do %><%= icon(:chevron_left, class: "size-4") %> Newer<% end %>
+    <% else %><span></span><% end %>
+    <span class="text-sm muted">Page <%= @page %></span>
+    <% if @next_page %>
+      <%= link_to documents_path(filter_query(@filters, view: (@view if @view == "timeline"), page: @page + 1)), class: "btn-secondary" do %>Older <%= icon(:chevron_right, class: "size-4") %><% end %>
+    <% else %><span></span><% end %>
+  </nav>
+<% end %>

@@ -1,0 +1,7 @@
+utilities:
+  name: Utilities
+  color: amber
+
+taxes:
+  name: Taxes
+  color: red

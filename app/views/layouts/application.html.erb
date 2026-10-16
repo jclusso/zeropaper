@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="<%= theme_preference %>" class="h-full <%= "dark" if theme_preference == "dark" %>" data-controller="theme">
+  <head>
+    <%= render "layouts/head" %>
+  </head>
+
+  <body class="h-full" data-controller="sidebar">
+    <div class="flex min-h-full flex-col">
+      <%= render "layouts/header" %>
+
+      <div class="flex min-h-0 flex-1">
+        <div class="fixed inset-0 z-30 bg-black/50 lg:hidden" data-sidebar-target="backdrop" data-action="click->sidebar#close" hidden></div>
+        <aside class="fixed inset-y-0 left-0 z-40 flex w-60 -translate-x-full flex-col border-r border-border bg-background transition-transform duration-200 lg:top-14 lg:translate-x-0" data-sidebar-target="panel">
+          <%= render "layouts/sidebar" %>
+        </aside>
+
+        <main class="bg-grid min-w-0 flex-1 lg:ml-60 <%= content_for?(:full_bleed) ? "" : "px-4 py-6 sm:px-6 lg:px-8 lg:py-8" %>">
+          <% if content_for?(:full_bleed) %>
+            <%= render "layouts/flash" %>
+            <%= yield %>
+          <% else %>
+            <div class="mx-auto max-w-7xl">
+              <%= render "layouts/flash" %>
+              <%= content_for?(:admin_page) ? yield(:admin_page) : yield %>
+            </div>
+          <% end %>
+        </main>
+      </div>
+    </div>
+    <%= render "layouts/toasts" %>
+    <%= render "layouts/confirm" %>
+  </body>
+</html>

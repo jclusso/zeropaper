@@ -1,0 +1,35 @@
+<%# locals: (document:) %>
+<% items = review_items(document) %>
+<% to_review = items.reject { |item| item.key == "rotated" } %>
+<% if items.any? %>
+  <section id="<%= dom_id(document, :review) %>" class="border-b border-border <%= to_review.any? || document.needs_review? ? "bg-warning/[0.06]" : "bg-strong-accent/[0.05]" %>"
+    data-controller="disclosure" data-disclosure-key-value="<%= dom_id(document, :review) %>">
+    <% heading = capture do %>
+      <%= icon(document.needs_review? ? :inbox : :info, class: "size-4 shrink-0 #{document.needs_review? ? "text-warning" : "text-strong-accent"}") %>
+      <span class="shrink-0 font-semibold"><%= document.needs_review? ? "Needs review" : "Note" %></span>
+    <% end %>
+    <% if items.one? %>
+      <% item = items.first %>
+      <div class="flex flex-wrap items-center gap-3 px-4 py-2 text-sm" data-review-item="<%= item.key %>">
+        <div class="flex min-w-0 flex-1 items-center gap-2"><%= heading %><span class="muted">·</span><p class="min-w-0"><%= item.message %></p></div>
+        <% if item.actions %><div class="flex items-center gap-2"><%= item.actions %></div><% end %>
+      </div>
+    <% else %>
+      <button type="button" class="flex w-full min-w-0 items-center gap-2 px-4 py-2.5 text-left text-sm" data-action="disclosure#toggle" data-disclosure-target="button" aria-expanded="false">
+        <%= heading %>
+        <span class="shrink-0 muted">· <%= pluralize(items.size, "item") %></span>
+        <span class="hidden min-w-0 flex-1 truncate muted sm:inline">· <%= items.map { |item| item.message.truncate(48) }.first(2).join(" · ") %></span>
+        <%= icon(:chevron_down, class: "ml-auto size-4 shrink-0 muted") %>
+      </button>
+      <ul class="divide-y divide-border border-t border-border" data-disclosure-target="content" hidden>
+        <% items.each do |item| %>
+          <li class="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm" data-review-item="<%= item.key %>">
+            <%= icon(item.icon, class: "size-4 shrink-0 #{item.tone}") %>
+            <p class="min-w-0 flex-1"><%= item.message %></p>
+            <% if item.actions %><div class="flex items-center gap-2"><%= item.actions %></div><% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </section>
+<% end %>

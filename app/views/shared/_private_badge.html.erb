@@ -1,0 +1,13 @@
+<%# The one way ZeroPaper shows "private": a compact badge that explains itself on hover or focus. %>
+<span class="private-tip group/private relative inline-flex align-middle">
+  <%# Inside a link the badge is a plain span (hover only); elsewhere a button so focus and tap show the tooltip. %>
+  <%= content_tag(interactive ? :button : :span, class: "badge-private cursor-help", type: (interactive ? "button" : nil), aria: { describedby: tooltip_id }) do %>
+    <%= icon(:lock, class: "size-3") %><%= label %>
+  <% end %>
+  <span id="<%= tooltip_id %>" role="tooltip"
+    class="pointer-events-none invisible absolute left-0 top-full z-50 mt-1.5 w-64 rounded-sm border border-private/30 bg-popover p-3 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-foreground opacity-0 shadow-lg transition-opacity group-hover/private:visible group-hover/private:opacity-100 group-focus-within/private:visible group-focus-within/private:opacity-100">
+    <span class="mb-1 flex items-center gap-1.5 font-semibold text-private"><%= icon(:lock, class: "size-3.5") %> Private</span>
+    <%= PrivacyHelper::EXPLANATION %>
+    <% if reason.present? %><span class="mt-1.5 block muted"><%= reason %>.</span><% end %>
+  </span>
+</span>

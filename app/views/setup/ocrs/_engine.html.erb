@@ -1,0 +1,8 @@
+<label class="card flex gap-3 p-4 <%= available ? "cursor-pointer has-checked:border-strong-accent has-checked:bg-strong-accent/[0.06]" : "opacity-60" %>">
+  <%= radio_button_tag "setting[#{field}]", key, checked, class: "radio mt-0.5", disabled: !available, data: local_assigns[:data] %>
+  <span>
+    <span class="block text-sm font-bold"><%= title %></span>
+    <span class="mt-0.5 block text-xs muted"><%= description %></span>
+    <% if local_assigns[:note] %><span class="mt-1 block text-xs text-warning"><%= note %></span><% end %>
+  </span>
+</label>

@@ -1,0 +1,56 @@
+<% name = resource_class.model_name.human %>
+<% content_for :title, @record.new_record? ? "New #{name.downcase}" : @record.name %>
+<div class="mx-auto max-w-2xl">
+  <%= page_header(@record.new_record? ? "New #{name.downcase}" : "Edit #{name.downcase}") %>
+
+  <%= form_with model: @record, class: "card card-body space-y-5", data: ({ controller: "tag-preview" } if @record.is_a?(Tag)) do |form| %>
+    <%= form_errors(@record) %>
+    <div>
+      <%= form.label :name, class: "label" %>
+      <%= form.text_field :name, required: true, autofocus: @record.new_record?, placeholder: { "Correspondent" => "e.g. acme power", "DocumentType" => "e.g. invoice", "Tag" => "e.g. taxes" }.fetch(resource_class.name, "Name"), **no_autofill(class: "input", data: ({ tag_preview_target: "name", action: "tag-preview#update" } if @record.is_a?(Tag))) %>
+    </div>
+
+    <% if @record.is_a?(Tag) %>
+      <fieldset>
+        <legend class="label">Color</legend>
+        <div class="flex flex-wrap items-center gap-3">
+          <% Tag::COLORS.each do |color| %>
+            <label class="relative flex cursor-pointer">
+              <%= form.radio_button :color, color, class: "swatch peer #{DocumentsHelper::TAG_SWATCHES[color]}", "aria-label": color.capitalize,
+                    data: { action: "tag-preview#update", chip_class: tag_chip_class(Tag.new(color: color)) } %>
+              <span class="pointer-events-none absolute inset-0 hidden items-center justify-center text-white peer-checked:flex"><%= icon(:check, class: "size-4 drop-shadow") %></span>
+            </label>
+          <% end %>
+        </div>
+        <div class="mt-4 flex items-center gap-2 text-xs muted">
+          Preview <span class="<%= tag_chip_class(@record) %>" data-tag-preview-target="chip"><%= @record.name.presence || "Tag name" %></span>
+        </div>
+      </fieldset>
+    <% end %>
+
+    <% auto_match_hint = capture do %>
+      Assign this <%= name.downcase %> to documents whose text mentions “<%= @record.name.presence || "the name" %>”. Runs locally, so private documents are filed too. For anything more specific, use <%= link_to "Rules", rules_path, class: "link" %>.
+      <% unless @record.is_a?(Correspondent) %>
+        <span class="mt-1.5 block">Off by default: a generic name like “Invoice” or “Insurance” appears in far more documents than it describes. A <%= link_to "rule", rules_path, class: "link" %> with specific words is usually the better tool.</span>
+      <% end %>
+    <% end %>
+    <div class="rounded-sm border border-border bg-subtle p-3">
+      <%= render "shared/switch", form: form, field: :auto_match, title: "Auto-match by name", description: auto_match_hint %>
+    </div>
+
+    <% if @record.is_a?(Correspondent) %>
+      <%= render "shared/switch", form: form, field: :private_documents, title: safe_join([ "Documents from this correspondent are ", private_badge(interactive: false) ]),
+            description: "Checked on locally read text before anything is sent out. Needs auto-match by name." %>
+    <% end %>
+
+    <div class="flex items-center justify-between border-t border-border pt-5">
+      <% if @record.persisted? %>
+        <%= link_to "Delete", url_for(action: :destroy, id: @record), class: "btn-danger", data: { turbo_method: :delete, turbo_confirm: "Delete #{@record.name}? Documents keep everything else." } %>
+      <% else %><span></span><% end %>
+      <div class="flex gap-2">
+        <%= link_to "Cancel", url_for(action: :index), class: "btn-ghost" %>
+        <%= form.submit "Save", class: "btn-primary" %>
+      </div>
+    </div>
+  <% end %>
+</div>

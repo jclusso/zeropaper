@@ -1,0 +1,63 @@
+<% pdf = document.viewable_pdf %>
+<div id="pdf-viewer-<%= pdf.blob.id %>" data-turbo-permanent class="@container absolute inset-0 flex flex-col"
+  data-controller="pdf-viewer" data-action="reading-mode:go-to@window->pdf-viewer#showPage"
+  data-pdf-viewer-url-value="<%= document_file_path(document, variant: "viewable", v: pdf.blob.id) %>"
+  data-pdf-viewer-worker-src-value="<%= asset_path("pdf.worker.js") %>">
+
+  <div class="flex flex-wrap items-center gap-1 border-b border-border bg-background/95 px-2 py-1.5 text-sm backdrop-blur">
+    <button type="button" class="btn-icon" data-action="pdf-viewer#previousPage" title="Previous page (k)" aria-label="Previous page"><%= icon(:chevron_up, class: "size-4") %></button>
+    <form class="flex items-center gap-1" data-action="submit->pdf-viewer#goToTypedPage">
+      <input type="text" inputmode="numeric" value="1" class="input h-8 w-12 px-1.5 text-center tabular-nums" data-pdf-viewer-target="pageNumber" aria-label="Page number">
+      <span class="muted">/ <span data-pdf-viewer-target="pageCount"><%= document.page_count || "…" %></span></span>
+    </form>
+    <button type="button" class="btn-icon" data-action="pdf-viewer#nextPage" title="Next page (j)" aria-label="Next page"><%= icon(:chevron_down, class: "size-4") %></button>
+
+    <span class="mx-1 h-5 w-px bg-border"></span>
+
+    <button type="button" class="btn-icon" data-action="pdf-viewer#zoomOut" title="Zoom out (-)" aria-label="Zoom out"><%= icon(:minus, class: "size-4") %></button>
+    <span class="w-12 text-center tabular-nums muted" data-pdf-viewer-target="zoom">100%</span>
+    <button type="button" class="btn-icon" data-action="pdf-viewer#zoomIn" title="Zoom in (+)" aria-label="Zoom in"><%= icon(:plus, class: "size-4") %></button>
+    <%= render "shared/select", name: "zoom", value: "page-width", placeholder: "Custom", aria_label: "Zoom level",
+          wrapper_class: "hidden w-32 @xl:block", button_class: "h-8 content-center py-0 text-xs",
+          options: [ [ "Fit width", "page-width" ], [ "Fit page", "page-fit" ], [ "Automatic", "auto" ], [ "Actual size", "1" ], [ "150%", "1.5" ], [ "200%", "2" ] ],
+          data: { pdf_viewer_target: "scaleSelect", action: "change->pdf-viewer#setScale" } %>
+
+    <div class="ml-auto hidden items-center gap-1 @xl:flex">
+      <div class="relative">
+        <span class="pointer-events-none absolute inset-y-0 left-2 flex items-center muted"><%= icon(:search, class: "size-3.5") %></span>
+        <input type="search" placeholder="find in document" class="input h-8 w-40 pl-7 text-xs @4xl:w-56" data-pdf-viewer-target="findInput"
+          data-action="input->pdf-viewer#find keydown.enter->pdf-viewer#find" aria-label="Find in document">
+      </div>
+      <span class="hidden w-20 text-xs muted @4xl:inline" data-pdf-viewer-target="findStatus" aria-live="polite"></span>
+      <button type="button" class="btn-icon" data-action="pdf-viewer#findPrevious" title="Previous match (Shift+Enter)" aria-label="Previous match"><%= icon(:chevron_up, class: "size-3.5") %></button>
+      <button type="button" class="btn-icon" data-action="pdf-viewer#findNext" title="Next match (Enter)" aria-label="Next match"><%= icon(:chevron_down, class: "size-3.5") %></button>
+    </div>
+    <div class="ml-auto flex items-center gap-1 @xl:ml-0">
+      <span class="mx-1 hidden h-5 w-px bg-border @xl:block"></span>
+      <button type="button" class="btn-icon" data-action="pdf-viewer#fullscreen" title="Fullscreen (f)" aria-label="Fullscreen"><%= icon(:expand, class: "size-4") %></button>
+    </div>
+  </div>
+
+  <div class="flex min-h-0 flex-1">
+    <% if document.page_count.to_i > 1 %>
+      <nav class="hidden w-28 shrink-0 space-y-3 overflow-y-auto border-r border-border bg-background/80 p-3 md:block md:group-data-[view=side]/view:hidden" aria-label="Pages">
+        <% (1..document.page_count).each do |page| %>
+          <button type="button" class="group block w-full text-center" data-pdf-viewer-target="thumb" data-action="pdf-viewer#goTo" data-pdf-viewer-page-param="<%= page %>" <%= "aria-current=true" if page == 1 %>>
+            <span class="block overflow-hidden rounded-xs border border-border bg-white ring-2 ring-transparent transition group-hover:border-foreground/30 group-aria-[current]:border-strong-accent group-aria-[current]:ring-strong-accent/60">
+              <%= image_tag document_page_path(document, page, size: "thumb", v: pdf.blob.id), alt: "Page #{page}", loading: "lazy", width: 240, height: 310, class: "h-auto w-full" %>
+            </span>
+            <span class="mt-1 block text-xs tabular-nums muted group-aria-[current]:font-bold group-aria-[current]:text-strong-accent">
+              <%= page %><%= " · blank" if document.blank_page?(page) %>
+            </span>
+          </button>
+        <% end %>
+      </nav>
+    <% end %>
+    <div class="relative min-w-0 flex-1">
+      <div class="pdf-stage" data-pdf-viewer-target="container" tabindex="0">
+        <div class="pdfViewer"></div>
+      </div>
+      <p class="absolute inset-0 flex items-center justify-center text-sm muted" data-pdf-viewer-target="status">Loading…</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,41 @@
+<%# locals: (document:) %>
+<el-dropdown class="relative">
+  <button type="button" class="<%= document.private? ? "badge-private" : "badge-slate" %> h-8 cursor-pointer px-2 text-xs hover:opacity-90" aria-label="Privacy">
+    <%= icon(document.private? ? :lock : :lock_open, class: "size-3.5") %>
+    <%= document.private? ? "Private" : "Not private" %>
+    <%= icon(:chevron_down, class: "size-3 opacity-70") %>
+  </button>
+  <el-menu anchor="bottom end" popover class="menu w-80 p-0">
+    <div class="space-y-2 p-3 text-sm">
+      <% if document.private? %>
+        <p class="flex items-center gap-1.5 font-bold text-private"><%= icon(:lock, class: "size-4") %> Private</p>
+        <p class="text-xs muted"><%= document.private_reason.presence || "Marked private" %>.</p>
+        <p class="text-xs muted">Never sent to an AI provider. Read and filed on this machine, and stored encrypted.</p>
+      <% else %>
+        <p class="flex items-center gap-1.5 font-bold"><%= icon(:lock_open, class: "size-4 muted") %> Not private</p>
+        <% exposure = document_exposure(document) %>
+        <% if exposure.any? %>
+          <p class="text-xs muted">Its file and text may be sent to:</p>
+          <dl class="space-y-1 text-xs">
+            <% exposure.each do |task, label| %>
+              <div class="flex gap-2"><dt class="eyebrow w-24 shrink-0 pt-px"><%= task %></dt><dd class="min-w-0 break-words"><%= label %></dd></div>
+            <% end %>
+          </dl>
+        <% else %>
+          <p class="text-xs muted">AI is off, so it stays on this machine.</p>
+        <% end %>
+      <% end %>
+    </div>
+    <div class="flex justify-end border-t border-border p-2">
+      <% if document.private? %>
+        <%= button_to "Make not private", document_privacy_path(document), method: :delete, class: "btn-secondary btn-sm",
+              form: { data: { turbo_confirm: "This document will be processed again, which can send its file and text to the AI providers in Settings. Continue?" } } %>
+      <% else %>
+        <%= button_to document_privacy_path(document), class: "btn-secondary btn-sm",
+              form: { data: { turbo_confirm: "Mark private and process it again on this machine? Details made by AI are discarded, but anything already sent to a provider cannot be recalled." } } do %>
+          <%= icon(:lock, class: "size-3.5") %> Make private
+        <% end %>
+      <% end %>
+    </div>
+  </el-menu>
+</el-dropdown>

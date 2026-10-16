@@ -1,0 +1,37 @@
+{
+  "ignored_warnings": [
+    {
+      "warning_type": "File Access",
+      "warning_code": 16,
+      "fingerprint": "1ad61fc3dfc7feead858052c822933e8e3c28cf802457494e3153b13e1f9b4f1",
+      "check_name": "FileAccess",
+      "message": "Model attribute used in file name",
+      "file": "app/models/document/processing.rb",
+      "line": 162,
+      "code": "FileUtils.rm_rf(File.dirname(((nil or Ocr::Tesseract.new(settings).call(path, :pages => pages_to_read, :content_type => content_type)) or Ocr.engine(settings.local_ocr_provider, settings).call(path, :pages => pages_to_read, :content_type => content_type)).archive_path))",
+      "note": "archive_path is a path inside a Dir.mktmpdir created by Ocr::Tesseract, not user input"
+    },
+    {
+      "warning_type": "File Access",
+      "warning_code": 16,
+      "fingerprint": "8f50c91c14c2f24745236bb24860b7203779a25967a70421a8c702f4dad0ba63",
+      "check_name": "FileAccess",
+      "message": "Model attribute used in file name",
+      "file": "app/models/document/processing.rb",
+      "line": 144,
+      "code": "File.open(Ocr::Tesseract.new(settings).call(path, :pages => pages_to_read, :content_type => content_type).archive_path)",
+      "note": "archive_path is a path inside a Dir.mktmpdir created by Ocr::Tesseract, not user input"
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "b2075ded3f1bb09caea835009cd2e149448efc16910dc9110cd7dd5458428b5c",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/concerns/mergeable.rb",
+      "line": 35,
+      "code": "joins(\"LEFT JOIN (#{(Tagging.group(:tag_id).select(:tag_id, \"count(*) AS n\") or Document.group(foreign_key_for_documents).select(foreign_key_for_documents, \"count(*) AS n\")).to_sql}) document_counts ON document_counts.#{(\"tag_id\" or foreign_key_for_documents)} = #{table_name}.id\")",
+      "note": "Interpolated values are the model table name and foreign key from code, never request input"
+    }
+  ]
+}

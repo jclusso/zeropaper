@@ -1,0 +1,58 @@
+<% suggested = document.suggested_blank_pages %>
+<div class="flex max-h-[85dvh] flex-col" data-controller="page-selection" data-page-selection-suggested-value="<%= suggested.size %>">
+  <div class="flex items-start gap-4 border-b border-border px-5 py-4 sm:px-6">
+    <div class="min-w-0 flex-1">
+      <h2 id="pages-dialog-title" class="section-title">Review pages</h2>
+      <p class="mt-1 text-xs muted">
+        <% if suggested.any? %>
+          <%= pluralize(suggested.size, "page") %> <%= suggested.one? ? "looks" : "look" %> blank and <%= suggested.one? ? "is" : "are" %> selected for removal.
+          Click a page to keep it. Pages you keep are marked not blank and read again.
+        <% else %>
+          Click pages to select them for removal.
+        <% end %>
+        The upload is kept, so you can restore it.
+      </p>
+    </div>
+    <button type="button" class="btn-icon" command="close" commandfor="pages-dialog" aria-label="Close"><%= icon(:x, class: "size-4") %></button>
+  </div>
+
+  <% if document.processing? %>
+    <p class="px-6 py-12 text-center text-sm muted">This document is still processing. Pages can be edited once it is done.</p>
+  <% else %>
+    <%= form_with url: document_page_removal_path(document), id: "page-removal-form", class: "min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6", data: { turbo_frame: "_top" } do %>
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+        <% (1..document.page_count.to_i).each do |page| %>
+          <% blank = suggested.include?(page) %>
+          <label class="group relative block cursor-pointer select-none">
+            <%= check_box_tag "pages[]", page, blank, id: "remove_page_#{page}", class: "peer sr-only", data: { page_selection_target: "page", action: "page-selection#update" } %>
+            <span class="relative block overflow-hidden rounded-sm border border-border bg-white transition peer-checked:border-danger-solid peer-checked:ring-2 peer-checked:ring-danger-solid peer-focus-visible:ring-2 peer-focus-visible:ring-ring group-hover:border-foreground/30">
+              <%= image_tag document_page_path(document, page, size: "thumb", source: "file", v: document.file.blob.id), alt: "Page #{page}", loading: "lazy", width: 240, height: 310, class: "h-auto w-full transition group-has-checked:opacity-40 group-has-checked:grayscale" %>
+            </span>
+            <span class="pointer-events-none absolute inset-0 hidden items-center justify-center peer-checked:flex">
+              <span class="flex items-center gap-1.5 rounded-xs bg-danger-solid px-2 py-1 text-[0.7rem] font-bold uppercase tracking-wide text-white shadow"><%= icon(:trash, class: "size-3.5") %> Remove</span>
+            </span>
+            <span class="mt-2 flex h-6 items-center justify-between gap-2 text-xs">
+              <span class="font-medium">Page <%= page %></span>
+              <% if blank %><span class="badge-amber">Looks blank</span><% end %>
+            </span>
+          </label>
+        <% end %>
+      </div>
+    <% end %>
+
+    <div class="flex flex-wrap items-center gap-3 border-t border-border bg-card-header px-5 py-3 sm:px-6">
+      <% if document.original_file.attached? %>
+        <%= button_to "Restore original", document_original_restoration_path(document), class: "btn-danger btn-sm", form_class: "mr-auto",
+              form: { data: { turbo_frame: "_top", turbo_confirm: "Restore the upload as it was, with all its pages?" } } %>
+      <% else %>
+        <span class="mr-auto"></span>
+      <% end %>
+      <button type="button" class="btn-secondary btn-sm" command="close" commandfor="pages-dialog">Cancel</button>
+      <button type="submit" form="page-removal-form" class="btn-danger-solid btn-sm" data-page-selection-target="submit">
+        <span data-page-selection-target="removeIcon"><%= icon(:trash, class: "size-4") %></span>
+        <span data-page-selection-target="keepIcon" hidden><%= icon(:check, class: "size-4") %></span>
+        <span data-page-selection-target="label">Remove pages</span>
+      </button>
+    </div>
+  <% end %>
+</div>

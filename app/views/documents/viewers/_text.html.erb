@@ -1,0 +1,12 @@
+<div class="absolute inset-0 overflow-auto px-4 py-8">
+  <article class="card mx-auto max-w-3xl px-8 py-10">
+    <% if document.content.present? %>
+      <% document.page_texts.each_with_index do |text, index| %>
+        <% if index.positive? %><hr class="my-8 border-dashed border-border"><% end %>
+        <pre class="whitespace-pre-wrap break-words font-mono text-sm leading-relaxed"><%= text %></pre>
+      <% end %>
+    <% else %>
+      <p class="text-center text-sm muted"><%= document.processing? ? "Reading the text…" : "No text was found in this file." %></p>
+    <% end %>
+  </article>
+</div>

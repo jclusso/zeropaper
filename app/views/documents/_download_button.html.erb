@@ -1,0 +1,25 @@
+<%# locals: (document:) %>
+<%# Download gives the best version; the menu offers the upload as it was, when that differs. %>
+<% best = document.best_download %>
+<% upload = document.original_download %>
+<div class="flex">
+  <%= link_to document_file_path(document, variant: "best", download: 1), class: "btn-secondary btn-sm #{"rounded-r-none" if upload}", data: { turbo: false },
+        title: document.archive_file.attached? ? "Download the searchable PDF" : "Download" do %>
+    <%= icon(:download, class: "size-4") %><span class="hidden md:inline">Download</span>
+  <% end %>
+  <% if upload %>
+    <el-dropdown class="relative">
+      <button type="button" class="btn-secondary btn-sm -ml-px rounded-l-none px-2" aria-label="More download options"><%= icon(:chevron_down, class: "size-3.5") %></button>
+      <el-menu anchor="bottom end" popover class="menu w-64">
+        <%= link_to document_file_path(document, variant: "best", download: 1), class: "menu-item flex-col items-start gap-0.5", data: { turbo: false } do %>
+          <span class="font-medium"><%= document.archive_file.attached? ? "Searchable PDF" : "Cleaned up file" %></span>
+          <span class="text-xs muted">Pages upright, removed pages gone<%= ", text you can select" if document.archive_file.attached? %>.</span>
+        <% end %>
+        <%= link_to document_file_path(document, variant: "upload", download: 1), class: "menu-item flex-col items-start gap-0.5", data: { turbo: false } do %>
+          <span class="font-medium">Original upload</span>
+          <span class="text-xs muted"><%= upload.filename %>, exactly as it was added.</span>
+        <% end %>
+      </el-menu>
+    </el-dropdown>
+  <% end %>
+</div>

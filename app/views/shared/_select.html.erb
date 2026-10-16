@@ -1,0 +1,27 @@
+<%#
+  Plain dropdown for short, fixed lists (Tailwind Plus el-select). No typing
+  or filtering: opening always shows every option with the current one
+  checked; arrow keys and first letters move through them. el-select is a
+  form field itself, so name, data (Stimulus targets and actions), `value` and
+  `change` all live on it. Long or open-ended lists use shared/_combobox.
+
+  locals: name:, options: [[label, value], ...], value:, id:, placeholder:, data:, disabled:,
+          wrapper_class: (default "block"), button_class: (extra classes, e.g. a compact size), aria_label:
+%>
+<% current = local_assigns[:value].to_s %>
+<% selected = options.find { |_label, option_value| option_value.to_s == current } %>
+<% disabled = local_assigns.fetch(:disabled, false) %>
+<el-select <%= tag.attributes(name: name, value: current, class: local_assigns.fetch(:wrapper_class, "block"), id: local_assigns[:id], data: local_assigns[:data], disabled: disabled) %>>
+  <button type="button" class="input grid cursor-default grid-cols-1 text-left disabled:cursor-not-allowed <%= local_assigns[:button_class] %>" <%= "disabled" if disabled %> <%= tag.attributes(aria: { label: local_assigns[:aria_label] }) %>>
+    <el-selectedcontent class="col-start-1 row-start-1 truncate pr-6 <%= "muted" unless selected %>"><%= selected&.first || local_assigns[:placeholder] || "Choose" %></el-selectedcontent>
+    <%= icon(:chevron_down, class: "col-start-1 row-start-1 size-4 self-center justify-self-end muted") %>
+  </button>
+  <el-options anchor="bottom start" popover class="menu max-h-64 w-(--button-width) overflow-auto data-leave:transition data-leave:transition-discrete data-leave:duration-100 data-leave:ease-in data-closed:data-leave:opacity-0">
+    <% options.each do |label, option_value| %>
+      <el-option value="<%= option_value %>" class="group/option menu-item relative pr-9 aria-selected:font-bold">
+        <span class="block truncate"><%= label %></span>
+        <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-strong-accent group-not-aria-selected/option:hidden in-[el-selectedcontent]:hidden"><%= icon(:check, class: "size-4") %></span>
+      </el-option>
+    <% end %>
+  </el-options>
+</el-select>

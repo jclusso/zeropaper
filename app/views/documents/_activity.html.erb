@@ -1,0 +1,27 @@
+<ol class="space-y-3">
+  <% Document::Processing::STEPS.each do |name, label| %>
+    <% state = document.step_state(name) %>
+    <li class="flex gap-3">
+      <%= step_marker(state["status"]) %>
+      <div class="min-w-0 flex-1 text-sm">
+        <p class="<%= "muted" unless state["status"] %>"><%= label %></p>
+        <% if state["detail"].present? %><p class="text-xs muted"><%= state["detail"] %></p><% end %>
+      </div>
+    </li>
+  <% end %>
+</ol>
+
+<dl class="mt-6 space-y-2 border-t border-border pt-4 text-xs">
+  <% rows = {
+       "Added" => "#{document.created_at.to_fs(:long)}#{" by #{document.uploaded_by.name}" if document.uploaded_by}",
+       "Source" => [ document.source.capitalize, document.source_detail ].compact_blank.join(": "),
+       "File" => "#{document.original_filename} (#{number_to_human_size(document.file.blob&.byte_size)})",
+       "Text" => document.text_source_label,
+       "Model" => document.ai_model,
+       "Processed" => document.processed_at&.to_fs(:long),
+       "SHA-256" => document.checksum.first(16) + "…"
+     }.compact_blank %>
+  <% rows.each do |label, value| %>
+    <div class="flex gap-3"><dt class="eyebrow w-20 shrink-0 pt-px"><%= label %></dt><dd class="min-w-0 break-words"><%= value %></dd></div>
+  <% end %>
+</dl>

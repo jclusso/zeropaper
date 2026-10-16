@@ -1,0 +1,29 @@
+<% sheets = begin
+     document.file.open { |file| NativeText.sheets(file.path, document.content_type) }
+   rescue StandardError
+     []
+   end %>
+<div class="absolute inset-0 overflow-auto p-4" data-controller="tabs">
+  <% if sheets.size > 1 %>
+    <div class="mb-3 flex flex-wrap gap-1" role="tablist">
+      <% sheets.each_with_index do |sheet, index| %>
+        <button type="button" role="tab" class="rounded-sm border border-transparent px-3 py-1.5 text-xs font-semibold uppercase tracking-wide muted aria-selected:border-border aria-selected:bg-card aria-selected:text-foreground"
+          aria-selected="<%= index.zero? %>" data-tabs-target="tab" data-tabs-name-param="sheet-<%= index %>" data-action="tabs#select"><%= sheet[:name] %></button>
+      <% end %>
+    </div>
+  <% end %>
+  <% sheets.each_with_index do |sheet, index| %>
+    <div class="card overflow-auto" data-tabs-target="panel" data-name="sheet-<%= index %>" <%= "hidden" unless index.zero? %>>
+      <table class="min-w-full border-collapse text-xs">
+        <tbody>
+          <% sheet[:rows].first(2_000).each_with_index do |row, row_index| %>
+            <tr class="<%= "bg-card-header font-bold" if row_index.zero? %>">
+              <% row.each do |cell| %><td class="whitespace-nowrap border border-border px-2 py-1"><%= cell %></td><% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+  <% if sheets.empty? %><p class="text-center text-sm muted">This spreadsheet could not be read.</p><% end %>
+</div>

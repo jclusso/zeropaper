@@ -1,0 +1,64 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.anthropic.com/v1/messages
+    body:
+      encoding: UTF-8
+      string: ''
+    headers:
+      X-Api-Key:
+      - "<ANTHROPIC_API_KEY>"
+      Anthropic-Version:
+      - '2023-06-01'
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+    body:
+      encoding: UTF-8
+      string: |-
+        {
+          "id": "msg_01ZeroPaperBill",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-haiku-4-5-20251001",
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"title\":\"Acme Power statement March 2026\",\"document_date\":\"2026-03-14\",\"correspondent\":\"Acme Power\",\"document_type\":\"Invoice\",\"tags\":[\"Utilities\"],\"summary\":\"Electricity statement for 412 kWh. Amount due $87.40 by April 1, 2026.\",\"confidence\":0.92}"
+            }
+          ],
+          "stop_reason": "end_turn",
+          "usage": {
+            "input_tokens": 812,
+            "output_tokens": 96
+          }
+        }
+  recorded_at: Fri, 16 Oct 2026 12:00:00 GMT
+- request:
+    method: get
+    uri: https://api.anthropic.com/v1/models
+    body:
+      encoding: UTF-8
+      string: ''
+    headers:
+      X-Api-Key:
+      - "<ANTHROPIC_API_KEY>"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+    body:
+      encoding: UTF-8
+      string: '{"data":[{"id":"claude-haiku-4-5-20251001","type":"model"}],"has_more":false}'
+  recorded_at: Fri, 16 Oct 2026 12:00:00 GMT
+recorded_with: VCR 6.4.0

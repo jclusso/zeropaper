@@ -1,0 +1,12 @@
+<el-dialog>
+  <dialog id="pages-dialog" aria-labelledby="pages-dialog-title" class="fixed inset-0 size-auto max-h-none max-w-none overflow-y-auto bg-transparent backdrop:bg-transparent">
+    <el-dialog-backdrop class="fixed inset-0 bg-black/60 backdrop-blur-[2px] transition-opacity data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in"></el-dialog-backdrop>
+    <div tabindex="0" class="flex min-h-full items-end justify-center p-2 focus:outline-none sm:items-center sm:p-6">
+      <el-dialog-panel class="card w-full max-w-5xl bg-card text-left transition-all data-closed:translate-y-4 data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in sm:data-closed:translate-y-0 sm:data-closed:scale-95">
+        <%= turbo_frame_tag dom_id(document, :pages), src: document_pages_path(document), loading: :lazy do %>
+          <p class="flex items-center justify-center gap-2 px-6 py-16 text-sm muted"><%= icon(:refresh, class: "size-4 animate-spin") %> Loading pages…</p>
+        <% end %>
+      </el-dialog-panel>
+    </div>
+  </dialog>
+</el-dialog>

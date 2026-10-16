@@ -1,0 +1,14 @@
+bills:
+  name: Bills are invoices
+  conditions: <%= [ { field: "content", operator: "any", value: "invoice, amount due" } ].to_json %>
+  document_type: invoice
+
+utilities:
+  name: Energy bills
+  conditions: <%= [ { field: "content", operator: "any", value: "electricity, kwh" } ].to_json %>
+  tag_ids: [ <%= ActiveRecord::FixtureSet.identify(:utilities) %> ]
+
+taxes:
+  name: Tax returns
+  conditions: <%= [ { field: "content", operator: "phrase", value: "tax return" } ].to_json %>
+  tag_ids: [ <%= ActiveRecord::FixtureSet.identify(:taxes) %> ]

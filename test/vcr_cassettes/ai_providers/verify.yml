@@ -1,0 +1,61 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://api.openai.com/v1/models
+    body:
+      encoding: UTF-8
+      string: ''
+    headers:
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+    body:
+      encoding: UTF-8
+      string: '{"object":"list","data":[{"id":"gpt-5.6-luna","object":"model"}]}'
+  recorded_at: Fri, 16 Oct 2026 12:00:00 GMT
+- request:
+    method: get
+    uri: https://api.mistral.ai/v1/models
+    body:
+      encoding: UTF-8
+      string: ''
+    headers:
+      Authorization:
+      - Bearer <MISTRAL_API_KEY>
+  response:
+    status:
+      code: 401
+      message: Unauthorized
+    headers:
+      Content-Type:
+      - application/json
+    body:
+      encoding: UTF-8
+      string: '{"message":"Unauthorized"}'
+  recorded_at: Fri, 16 Oct 2026 12:00:00 GMT
+- request:
+    method: get
+    uri: http://ollama.test:11434/api/tags
+    body:
+      encoding: UTF-8
+      string: ''
+    headers: {}
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+    body:
+      encoding: UTF-8
+      string: '{"models":[{"name":"qwen3:8b"},{"name":"llama3.2-vision:11b"}]}'
+  recorded_at: Fri, 16 Oct 2026 12:00:00 GMT
+recorded_with: VCR 6.4.0

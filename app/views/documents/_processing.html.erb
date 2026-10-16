@@ -1,0 +1,19 @@
+<%# locals: (document:) %>
+<ol class="space-y-3">
+  <% Document::Processing::STEPS.each do |name, label| %>
+    <% state = document.step_state(name) %>
+    <li class="flex gap-3" data-step="<%= name %>" data-status="<%= state["status"] || "waiting" %>">
+      <% if state["status"] == "running" %>
+        <span class="flex size-5 shrink-0 items-center justify-center rounded-xs border border-strong-accent/40 bg-strong-accent/10 text-strong-accent"><%= icon(:refresh, class: "size-3 animate-spin", "stroke-width": "2.5") %></span>
+      <% else %>
+        <%= step_marker(state["status"]) %>
+      <% end %>
+      <div class="min-w-0 flex-1 text-sm">
+        <p class="<%= "muted" unless state["status"] %> <%= "font-semibold" if state["status"] == "running" %>"><%= label %></p>
+        <p class="text-xs muted">
+          <%= state["detail"].presence || { nil => "Waiting", "running" => "Working…", "done" => "Done", "skipped" => "Skipped", "failed" => "Failed" }.fetch(state["status"], state["status"]) %>
+        </p>
+      </div>
+    </li>
+  <% end %>
+</ol>

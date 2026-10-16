@@ -1,0 +1,10 @@
+acme_power:
+  name: Acme Power
+
+city_clinic:
+  name: City Clinic
+  private_documents: true
+
+unmatched:
+  name: Never Matched
+  auto_match: false

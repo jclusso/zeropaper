@@ -1,0 +1,20 @@
+<%#
+  An info button that shows help text in a popover, for text too long to sit
+  under a label without pushing a form row out of line. Opens on hover, and
+  on click, tap or Enter; Escape or clicking elsewhere closes it.
+
+  locals:
+    text:  the help text
+    id:    unique id for the popover
+    about: what the tip explains, for screen readers ("More about OCR")
+%>
+<span class="inline-flex" data-controller="info-tip" data-action="mouseenter->info-tip#show mouseleave->info-tip#hide">
+  <button type="button" popovertarget="<%= id %>" aria-label="More about <%= about %>" data-action="info-tip#toggle"
+          class="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground/70 transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-strong-accent">
+    <%= solid_icon(:info, class: "size-4") %>
+  </button>
+  <el-popover id="<%= id %>" anchor="bottom start" popover data-info-tip-target="popover"
+              class="max-w-72 rounded-sm border border-border bg-popover px-3 py-2 text-xs leading-relaxed font-normal normal-case tracking-normal text-foreground shadow-lg transition transition-discrete [--anchor-gap:--spacing(1)] data-closed:opacity-0">
+    <%= text %>
+  </el-popover>
+</span>

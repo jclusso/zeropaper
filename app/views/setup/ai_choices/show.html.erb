@@ -1,0 +1,36 @@
+<% content_for :title, "Set up AI" %>
+<% content_for :wide, true %>
+<%= render "setup/steps", current: 2 %>
+<div class="card card-body">
+  <h1 class="text-lg font-bold">Use AI?</h1>
+  <p class="mt-1 text-sm muted">
+    AI writes titles, summaries and tags, does OCR on hard scans, and powers Research.
+    Without it, ZeroPaper works entirely on this machine and files documents with rules.
+    <%= private_badge %> documents never go to any AI provider either way.
+  </p>
+
+  <%= form_with model: @provider, url: setup_ai_choice_path, method: :patch, class: "mt-6 space-y-6", data: { controller: "reveal", reveal_when_value: "1", turbo: false } do |form| %>
+    <%= form_errors(@provider) %>
+    <%= hidden_field_tag :provider_id, @provider.id if @provider.persisted? %>
+    <% use_ai = params.key?(:use_ai) ? params[:use_ai] != "0" : (@setting.ai_enabled? || !@setting.setup_complete?) %>
+
+    <fieldset class="grid gap-3 sm:grid-cols-2">
+      <legend class="sr-only">Use AI</legend>
+      <% [ [ "1", "Yes, use AI", "Pick a provider such as OpenAI, Anthropic, Gemini or a local Ollama." ],
+           [ "0", "No, stay local", "Tesseract or Docling read scans, and rules fill in the details." ] ].each do |value, title, description| %>
+        <label class="card flex cursor-pointer gap-3 p-4 has-checked:border-strong-accent has-checked:bg-strong-accent/[0.06]">
+          <%= radio_button_tag :use_ai, value, (value == "1") == use_ai, class: "radio mt-0.5", data: { action: "reveal#update" } %>
+          <span><span class="block text-sm font-bold"><%= title %></span><span class="mt-0.5 block text-xs muted"><%= description %></span></span>
+        </label>
+      <% end %>
+    </fieldset>
+
+    <fieldset class="min-w-0 space-y-4 border-t border-border pt-6" data-reveal-target="content" <%= "hidden disabled" unless use_ai %>>
+      <h2 class="section-title">Your first provider</h2>
+      <%= render "ai_providers/fields", form: form, provider: @provider %>
+      <p class="hint">ZeroPaper checks the key by listing the provider's models, which costs nothing. You can add more providers in Settings.</p>
+    </fieldset>
+
+    <%= form.submit "Continue", class: "btn-primary w-full" %>
+  <% end %>
+</div>

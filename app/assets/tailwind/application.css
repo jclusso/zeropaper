@@ -1,0 +1,345 @@
+@import "tailwindcss";
+
+/* Served from this app so pages never call out to a font CDN. Latin only. */
+@font-face {
+  font-family: "Google Sans Code";
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url("google-sans-code-latin.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Google Sans Code";
+  font-style: italic;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url("google-sans-code-latin-italic.woff2") format("woff2");
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens: neutral greys, square corners, monospace type and one teal
+   accent. Light values on :root, dark on .dark. */
+:root {
+  --background: oklch(0.98 0.002 250);
+  --foreground: oklch(0.2 0.01 260);
+  --card: #ffffff;
+  --card-header: oklch(0.99 0.001 260);
+  --popover: #ffffff;
+  --muted: oklch(0.95 0.005 260);
+  --muted-foreground: oklch(0.45 0.01 260);
+  --subtle: oklch(0.97 0.004 260);
+  --border: oklch(0.9 0.01 260);
+  --input: oklch(0.88 0.01 260);
+  --ring: oklch(0.7 0.01 260);
+  --grid-line: oklch(0.2 0.01 260 / 0.045);
+  --strong-accent: #0f766e;
+  --strong-accent-foreground: #ffffff;
+  --input-surface: var(--card);
+  --success: oklch(0.57 0.16 148);
+  --warning: #916409;
+  --danger: #dc2626;
+  --danger-solid: #dc2626;
+  --private: oklch(0.5 0.2 295);
+}
+
+.dark {
+  --background: #131313;
+  --foreground: oklch(0.985 0 0);
+  --card: #131313;
+  --card-header: #1b1b1b;
+  --popover: #1b1b1b;
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --subtle: #191919;
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --grid-line: oklch(1 0 0 / 0.035);
+  --strong-accent: #2dd4bf;
+  --strong-accent-foreground: #042f2e;
+  --input-surface: #1a1a1a;
+  --success: oklch(0.696 0.17 162.48);
+  --warning: #d6ad60;
+  --danger: #f87171;
+  --danger-solid: #dc2626;
+  --private: oklch(0.75 0.13 295);
+}
+
+@theme {
+  --font-sans: "Google Sans Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-mono: "Google Sans Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* The accent scale is Tailwind's teal. */
+  --color-accent-50: #f0fdfa;
+  --color-accent-100: #ccfbf1;
+  --color-accent-200: #99f6e4;
+  --color-accent-300: #5eead4;
+  --color-accent-400: #2dd4bf;
+  --color-accent-500: #14b8a6;
+  --color-accent-600: #0d9488;
+  --color-accent-700: #0f766e;
+  --color-accent-800: #115e59;
+  --color-accent-900: #134e4a;
+
+  /* Slate is remapped to Zerobyte's neutral greys, so any leftover slate
+     utility matches the palette. */
+  --color-slate-50: oklch(0.985 0 0);
+  --color-slate-100: oklch(0.96 0.003 260);
+  --color-slate-200: oklch(0.92 0.004 260);
+  --color-slate-300: oklch(0.87 0.006 260);
+  --color-slate-400: oklch(0.708 0 0);
+  --color-slate-500: oklch(0.556 0 0);
+  --color-slate-600: oklch(0.45 0.01 260);
+  --color-slate-700: oklch(0.371 0 0);
+  --color-slate-800: #262626;
+  --color-slate-900: #1b1b1b;
+  --color-slate-950: #131313;
+
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.1875rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.25rem;
+  --radius-2xl: 0.25rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-header: var(--card-header);
+  --color-popover: var(--popover);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle: var(--subtle);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-strong-accent: var(--strong-accent);
+  --color-strong-accent-foreground: var(--strong-accent-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-danger-solid: var(--danger-solid);
+  --color-private: var(--private);
+}
+
+@layer base {
+  html { @apply antialiased; color-scheme: light; }
+  html.dark { color-scheme: dark; }
+  * { @apply border-border outline-ring/50; }
+  body {
+    @apply bg-background text-foreground text-sm;
+    scrollbar-width: thin;
+  }
+  [hidden] { display: none !important; }
+  select.input {
+    appearance: none;
+    padding-right: 2rem;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='%23888'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='m19.5 8.25-7.5 7.5-7.5-7.5'/%3e%3c/svg%3e");
+    background-position: right 0.6rem center;
+    background-repeat: no-repeat;
+    background-size: 1rem;
+  }
+  ::selection { background: color-mix(in oklab, var(--strong-accent) 30%, transparent); }
+
+  /* Browsers paint autofilled fields light blue with their own text colour.
+     A large inset shadow covers that with the input's normal surface. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-text-fill-color: var(--foreground);
+    -webkit-box-shadow: 0 0 0 1000px var(--input-surface) inset;
+    caret-color: var(--foreground);
+    transition: background-color 9999s ease-out 0s;
+  }
+  input:autofill { background-color: var(--input-surface); color: var(--foreground); }
+}
+
+/* Faint grid behind content areas. */
+@utility bg-grid {
+  background-color: var(--background);
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Buttons: small uppercase labels, square corners. */
+@utility btn { @apply inline-flex h-9 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-sm border border-transparent px-4 text-xs font-semibold uppercase tracking-wide whitespace-nowrap transition-all outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50; }
+@utility btn-primary { @apply btn bg-strong-accent text-strong-accent-foreground hover:bg-strong-accent/90 focus-visible:ring-strong-accent/50; }
+@utility btn-secondary { @apply btn border-border bg-card text-foreground hover:bg-muted; }
+@utility btn-ghost { @apply btn text-muted-foreground hover:bg-muted hover:text-foreground; }
+/* Destructive actions use red, never the teal primary. Solid for the main
+   action of a destructive form, outline elsewhere. The dark-mode red is light,
+   so text on it is near-black there. */
+@utility btn-danger { @apply btn border-danger text-danger hover:border-danger-solid hover:bg-danger-solid hover:text-white; }
+@utility btn-danger-solid { @apply btn border-danger-solid bg-danger-solid text-white hover:bg-danger-solid/90 focus-visible:ring-danger/50; }
+@utility btn-icon-danger { @apply btn h-8 w-8 px-0 text-muted-foreground hover:bg-danger/10 hover:text-danger; }
+@utility btn-sm { @apply h-8 px-3; }
+@utility btn-icon { @apply btn h-8 w-8 px-0 text-muted-foreground hover:bg-muted hover:text-foreground; }
+
+/* Form controls. */
+@utility input { @apply block h-9 w-full min-w-0 rounded-sm border border-input bg-card px-3 py-1.5 text-sm text-foreground shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:opacity-50 aria-invalid:border-danger dark:bg-(--input-surface); }
+@utility textarea { @apply input h-auto; }
+@utility label { @apply mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted-foreground; }
+@utility hint { @apply mt-1.5 text-xs text-muted-foreground; }
+@utility checkbox { @apply size-4 shrink-0 cursor-pointer appearance-none rounded-xs border border-input bg-card align-middle transition checked:border-strong-accent checked:bg-strong-accent checked:bg-[url("data:image/svg+xml,%3csvg%20viewBox='0%200%2016%2016'%20fill='white'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z'/%3e%3c/svg%3e")] bg-center bg-no-repeat focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none; }
+@utility radio { @apply checkbox rounded-full; }
+
+/* Cards with Zerobyte's corner brackets. */
+@utility card {
+  @apply relative border border-border bg-card shadow-[0_8px_30px_-15px_rgba(0,0,0,0.06)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)];
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    pointer-events: none;
+    opacity: 0.35;
+    transition: opacity 0.3s;
+    --bracket: linear-gradient(var(--foreground), var(--foreground));
+    background:
+      var(--bracket) top left / 16px 2px no-repeat,
+      var(--bracket) top left / 2px 16px no-repeat,
+      var(--bracket) top right / 16px 2px no-repeat,
+      var(--bracket) top right / 2px 16px no-repeat,
+      var(--bracket) bottom left / 16px 2px no-repeat,
+      var(--bracket) bottom left / 2px 16px no-repeat,
+      var(--bracket) bottom right / 16px 2px no-repeat,
+      var(--bracket) bottom right / 2px 16px no-repeat;
+  }
+}
+@utility card-interactive { @apply cursor-pointer transition-colors hover:border-foreground/25; &:hover::before { opacity: 1; } }
+@utility card-body { @apply p-5 sm:p-6; }
+@utility card-header { @apply border-b border-border bg-card-header px-5 py-4 sm:px-6; }
+
+/* Type. */
+@utility page-title { @apply text-xl font-bold tracking-tight text-foreground; }
+@utility section-title { @apply text-sm font-bold text-foreground; }
+@utility eyebrow { @apply text-[0.7rem] font-medium uppercase tracking-wider text-muted-foreground; }
+@utility muted { @apply text-muted-foreground; }
+@utility link { @apply text-strong-accent underline-offset-4 hover:underline; }
+
+/* Badges: square, outlined. */
+@utility badge { @apply inline-flex shrink-0 items-center gap-1 rounded-xs border px-1.5 py-0.5 text-[0.7rem] font-medium uppercase tracking-wide whitespace-nowrap; }
+@utility badge-slate { @apply badge border-border bg-muted/60 text-muted-foreground; }
+@utility badge-amber { @apply badge border-warning/40 bg-warning/10 text-warning; }
+@utility badge-red { @apply badge border-danger/40 bg-danger/10 text-danger; }
+@utility badge-green { @apply badge border-success/40 bg-success/10 text-success; }
+@utility badge-accent { @apply badge border-strong-accent/40 bg-strong-accent/10 text-strong-accent; }
+@utility badge-private { @apply badge border-private/40 bg-private/10 text-private; }
+
+/* Callouts. */
+@utility callout { @apply flex items-start gap-3 rounded-sm border border-border bg-subtle px-4 py-3 text-sm; }
+@utility callout-warning { @apply callout border-warning/30 bg-warning/[0.07]; }
+@utility callout-danger { @apply callout border-danger/30 bg-danger/[0.07]; }
+@utility callout-private { @apply callout border-private/30 bg-private/[0.07]; }
+@utility callout-accent { @apply callout border-strong-accent/30 bg-strong-accent/[0.06]; }
+@utility callout-success { @apply callout border-success/30 bg-success/[0.07]; }
+
+/* Navigation. */
+@utility nav-link { @apply flex items-center gap-3 rounded-sm px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground; }
+@utility nav-link-active { @apply text-strong-accent hover:text-strong-accent; }
+
+/* Dropdown menus and select options (Tailwind Plus Elements). */
+@utility menu { @apply z-50 min-w-48 rounded-sm border border-border bg-popover p-1 shadow-lg transition transition-discrete [--anchor-gap:--spacing(1)] data-closed:scale-95 data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in; }
+@utility menu-item { @apply flex w-full cursor-pointer items-center gap-2 rounded-xs px-2.5 py-2 text-left text-sm text-foreground focus:bg-muted focus:outline-hidden hover:bg-muted; }
+
+@utility table { @apply min-w-full text-sm; }
+@utility prose-answer { @apply text-sm leading-7 text-foreground; }
+@utility citation { @apply mx-0.5 inline-flex max-w-64 items-center rounded-xs border border-strong-accent/40 bg-strong-accent/10 px-1.5 align-baseline text-xs leading-5 font-medium text-strong-accent no-underline hover:bg-strong-accent/20; }
+@utility kbd { @apply rounded-xs border border-border bg-muted px-1 py-px text-[0.7rem] text-muted-foreground; }
+
+@layer components {
+  .table thead { @apply bg-card-header; }
+  .table th { @apply border-b border-border px-4 py-3 text-left text-[0.7rem] font-medium uppercase tracking-wider text-muted-foreground; }
+  .table td { @apply border-b border-border px-4 py-3 align-middle; }
+  .table tbody tr:last-child td { @apply border-b-0; }
+  .table tbody tr { @apply transition-colors hover:bg-subtle; }
+
+  .prose-answer p { @apply my-0; }
+  .prose-answer p + p, .prose-answer p + ul, .prose-answer p + ol, .prose-answer ul + p, .prose-answer ol + p { @apply mt-4; }
+  .prose-answer ul { @apply my-2 list-disc pl-5; }
+  .prose-answer ol { @apply my-2 list-decimal pl-5; }
+  .prose-answer li { @apply my-0.5; }
+  .prose-answer h1, .prose-answer h2, .prose-answer h3 { @apply mt-4 mb-2 font-bold; }
+  .prose-answer table { @apply my-3 block w-full overflow-x-auto text-left text-xs; }
+  .prose-answer th { @apply border-b border-border py-1 pr-3 font-semibold; }
+  .prose-answer td { @apply border-b border-border py-1 pr-3; }
+  .prose-answer code { @apply rounded-xs bg-muted px-1 py-0.5 text-xs; }
+  .prose-answer strong { @apply font-bold; }
+  .prose-answer a { @apply link; }
+}
+
+/* PDF.js viewer */
+.pdf-stage { position: absolute; inset: 0; overflow: auto; }
+.pdf-stage .pdfViewer .page { margin: 16px auto; border: 1px solid var(--border); box-shadow: 0 8px 30px -12px rgb(0 0 0 / 0.25); }
+.dark .pdf-stage .pdfViewer .page { box-shadow: 0 8px 30px -10px rgb(0 0 0 / 0.8); }
+.pdf-stage .textLayer ::selection { background: color-mix(in oklab, var(--strong-accent) 35%, transparent); }
+.pdf-stage .textLayer .highlight { background-color: rgb(250 204 21 / 0.45); }
+.pdf-stage .textLayer .highlight.selected { background-color: rgb(255 84 58 / 0.55); }
+
+/* Toggle switch over a real checkbox (shared/_switch). The checkbox covers
+   the track, so clicks and keyboard focus land on it. */
+@utility switch { @apply relative inline-flex h-6 w-11 shrink-0 items-center rounded-sm border border-input bg-muted p-0.5 transition-colors duration-200 ease-in-out has-checked:border-strong-accent has-checked:bg-strong-accent has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-strong-accent has-disabled:cursor-not-allowed has-disabled:opacity-50; }
+@utility switch-input { @apply absolute inset-0 z-10 size-full cursor-pointer appearance-none rounded-sm focus:outline-hidden disabled:cursor-not-allowed; }
+@utility switch-knob { @apply pointer-events-none size-4.5 rounded-xs bg-background shadow-xs ring-1 ring-black/10 transition duration-200 ease-in-out dark:bg-foreground; }
+.switch:has(.switch-input:checked) .switch-knob { translate: calc(var(--spacing) * 5) 0; background-color: var(--strong-accent-foreground); }
+
+/* Tag color swatches (taxonomy form). */
+@utility swatch { @apply size-8 cursor-pointer appearance-none rounded-sm border border-black/10 forced-color-adjust-none outline-offset-2 checked:outline-2 checked:outline-foreground focus-visible:outline-2 focus-visible:outline-strong-accent dark:border-white/15; }
+
+/* Research chat */
+@utility typing-dot { @apply inline-block size-1.5 rounded-full bg-muted-foreground; animation: typing-dot 1s ease-in-out infinite; }
+@utility shimmer {
+  background: linear-gradient(90deg, var(--muted-foreground) 0%, var(--foreground) 50%, var(--muted-foreground) 100%) 0 0 / 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2s linear infinite;
+}
+@keyframes typing-dot { 0%, 80%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@keyframes caret-blink { 50% { opacity: 0; } }
+.prose-answer[data-streaming] > :last-child::after {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  margin-left: 0.15em;
+  vertical-align: text-bottom;
+  background: var(--strong-accent);
+  animation: caret-blink 1s step-end infinite;
+}
+.prose-answer > :first-child { margin-top: 0; }
+.prose-answer pre { @apply my-3 overflow-x-auto rounded-sm border border-border bg-subtle p-3 text-xs; }
+.prose-answer pre code { @apply bg-transparent p-0; }
+.prose-answer blockquote { @apply my-3 border-l-2 border-border pl-3 muted; }
+.prose-answer h1 { @apply text-lg; }
+.prose-answer h2 { @apply text-base; }
+@media (prefers-reduced-motion: reduce) {
+  .typing-dot, .shimmer, .prose-answer[data-streaming] > :last-child::after { animation: none; }
+  .shimmer { color: var(--muted-foreground); background: none; }
+}
+
+/* Date picker (shared/_date_picker). The panel lives in the top layer and is placed under its field by date_picker_controller. */
+@utility date-picker-panel { @apply menu fixed inset-auto m-0 w-72 p-3 text-foreground; }
+@utility date-picker-nav { @apply btn h-7 w-7 px-0 text-muted-foreground hover:bg-muted hover:text-foreground; }
+@utility date-picker-icon { @apply inline-flex size-7 items-center justify-center rounded-xs text-muted-foreground hover:text-foreground; }
+@utility date-picker-day {
+  @apply flex h-8 items-center justify-center rounded-xs text-sm tabular-nums text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-strong-accent/60 disabled:cursor-not-allowed disabled:opacity-30;
+  &[data-outside] { @apply text-muted-foreground/50; }
+  &[data-today] { @apply font-bold text-strong-accent ring-1 ring-strong-accent/40 ring-inset; }
+  &[aria-selected="true"] { @apply bg-strong-accent font-bold text-strong-accent-foreground ring-0 hover:bg-strong-accent/90; }
+}
+
+/* Turbo's page-load bar in the accent instead of its default blue. */
+.turbo-progress-bar {
+  height: 2px;
+  background-color: var(--strong-accent);
+  box-shadow: 0 0 8px color-mix(in oklab, var(--strong-accent) 60%, transparent);
+}

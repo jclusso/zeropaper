@@ -1,0 +1,65 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: ''
+    headers:
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Openai-Model:
+      - gpt-5.6-luna-2026-07-01
+    body:
+      encoding: UTF-8
+      string: |-
+        {
+          "id": "resp_0a1b2c3d4e5f",
+          "object": "response",
+          "created_at": 1792000000,
+          "status": "completed",
+          "model": "gpt-5.6-luna-2026-07-01",
+          "output": [
+            {
+              "type": "reasoning",
+              "id": "rs_0a1b2c",
+              "summary": []
+            },
+            {
+              "type": "message",
+              "id": "msg_0a1b2c",
+              "status": "completed",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "{\"title\":\"Acme Power electricity bill March 2026\",\"document_date\":\"2026-03-14\",\"correspondent\":\"Acme Power\",\"document_type\":\"Invoice\",\"tags\":[\"Utilities\",\"Electricity\"],\"summary\":\"Electricity bill for 412 kWh in February 2026. Amount due $87.40 by April 1, 2026, account 55-0192.\",\"language\":\"en\",\"confidence\":0.55}",
+                  "annotations": []
+                }
+              ]
+            }
+          ],
+          "usage": {
+            "input_tokens": 812,
+            "output_tokens": 164,
+            "total_tokens": 976,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens_details": {
+              "reasoning_tokens": 64
+            }
+          }
+        }
+  recorded_at: Fri, 16 Oct 2026 12:00:00 GMT
+recorded_with: VCR 6.4.0

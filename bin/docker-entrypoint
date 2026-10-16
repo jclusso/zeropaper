@@ -1,0 +1,16 @@
+#!/bin/bash -e
+
+# Ingest folders and the model cache live on mounted volumes, which may start empty.
+mkdir -p "${INGEST_DIR:-/rails/storage/ingest}/private" "${MODELS_DIR:-/rails/storage/models}"
+
+if [ -z "${SECRET_KEY_BASE}" ]; then
+  echo "SECRET_KEY_BASE is not set. Generate one with: openssl rand -hex 64" >&2
+  exit 1
+fi
+
+# If running the rails server then create or migrate existing database
+if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
+  ./bin/rails db:prepare
+fi
+
+exec "${@}"

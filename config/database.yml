@@ -1,0 +1,17 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  # Enough for the web threads or the processing worker threads, whichever is larger.
+  max_connections: <%= [ ENV.fetch("RAILS_MAX_THREADS", 5).to_i, ENV.fetch("PROCESSING_THREADS", 6).to_i ].max + 5 %>
+
+development:
+  <<: *default
+  database: zeropaper_development
+
+test:
+  <<: *default
+  database: zeropaper_test
+
+production:
+  <<: *default
+  url: <%= ENV["DATABASE_URL"] %>

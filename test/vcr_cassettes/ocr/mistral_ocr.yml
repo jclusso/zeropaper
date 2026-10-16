@@ -1,0 +1,23 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.mistral.ai/v1/ocr
+    body:
+      encoding: UTF-8
+      string: ''
+    headers:
+      Authorization:
+      - Bearer <MISTRAL_API_KEY>
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+    body:
+      encoding: UTF-8
+      string: '{"model":"mistral-ocr-latest","pages":[{"index":0,"markdown":"# Payroll summary\n\nEmployee salary report for March 2026.","images":[],"dimensions":{"dpi":200,"height":2200,"width":1700}}],"usage_info":{"pages_processed":1,"doc_size_bytes":20000}}'
+  recorded_at: Fri, 16 Oct 2026 12:00:00 GMT
+recorded_with: VCR 6.4.0

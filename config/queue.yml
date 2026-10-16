@@ -1,0 +1,30 @@
+# Document processing has its own pool, so live page updates, ingest and
+# Research never wait behind OCR. Each processing thread spends most of its
+# time waiting on Tesseract or an AI provider, so threads are cheap; raise
+# PROCESSING_THREADS on machines with more cores.
+default: &default
+  dispatchers:
+    - polling_interval: 1
+      batch_size: 500
+  workers:
+    - queues: [ processing ]
+      threads: <%= ENV.fetch("PROCESSING_THREADS", 6) %>
+      processes: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
+      polling_interval: 0.5
+    - queues: [ research ]
+      threads: 3
+      polling_interval: 0.5
+    # Everything else, including Turbo broadcasts and Active Storage jobs.
+    # A new queue_as name must be added here.
+    - queues: [ default, ingest ]
+      threads: 3
+      polling_interval: 0.5
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+
+production:
+  <<: *default

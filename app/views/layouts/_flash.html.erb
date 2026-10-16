@@ -1,0 +1,4 @@
+<%# Flash messages render here and move themselves into the #toasts stack. %>
+<% { notice: :notice, alert: :alert }.each do |key, type| %>
+  <% if flash[key].present? %><%= render "layouts/toast", type: type, message: flash[key] %><% end %>
+<% end %>

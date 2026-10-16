@@ -1,0 +1,31 @@
+<%# Two panes under the app header: saved conversations and the chat column. %>
+<div class="flex h-[calc(100dvh-3.5rem)] min-h-0">
+  <aside class="hidden w-64 shrink-0 flex-col border-r border-border bg-background lg:flex">
+    <div class="p-3">
+      <%= link_to conversations_path, class: "btn-secondary w-full" do %><%= icon(:plus, class: "size-4") %> New research<% end %>
+    </div>
+    <nav class="min-h-0 flex-1 overflow-y-auto px-2 pb-4" aria-label="Saved research">
+      <% if conversations.any? %>
+        <p class="px-2 pb-1 pt-2 text-[0.7rem] font-medium uppercase tracking-wider muted">Recent</p>
+        <ul class="space-y-0.5">
+          <% conversations.each do |conversation| %>
+            <% active = conversation == local_assigns[:current] %>
+            <li>
+              <%= link_to conversation, title: conversation.title, aria: { current: ("page" if active) },
+                    class: [ "block truncate rounded-sm px-2 py-1.5 text-sm transition-colors",
+                             active ? "bg-strong-accent/10 text-strong-accent" : "text-muted-foreground hover:bg-muted hover:text-foreground" ] do %>
+                <%= conversation.title %>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p class="px-2 pt-2 text-xs muted">Your research is saved here.</p>
+      <% end %>
+    </nav>
+  </aside>
+
+  <section class="relative flex min-w-0 flex-1 flex-col" data-controller="chat">
+    <%= yield %>
+  </section>
+</div>

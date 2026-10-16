@@ -1,0 +1,36 @@
+<%# The extracted text, page by page, for the Text and Side by side views. %>
+<div class="absolute inset-0 flex flex-col">
+  <div class="flex h-[2.8125rem] shrink-0 items-center gap-2 border-b border-border bg-background/95 px-3 text-xs">
+    <span class="min-w-0 flex-1 truncate muted"><%= document.text_source_label || "Text" %></span>
+    <% if document.content.present? %>
+      <button type="button" class="btn-ghost btn-sm" data-controller="clipboard" data-action="clipboard#copy"
+        data-clipboard-text-value="<%= document.page_texts.map(&:strip).compact_blank.join("\n\n") %>">
+        <%= icon(:copy, class: "size-4") %><span data-clipboard-target="label">Copy</span>
+      </button>
+    <% end %>
+  </div>
+
+  <div class="relative min-h-0 flex-1 overflow-y-auto" data-reading-mode-target="reader">
+    <% if document.content.present? %>
+      <div class="mx-auto max-w-3xl space-y-8 px-6 py-6">
+        <% document.page_texts.each_with_index do |text, index| %>
+          <section id="text-page-<%= index + 1 %>" class="scroll-mt-4" data-reading-mode-target="page">
+            <% if document.page_texts.size > 1 %>
+              <button type="button" class="eyebrow mb-2 hover:text-strong-accent" title="Show this page"
+                data-action="reading-mode#showPage" data-reading-mode-page-param="<%= index + 1 %>">
+                Page <%= index + 1 %><%= " · blank, not read" if text.blank? && document.blank_page?(index + 1) %>
+              </button>
+            <% end %>
+            <% if text.present? %>
+              <%= page_text(document, text) %>
+            <% else %>
+              <p class="text-sm muted">No text on this page.</p>
+            <% end %>
+          </section>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="p-6 text-center text-sm muted"><%= document.processing? ? "Reading the text…" : "No text was found in this file." %></p>
+    <% end %>
+  </div>
+</div>

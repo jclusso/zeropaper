@@ -1,0 +1,5 @@
+<% content_for :title, @user.name %>
+<div>
+  <%= page_header "Edit #{@user.name}" %>
+  <%= render "users/form", user: @user %>
+</div>

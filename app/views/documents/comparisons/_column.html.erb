@@ -1,0 +1,42 @@
+<section class="card flex min-w-0 flex-col" data-comparison-column="<%= document.id %>">
+  <div class="card-header space-y-2">
+    <p class="text-xs font-semibold uppercase tracking-wide muted"><%= heading %></p>
+    <%= link_to document.display_title, document, class: "block truncate font-bold hover:underline" %>
+    <div class="flex flex-wrap items-center gap-1.5">
+      <%= privacy_badge(document) %><%= status_badge(document) %>
+      <span class="text-xs muted"><%= [ document.correspondent&.name, document.display_date.to_fs(:long) ].compact.join(" · ") %></span>
+    </div>
+  </div>
+
+  <div class="max-h-[32rem] overflow-y-auto bg-subtle p-4">
+    <% if document.pdf? && document.page_count.to_i.positive? %>
+      <ol class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <% (1..document.page_count).each do |page| %>
+          <li>
+            <%= link_to document_path(document, anchor: "page=#{page}"), class: "group block", title: "Open page #{page}" do %>
+              <span class="block overflow-hidden rounded-sm border border-border bg-white transition group-hover:border-foreground/40">
+                <%= image_tag document_page_path(document, page, size: "thumb", source: "file", v: document.file.blob.id), alt: "Page #{page}", loading: "lazy", width: 240, height: 310, class: "h-auto w-full" %>
+              </span>
+              <span class="mt-1 block text-center text-xs muted">Page <%= page %></span>
+            <% end %>
+          </li>
+        <% end %>
+      </ol>
+    <% elsif document.thumbnail.attached? %>
+      <%= link_to document, class: "block" do %>
+        <%= image_tag document_thumbnail_path(document, v: document.thumbnail.blob.id), alt: "", loading: "lazy", class: "mx-auto max-h-[28rem] w-auto rounded-sm border border-border" %>
+      <% end %>
+    <% else %>
+      <p class="whitespace-pre-wrap text-xs leading-relaxed"><%= document.content.to_s.tr(Document::PAGE_BREAK, "\n").truncate(2_000) %></p>
+    <% end %>
+  </div>
+
+  <div class="mt-auto border-t border-border px-4 py-3">
+    <%= button_to document_path(other), method: :delete, params: { then_open: document.id }, class: "btn-primary btn-sm w-full", form_class: "w-full",
+          form: { data: { turbo_confirm: "Keep “#{document.display_title}” (#{comparison_identity(document)}) and permanently delete “#{other.display_title}” (#{comparison_identity(other)})?",
+                          turbo_confirm_title: "Keep this one?", turbo_confirm_button: "Delete the other one" } } do %>
+      <%= icon(:check, class: "size-4") %> Keep this one
+    <% end %>
+    <p class="mt-1.5 text-center text-xs muted">Deletes the other document.</p>
+  </div>
+</section>

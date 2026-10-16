@@ -1,0 +1,22 @@
+<% content_for :title, "Users" %>
+<div>
+  <%= page_header "Users", "Everyone here shares one library." do %>
+    <%= link_to new_user_path, class: "btn-primary" do %><%= icon(:plus, class: "size-4") %> Add user<% end %>
+  <% end %>
+  <div class="card overflow-x-auto">
+    <table class="table">
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Passkeys</th><th></th></tr></thead>
+      <tbody>
+        <% @users.each do |user| %>
+          <tr>
+            <td class="font-medium"><%= user.name %><%= tag.span(" (you)", class: "muted font-normal") if user == current_user %></td>
+            <td class="muted"><%= user.email_address %></td>
+            <td><%= user.admin? ? tag.span("Admin", class: "badge-accent") : tag.span("Member", class: "badge-slate") %></td>
+            <td class="tabular-nums muted"><%= user.passkeys.size %></td>
+            <td class="text-right"><%= link_to "Edit", edit_user_path(user), class: "btn-ghost btn-sm" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

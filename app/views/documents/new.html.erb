@@ -1,0 +1,47 @@
+<% content_for :title, "Upload" %>
+<div class="mx-auto max-w-3xl" data-controller="upload"
+  data-upload-url-value="<%= documents_path %>" data-upload-library-url-value="<%= documents_path %>">
+  <%= page_header "Upload documents", "PDFs, scans and photos, text, Word and Excel files." %>
+
+  <%= form_with url: documents_path, multipart: true, class: "space-y-5", data: { action: "submit->upload#start", upload_target: "form" } do |form| %>
+    <label class="card card-interactive flex flex-col items-center justify-center gap-3 border-dashed px-6 py-14 text-center"
+      data-upload-target="zone" data-action="dragover->upload#over dragenter->upload#over dragleave->upload#leave drop->upload#drop">
+      <span class="flex size-12 items-center justify-center rounded-sm border border-strong-accent/40 bg-strong-accent/10 text-strong-accent"><%= icon(:upload, class: "size-6") %></span>
+      <span class="text-sm">
+        <span class="font-bold text-strong-accent">Choose files</span>
+        <span class="muted">·</span>
+        <button type="button" class="font-bold text-strong-accent underline-offset-4 hover:underline" data-action="upload#chooseFolder">Choose a folder</button>
+        <span class="muted">·</span>
+        or drag them here
+      </span>
+      <span class="text-xs muted">PDF, PNG, JPEG, TIFF, WebP, HEIC, TXT, Markdown, CSV, DOCX, XLSX</span>
+      <span class="max-w-md text-xs muted">Choosing a folder makes your browser ask to confirm the upload. Dragging a folder in skips that.</span>
+      <%= file_field_tag "files[]", multiple: true, class: "sr-only", data: { upload_target: "input", action: "upload#choose" },
+            accept: ".pdf,.png,.jpg,.jpeg,.tif,.tiff,.webp,.heic,.txt,.md,.csv,.docx,.xlsx" %>
+    </label>
+    <%= file_field_tag "files[]", multiple: true, webkitdirectory: true, id: "folder_files", class: "sr-only", tabindex: -1, data: { upload_target: "folderInput", action: "upload#choose" } %>
+
+    <%= render "shared/switch", name: :private, checked: false, title: safe_join([ "Upload as ", private_badge(interactive: false) ]),
+          description: safe_join([ "Files in the ", tag.code("private/"), " ingest folder are private too." ]), data: { upload_target: "private" } %>
+
+    <div class="card" data-upload-target="queue" hidden>
+      <div class="card-header flex flex-wrap items-center gap-3">
+        <p class="flex-1 text-sm font-medium" data-upload-target="summary" aria-live="polite"></p>
+        <button type="button" class="btn-ghost btn-sm" data-action="upload#clear" data-upload-target="clear">Clear</button>
+        <%= form.button class: "btn-primary btn-sm", data: { upload_target: "submit" } do %><%= icon(:upload, class: "size-4") %> <span data-upload-target="submitLabel">Upload</span><% end %>
+      </div>
+      <div class="h-1 bg-muted" data-upload-target="overall" hidden>
+        <div class="h-full w-0 bg-strong-accent transition-[width] duration-200" data-upload-target="overallBar"></div>
+      </div>
+      <ul class="max-h-[28rem] divide-y divide-border overflow-y-auto" data-upload-target="list"></ul>
+      <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3" data-upload-target="done" hidden>
+        <p class="text-sm" data-upload-target="doneSummary"></p>
+        <%= link_to documents_path, class: "btn-secondary btn-sm" do %>Open library <%= icon(:arrow_right, class: "size-4") %><% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <template data-upload-target="template">
+    <%= render "documents/uploads/row" %>
+  </template>
+</div>

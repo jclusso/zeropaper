@@ -1,0 +1,7 @@
+invoice:
+  name: Invoice
+  auto_match: true
+
+letter:
+  name: Letter
+  auto_match: false

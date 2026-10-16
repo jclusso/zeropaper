@@ -1,0 +1,18 @@
+<% content_for :title, "Choose models" %>
+<% content_for :wide, true %>
+<%= render "setup/steps", current: 2 %>
+<div class="card card-body">
+  <h1 class="text-lg font-bold">Choose models</h1>
+  <p class="mt-1 text-sm muted">Each task can use a different provider and model. The suggestions are a good start; pick one from the list or type any model id.</p>
+
+  <%= form_with model: @setting, url: setup_models_path, method: :patch, class: "mt-6 space-y-6" do |form| %>
+    <%= form_errors(@setting) %>
+    <% Setting::TASKS.each do |task, label| %>
+      <%= render "ai_providers/task_row", setting: @setting, task: task, label: label %>
+    <% end %>
+    <div class="flex items-center justify-between gap-3">
+      <%= link_to "Back", setup_ai_choice_path, class: "btn-ghost" %>
+      <%= form.submit "Continue", class: "btn-primary" %>
+    </div>
+  <% end %>
+</div>

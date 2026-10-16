@@ -1,0 +1,5 @@
+default:
+  local_ocr_provider: tesseract
+  searchable_pdf: false
+  blank_page_detection: true
+  setup_completed_at: <%= Time.current %>

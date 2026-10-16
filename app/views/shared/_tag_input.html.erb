@@ -1,0 +1,16 @@
+<%#
+  Tag box built on the chip input.
+
+  locals:
+    name:      field name for each chip's hidden input, e.g. "document[tag_names][]"
+    selected:  Tag records already chosen
+    by:        :name (new tags allowed, the default) or :id (existing tags only)
+    id:        id for the text box
+    placeholder, data: passed to the chip input
+%>
+<% by = local_assigns.fetch(:by, :name) %>
+<% creatable = by == :name %>
+<%= render "shared/chip_input", name: name, id: local_assigns[:id], creatable: creatable, data: local_assigns[:data],
+      placeholder: local_assigns[:placeholder] || (creatable ? "Add a tag" : "Choose tags"),
+      selected: selected.to_a.map { |chosen| chosen.public_send(by) },
+      options: Tag.alphabetically.map { |option_tag| [ option_tag.name, option_tag.public_send(by), tag_chip_class(option_tag) ] } %>

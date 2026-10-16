@@ -1,0 +1,11 @@
+<% content_for :title, "Restore" %>
+<% if @restore.status.in?(%w[pending processing]) %><meta data-controller="refresh" data-refresh-interval-value="3000"><% end %>
+<div>
+  <%= page_header "Restore" do %><%= link_to "Back", new_restore_path, class: "btn-secondary" %><% end %>
+  <div class="card card-body space-y-3 text-sm">
+    <p><span class="muted">Status:</span> <%= @restore.status.capitalize %></p>
+    <p><span class="muted">Restored:</span> <%= @restore.restored_count %> · <span class="muted">Skipped (already here):</span> <%= @restore.skipped_count %></p>
+    <% if @restore.error.present? %><p class="text-danger"><%= @restore.error %></p><% end %>
+    <% if @restore.status == "ready" || @restore.status == "complete" %><%= link_to "Go to the library", documents_path, class: "btn-primary" %><% end %>
+  </div>
+</div>

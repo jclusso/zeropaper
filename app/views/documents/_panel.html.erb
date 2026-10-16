@@ -1,0 +1,23 @@
+<% tabs = { "details" => "Details", "activity" => "Activity" } %>
+<% tabs = { "processing" => "Processing" }.merge(tabs) if document.processing? %>
+<% selected = tabs.keys.first %>
+<div>
+  <div class="sticky top-0 z-10 flex border-b border-border bg-background px-2" role="tablist">
+    <% tabs.each do |name, label| %>
+      <button type="button" role="tab" class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold uppercase tracking-wide muted hover:text-foreground aria-selected:border-strong-accent aria-selected:text-foreground"
+        aria-selected="<%= name == selected %>" data-tabs-target="tab" data-tabs-name-param="<%= name %>" data-action="tabs#select"><%= label %></button>
+    <% end %>
+  </div>
+
+  <% if document.processing? %>
+    <div class="p-4" data-tabs-target="panel" data-name="processing">
+      <%= render "documents/processing", document: document %>
+    </div>
+  <% end %>
+  <div class="p-4" data-tabs-target="panel" data-name="details" <%= "hidden" unless selected == "details" %>>
+    <%= render "documents/details", document: document %>
+  </div>
+  <div class="p-4" data-tabs-target="panel" data-name="activity" hidden>
+    <%= render "documents/activity", document: document %>
+  </div>
+</div>

@@ -1,0 +1,23 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: ''
+    headers:
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+  response:
+    status:
+      code: 503
+      message: Service Unavailable
+    headers:
+      Content-Type:
+      - application/json
+    body:
+      encoding: UTF-8
+      string: '{"error":{"message":"The server is overloaded.","type":"server_error"}}'
+  recorded_at: Fri, 16 Oct 2026 12:00:00 GMT
+recorded_with: VCR 6.4.0

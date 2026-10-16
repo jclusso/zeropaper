@@ -1,0 +1,47 @@
+<div class="space-y-5">
+  <%= form_with model: document, class: "space-y-4" do |form| %>
+    <%= form_errors(document) %>
+    <div>
+      <%= form.label :title, class: "label" %>
+      <%= form.text_field :title, no_autofill(value: document.display_title, placeholder: "what this document is", class: "input") %>
+    </div>
+    <div>
+      <label class="label" for="document_document_date">Date</label>
+      <%= render "shared/date_picker", name: "document[document_date]", value: document.document_date, id: "document_document_date", placeholder: "No date" %>
+    </div>
+    <div>
+      <label class="label" for="document_correspondent_name">Correspondent</label>
+      <%= render "shared/combobox", name: "document[correspondent_name]", value: document.correspondent&.name, id: "document_correspondent_name",
+            options: Correspondent.alphabetically.pluck(:name, :name), placeholder: "None", creatable: true, clearable: true %>
+    </div>
+    <div>
+      <label class="label" for="document_document_type_name">Type</label>
+      <%= render "shared/combobox", name: "document[document_type_name]", value: document.document_type&.name, id: "document_document_type_name",
+            options: DocumentType.alphabetically.pluck(:name, :name), placeholder: "None", creatable: true, clearable: true %>
+    </div>
+    <div>
+      <label class="label" for="document_tag_names">Tags</label>
+      <%= render "shared/tag_input", name: "document[tag_names][]", selected: document.tags.sort_by { |chosen| chosen.name.downcase }, id: "document_tag_names" %>
+    </div>
+    <div>
+      <%= form.label :summary, class: "label" %>
+      <%= form.text_area :summary, no_autofill(rows: 5, placeholder: "a few sentences with the key facts", class: "textarea") %>
+    </div>
+    <div class="flex items-center justify-between gap-2">
+      <% if document.metadata_source.present? %>
+        <span class="text-xs muted">Details from <%= { "ai" => "AI", "rules" => "local rules", "manual" => "you" }.fetch(document.metadata_source, document.metadata_source) %><%= " · #{(document.confidence * 100).round}% confident" if document.metadata_source == "ai" && document.confidence %></span>
+      <% else %><span></span><% end %>
+      <%= form.submit "Save", class: "btn-primary btn-sm" %>
+    </div>
+  <% end %>
+
+  <section class="flex flex-wrap gap-2 border-t border-border pt-4">
+    <%= button_to document_reprocessing_path(document), class: "btn-secondary btn-sm", disabled: document.processing?,
+          form: { data: { turbo_confirm: (document.private? ? nil : "Process this document again? Its file and text may be sent to the AI provider.") } } do %>
+      <%= icon(:refresh, class: "size-3.5") %> Reprocess
+    <% end %>
+    <%= button_to document_path(document), method: :delete, class: "btn-danger-solid btn-sm ml-auto", form: { data: { turbo_confirm: "Delete “#{document.display_title}” permanently?" } } do %>
+      <%= icon(:trash, class: "size-3.5") %> Delete
+    <% end %>
+  </section>
+</div>
