@@ -66,6 +66,8 @@ module Ingest
         target = root.join(UNSUPPORTED_DIR, relative)
         FileUtils.mkdir_p(target.dirname)
         FileUtils.mv(path, target)
+      rescue Errno::ENOENT
+        # Already gone. An SMB share keeps listing a deleted file for a while.
       rescue StandardError => error
         # The message can quote what was read, so only the class is logged.
         Rails.logger.error("[ingest] #{relative}: #{error.class}")
