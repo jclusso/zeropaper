@@ -59,7 +59,7 @@ module DocumentHelpers
     Brakes passed lights passed tires passed steering passed horn passed wipers passed
   TEXT
 
-  HOSTED_AI = %r{\Ahttps://api\.(openai|mistral)\.ai/}
+  LOCAL_HOSTS = %w[localhost 127.0.0.1 ::1].freeze
 
   # A saved document with text but no file, for testing rules and indexing.
   def document_with_text(content, filename: "notes.txt", **attributes)
@@ -80,7 +80,11 @@ module DocumentHelpers
     end
   end
 
-  def assert_no_hosted_ai_requests
-    assert_not_requested :any, HOSTED_AI
+  # Fails when the test made any request to a host other than this machine,
+  # stubbed or not.
+  def assert_no_external_requests
+    hosts = WebMock::RequestRegistry.instance.requested_signatures.hash.keys.map { |request| request.uri.host.delete_prefix("[").delete_suffix("]") }
+    external = hosts.uniq - LOCAL_HOSTS
+    assert_empty external, "expected no requests beyond this machine, but #{external.to_sentence} #{external.one? ? "was" : "were"} called"
   end
 end

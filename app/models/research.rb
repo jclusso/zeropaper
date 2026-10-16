@@ -3,9 +3,11 @@
 # and cites the documents behind each claim.
 #
 # Privacy: the search tools run locally over every document, but only
-# non-private documents are ever handed to the model (Outbound.release!).
+# non-private documents are ever handed to the model (Outbound#release!).
 # Private matches are collected separately and shown to the person, never to
-# the model.
+# the model. Every document handed to the model is checked again before each
+# request of the run, and recorded on the answer so a later question leaves
+# that turn out of its history once the document is private.
 class Research
   MAX_HISTORY = 20
 
@@ -15,10 +17,11 @@ class Research
     @message = message
     @cited_ids = Set.new
     @private_match_ids = Set.new
+    @outbound = Outbound.without_documents
   end
 
   def run
-    chat = Outbound.without_documents
+    chat = @outbound
       .chat(:research)
       .with_instructions(instructions)
       .with_tools(*tools)
@@ -31,6 +34,7 @@ class Research
     message.finish!(
       content: content,
       cited_document_ids: (content.scan(/\[#(\d+)\]/).flatten.map(&:to_i) & cited_ids.to_a),
+      used_document_ids: cited_ids.to_a,
       private_match_ids: private_match_ids.to_a
     )
   rescue StandardError => error
@@ -43,8 +47,9 @@ class Research
   def shareable(documents)
     private_docs, shared = documents.partition(&:private?)
     private_match_ids.merge(private_docs.map(&:id))
+    released = @outbound.release!(shared)
     cited_ids.merge(shared.map(&:id))
-    Outbound.release!(shared)
+    released
   end
 
   private
@@ -60,10 +65,12 @@ class Research
       question_message.content
     end
 
+    # Earlier turns, without those that used a document that is private now.
+    # Their documents are checked before each request too.
     def load_history(chat)
-      conversation.messages.completed.where("id < ?", question_message.id).last(MAX_HISTORY).each do |earlier|
-        chat.add_message(role: earlier.role.to_sym, content: earlier.content)
-      end
+      history = conversation.shareable_history(before: question_message, limit: MAX_HISTORY)
+      @outbound.release!(Document.where(id: history.flat_map(&:shared_document_ids)).to_a)
+      history.each { |earlier| chat.add_message(role: earlier.role.to_sym, content: earlier.content) }
     end
 
     def tools

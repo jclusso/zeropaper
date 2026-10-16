@@ -21,7 +21,7 @@ class Export < ApplicationRecord
 
     Dir.mktmpdir do |dir|
       path = File.join(dir, "export.zip")
-      Archive::Writer.new(scope).write(path)
+      Archive::Writer.new(scope, include_private: include_private?).write(path)
       archive.attach(io: File.open(path), filename: filename, content_type: "application/zip")
     end
     update!(status: "ready", documents_count: scope.count)

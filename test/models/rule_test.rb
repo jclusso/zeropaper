@@ -82,7 +82,7 @@ class RuleTest < ActiveSupport::TestCase
     assert_equal correspondents(:acme_power), document.correspondent
     assert_equal document_types(:invoice), document.document_type
     assert_equal "Invoice from Acme Power, Amount Due $12", document.title
-    assert_no_hosted_ai_requests
+    assert_no_external_requests
   end
 
   test "correspondents, types and tags match by name unless turned off" do

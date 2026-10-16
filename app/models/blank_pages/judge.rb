@@ -1,7 +1,9 @@
 # A second opinion for pages the local check cannot settle, where heavy
 # bleed-through and faint print look alike. One request per document, each
 # unclear page sent with the page before it. Off by default because it spends
-# tokens, and never offered for private documents.
+# tokens, and never offered for private documents. It runs before the text is
+# read, so it also waits while a content rule could still make the document
+# private.
 module BlankPages
   class Judge
     RENDER_EDGE = 1_000
@@ -24,6 +26,11 @@ module BlankPages
     }.freeze
 
     def self.available_for?(document)
+      offered_for?(document) && !document.needs_privacy_screening?
+    end
+
+    # Turned on and possible for this document, privacy rules aside.
+    def self.offered_for?(document)
       settings = document.settings
       settings.blank_page_ai_check? && settings.task_configured?(:vision) && !document.private? &&
         !settings.provider_for(:vision).ocr_model?(settings.model_for(:vision))

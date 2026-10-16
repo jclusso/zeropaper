@@ -1,6 +1,8 @@
 require "test_helper"
 
 class OutboundTest < ActiveSupport::TestCase
+  RESPONSES = "https://api.openai.com/v1/responses".freeze
+
   setup { configure_openai }
 
   test "refuses private documents" do
@@ -32,10 +34,91 @@ class OutboundTest < ActiveSupport::TestCase
     assert_raises(Outbound::PrivateDocumentError) { Outbound.release!([ secret ]) }
   end
 
+  test "a missing document raises instead of being dropped" do
+    shareable = ingest("public", filename: "public.txt")
+
+    assert_raises(ArgumentError) { Outbound.for(nil) }
+    assert_raises(ArgumentError) { Outbound.for(shareable, nil) }
+    assert_raises(ArgumentError) { Outbound.for }
+    assert_raises(ArgumentError) { Outbound.release!([ shareable, nil ]) }
+  end
+
+  test "privacy is read from the database, not from a stale object" do
+    stale = ingest("public", filename: "public.txt")
+    Document.where(id: stale.id).update_all(private: true)
+
+    refute stale.private?
+    assert_raises(Outbound::PrivateDocumentError) { Outbound.for(stale) }
+    assert_raises(Outbound::PrivateDocumentError) { Outbound.release!([ stale ]) }
+  end
+
+  test "unsaved and deleted documents are refused" do
+    deleted = ingest("public", filename: "public.txt")
+    Document.where(id: deleted.id).delete_all
+
+    assert_raises(Outbound::PrivateDocumentError) { Outbound.for(Document.new) }
+    assert_raises(Outbound::PrivateDocumentError) { Outbound.for(deleted) }
+  end
+
+  test "a chat checks privacy again before each request, retries included" do
+    document = ingest("public", filename: "public.txt")
+    stub_request(:post, RESPONSES).to_return do
+      Document.where(id: document.id).update_all(private: true)
+      overloaded
+    end
+
+    assert_raises(Outbound::PrivateDocumentError) { Outbound.for(document).chat(:extraction).ask("Summarize it") }
+    assert_requested :post, RESPONSES, times: 1
+  end
+
+  test "a chat retries as usual while its documents stay shareable" do
+    document = ingest("public", filename: "public.txt")
+    stub_request(:post, RESPONSES).to_return(overloaded, { status: 200, body: response_body("Done."), headers: { "Content-Type" => "application/json" } })
+
+    response = Outbound.for(document).chat(:extraction).ask("Summarize it")
+
+    assert_equal "Done.", response.content
+    assert_requested :post, RESPONSES, times: 2
+  end
+
+  test "a chat checks documents released after it was built" do
+    document = ingest("public", filename: "public.txt")
+    outbound = Outbound.without_documents
+    chat = outbound.chat(:research)
+    outbound.release!([ document ])
+    Document.where(id: document.id).update_all(private: true)
+
+    assert_raises(Outbound::PrivateDocumentError) { chat.ask("What is in it?") }
+    assert_not_requested :post, RESPONSES
+  end
+
+  test "OCR checks privacy again when it is called" do
+    document = ingest("public", filename: "public.txt")
+    outbound = Outbound.for(document)
+    Document.where(id: document.id).update_all(private: true)
+    AIProvider.any_instance.expects(:ocr).never
+
+    assert_raises(Outbound::PrivateDocumentError) { outbound.ocr(fixture_file(".keep").to_s) }
+    assert_no_external_requests
+  end
+
   test "building a chat needs the task assigned" do
     Setting.instance.update!(ai_enabled: false)
 
     error = assert_raises(Outbound::NotConfiguredError) { Outbound.without_documents.chat(:research) }
     assert_match "“Research” under AI tasks", error.message
   end
+
+  private
+    def overloaded
+      { status: 503, body: { error: { message: "Overloaded", type: "server_error" } }.to_json, headers: { "Content-Type" => "application/json" } }
+    end
+
+    def response_body(text)
+      {
+        id: "resp_1", object: "response", status: "completed", model: "gpt-5.6-luna",
+        output: [ { type: "message", id: "msg_1", status: "completed", role: "assistant", content: [ { type: "output_text", text: text, annotations: [] } ] } ],
+        usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 }
+      }.to_json
+    end
 end

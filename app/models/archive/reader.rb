@@ -76,6 +76,7 @@ module Archive
         document.document_type = DocumentType.named(details["document_type"])
         document.tags = Array(details["tags"]).filter_map { |name| Tag.named(name) }
         document.status = "ready"
+        screen_for_privacy(document)
 
         attach(document.file, file_entry)
         attach(document.original_file, zip.glob("#{folder}original/*").first)
@@ -85,6 +86,18 @@ module Archive
 
         document.index!
         :restored
+      end
+
+      # This instance's mark-private rules decide too, on the filename, the
+      # source and the restored text, before the files are stored and before
+      # the document can be shared. Runs before attaching so private files go
+      # straight to the encrypted service.
+      def screen_for_privacy(document)
+        return if document.private?
+
+        if (rule = Rule.where(mark_private: true).matching(document, text: document.content.to_s.tr(Document::PAGE_BREAK, "\n")).first)
+          document.assign_attributes(private: true, private_reason: rule.private_reason)
+        end
       end
 
       def attach(attachment, entry)

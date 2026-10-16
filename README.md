@@ -22,7 +22,7 @@ ZeroPaper is a self-hosted document archive built with Ruby on Rails. It turns s
 A private document is processed only on your machine:
 
 - Its file, text, filename and details are never sent to a hosted AI provider. Every outbound AI request goes through one check that refuses private documents.
-- OCR runs locally with Tesseract or Docling. Details come from Rules and from matching correspondent, type and tag names in the text, and dates are found in the text.
+- OCR runs locally with Tesseract or Docling. Docling counts as local only when its address is on this machine or the local network; otherwise private documents are read with Tesseract. Details come from Rules and from matching correspondent, type and tag names in the text, and dates are found in the text.
 - Its files are stored encrypted on disk with AES-256-GCM, and its text, summary and search passages are encrypted in the database.
 - Research searches private documents locally but never sends them to the model. When private documents match a question, the answer lists them as links.
 
@@ -35,7 +35,7 @@ There are three ways to mark a document private:
 Limits:
 
 - The full-text index (individual words) and the embeddings of private documents are stored unencrypted in Postgres, because search needs them. Someone with access to the database can learn which words a private document contains, but not its full text.
-- Marking a document private after it was processed normally deletes what the hosted provider returned and reprocesses it locally. What was already sent to the provider cannot be recalled.
+- Marking a document private after it was processed normally stops any processing in progress and reprocesses it locally. Details the hosted provider already returned are kept, and nothing more is sent. What was already sent to the provider cannot be recalled.
 - Encryption keys are derived from `SECRET_KEY_BASE`. Losing it makes private files and encrypted text unreadable.
 
 ## Quick start
@@ -75,7 +75,7 @@ Settings that take effect at runtime (AI providers and keys, models, OCR, page c
 | `SECRET_KEY_BASE` | Required. Signs sessions and derives the encryption keys. |
 | `POSTGRES_PASSWORD` | Required. Password for the bundled database. |
 | `TZ` | Time zone. Defaults to `UTC`. |
-| `DOCLING_URL` | Where Docling runs. Set by Compose; when present, Docling is the default local engine. |
+| `DOCLING_URL` | Where Docling runs. Set by Compose; when present, Docling is the default local engine. It must be on this machine or the local network. |
 | `PROCESSING_THREADS` | How many documents are processed at once. Defaults to `6`. Each scan uses up to 2 cores for Tesseract, so about half your cores is a good ceiling. |
 | `PORT` | Host port for the app. Defaults to `3000`. |
 | `APP_HOST` | Host name the app is served under. When set, other hosts are refused. |

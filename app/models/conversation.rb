@@ -30,4 +30,14 @@ class Conversation < ApplicationRecord
   def busy?
     messages.exists?(status: "streaming")
   end
+
+  # Completed messages before the given one that may go back to the model,
+  # newest `limit` at most. A turn (a question and its answers) is left out
+  # when an answer used a document that is private now; it stays on the page.
+  def shareable_history(before:, limit:)
+    earlier = messages.completed.where("id < ?", before.id).last(limit)
+    private_ids = Document.private_only.where(id: earlier.flat_map(&:shared_document_ids)).pluck(:id).to_set
+
+    earlier.slice_before(&:user?).reject { |turn| turn.any? { |message| message.shared_document_ids.any? { |id| private_ids.include?(id) } } }.flatten
+  end
 end

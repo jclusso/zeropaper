@@ -2,10 +2,18 @@
 # progress in `steps` so the UI can show where a document is and what ran.
 #
 # Order matters for privacy: everything that can make a document private
-# (ingest rules, then content rules on locally read text) runs before the
-# first step that may send it to a hosted provider.
+# (filename and source rules, then content rules on locally read text) runs
+# before the first step that may send it to a hosted provider.
+#
+# A run stops at its next step, save or attachment once it is no longer
+# current: when a newer run replaced it, or when the document's privacy
+# changed underneath it. Outbound also re-reads privacy before each request.
 module Document::Processing
   extend ActiveSupport::Concern
+
+  included do
+    before_save :ensure_current_run
+  end
 
   STEPS = {
     "inspect" => "Inspect file",
@@ -56,8 +64,11 @@ module Document::Processing
   end
 
   def process!(extract_metadata: true)
-    @run = SecureRandom.hex(8)
-    update!(status: "processing", error: nil, steps: {}, processing_run: @run)
+    @run = nil
+    run = SecureRandom.hex(8)
+    update!(status: "processing", error: nil, steps: {}, processing_run: run)
+    @run = run
+    screen_before_content
 
     with_file_copy do |path|
       run_step("inspect") { inspect_file(path) }
@@ -81,6 +92,8 @@ module Document::Processing
 
     update_columns(status: "failed", error: error.message.truncate(1_000), processing_run: nil, updated_at: Time.current)
     add_review_reason!("failed")
+  ensure
+    @run = nil
   end
 
   def processing?
@@ -136,13 +149,28 @@ module Document::Processing
       record_step(name, "running")
       detail = yield
       record_step(name, detail == :skipped ? "skipped" : "done", detail.is_a?(String) ? detail : nil)
+    rescue Stopped
+      raise
     rescue StandardError => error
       record_step(name, "failed", error.message.truncate(300))
       raise
     end
 
-    def current_run?
-      @run.nil? || self.class.where(id: id).pick(:processing_run) == @run
+    # Whether this run may go on: no newer run replaced it, and the stored
+    # privacy is still what this run last read or wrote.
+    def current_run?(lock: false)
+      return true if @run.nil?
+
+      scope = self.class.where(id: id)
+      stored_run, stored_private = (lock ? scope.lock : scope).pick(:processing_run, :private)
+      stored_run == @run && stored_private == private_in_database
+    end
+
+    # Every save a run makes, including attaching files, waits here for the
+    # row lock, so a stale run can neither write AI results after the
+    # document went private nor put its files on the unencrypted service.
+    def ensure_current_run
+      raise Stopped unless current_run?(lock: true)
     end
 
     def processing_jobs
@@ -223,11 +251,17 @@ module Document::Processing
       detail = nil
       if verdicts.any? { |verdict| !verdict.sure } && BlankPages::Judge.available_for?(self)
         begin
+          raise Stopped unless current_run?
+
           verdicts = BlankPages::Judge.new(self).call(path, verdicts)
           detail = "unclear pages checked with #{Outbound.model_label(:vision)}"
+        rescue Stopped, Outbound::PrivateDocumentError
+          raise
         rescue StandardError => error
           detail = "AI check failed, kept local verdicts (#{error.message.truncate(80)})"
         end
+      elsif verdicts.any? { |verdict| !verdict.sure } && BlankPages::Judge.offered_for?(self)
+        detail = "AI check skipped because privacy rules read the text first"
       end
       record_blank_pages(verdicts)
       add_review_reason!("blank_pages") if suggested_blank_pages.any?
@@ -251,7 +285,7 @@ module Document::Processing
           texts = (1..page_count.to_i).map { |page| trusted[page].to_s }
         else
           mode = ocr_mode(native, to_read)
-          read = read_scanned_text(path, to_read, mode: mode)
+          read = read_scanned_text(path, to_read, mode: mode, embedded: trusted.values)
           texts = (1..page_count.to_i).map { |page| trusted[page] || read[page].to_s }
           self.text_source = "#{text_source} + embedded text" if trusted.any?
         end
@@ -283,20 +317,22 @@ module Document::Processing
 
     # OCR for the given pages. Tesseract makes the searchable PDF the viewer
     # shows. When AI reads scans and local rules could still make the
-    # document private, the local text is screened before anything leaves.
-    # If the AI model fails, the local engine reads the pages instead.
-    # Returns { page => text }.
-    def read_scanned_text(path, pages, mode: :skip)
+    # document private, the whole document is screened locally before
+    # anything leaves: the embedded text of the other pages together with
+    # local OCR of these. If the AI model fails, the local engine reads the
+    # pages instead. Returns { page => text }.
+    def read_scanned_text(path, pages, mode: :skip, embedded: [])
       @ocr_runs = {}
       ai_reads = settings.ai_reads_scans_for?(self)
       # With nothing to check locally first, Tesseract builds the searchable
       # PDF while the AI model reads the pages.
       searchable = start_searchable_pdf(path, pages, mode, alongside: ai_reads && !needs_privacy_screening?)
 
-      texts = read_with_ai(path, pages, mode) if ai_reads
+      texts = read_with_ai(path, pages, mode, embedded) if ai_reads
       texts ||= begin
-        self.text_source = settings.local_ocr_provider
-        engine_run = settings.local_ocr_provider == "tesseract" && searchable ? searchable.value : local_ocr(settings.local_ocr_provider, path, pages, mode)
+        engine = settings.local_ocr_provider_for(self)
+        self.text_source = engine
+        engine_run = engine == "tesseract" && searchable ? searchable.value : local_ocr(engine, path, pages, mode)
         engine_run.pages
       end
 
@@ -337,14 +373,17 @@ module Document::Processing
     end
 
     # Returns the AI model's page texts, or nil when it could not read them.
-    def read_with_ai(path, pages, mode)
-      screen_for_privacy(local_ocr(settings.local_ocr_provider, path, pages, mode).text) if needs_privacy_screening?
+    def read_with_ai(path, pages, mode, embedded = [])
+      if needs_privacy_screening?
+        screen_for_privacy([ *embedded, local_ocr(settings.local_ocr_provider_for(self), path, pages, mode).text ].join("\n"))
+      end
       return unless settings.ai_reads_scans_for?(self)
+      raise Stopped unless current_run?
 
       result = Ocr::AI.new(settings, self).call(path, pages: pages, content_type: content_type)
       self.text_source = Outbound.model_label(:vision)
       result.pages
-    rescue Outbound::PrivateDocumentError
+    rescue Stopped, Outbound::PrivateDocumentError
       raise
     rescue StandardError => error
       @text_note = "AI could not read it (#{error.message.truncate(80)}), used #{settings.local_ocr_label}"
@@ -359,7 +398,7 @@ module Document::Processing
         if engine == "tesseract"
           Ocr::Tesseract.new(settings).call(path, pages: pages, content_type: content_type, mode: mode)
         else
-          Ocr.engine(engine, settings).call(path, pages: pages, content_type: content_type)
+          Ocr.engine(engine, settings, document: self).call(path, pages: pages, content_type: content_type)
         end
     end
 
@@ -369,8 +408,14 @@ module Document::Processing
         "Local rules"
       else
         begin
+          raise Stopped unless current_run?
+
           Metadata::AI.new(self).apply
           "#{ai_model} · confidence #{(confidence.to_f * 100).round}%"
+        rescue Outbound::PrivateDocumentError
+          raise Stopped unless current_run?
+
+          raise
         rescue Outbound::Error, RubyLLM::Error, Faraday::Error => error
           Metadata::Rules.new(self).apply
           add_review_reason!("ai_failed")

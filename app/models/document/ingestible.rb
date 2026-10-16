@@ -22,7 +22,8 @@ module Document::Ingestible
   class_methods do
     # Adds a file to the library and queues processing. Raises Duplicate when
     # the same bytes are already stored and UnsupportedType for formats the
-    # pipeline cannot read.
+    # pipeline cannot read. A private copy of a stored document makes that
+    # document private, so the instruction is not lost with the duplicate.
     def ingest!(io:, filename:, source:, private: false, private_reason: nil, uploaded_by: nil, source_detail: nil)
       data = io.read
       content_type = Marcel::MimeType.for(StringIO.new(data), name: filename)
@@ -30,6 +31,7 @@ module Document::Ingestible
 
       checksum = Digest::SHA256.hexdigest(data)
       if (existing = find_by(checksum: checksum))
+        existing.privatize!(reason: private_reason.presence || "Added again as private") if private
         raise Duplicate, existing
       end
 

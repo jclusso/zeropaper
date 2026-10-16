@@ -70,7 +70,7 @@
             <div data-reveal-target="content" <%= "hidden" unless @setting.local_ocr_provider == "docling" %>>
               <%= form.label :docling_url, "Docling URL", class: "label" %>
               <%= form.url_field :docling_url, no_autofill(placeholder: "http://docling:5001", class: "input font-mono", disabled: @setting.local_ocr_provider != "docling") %>
-              <p class="hint">The docling-serve container. In the bundled Docker Compose setup this is http://docling:5001.</p>
+              <p class="hint">The docling-serve container. In the bundled Docker Compose setup this is http://docling:5001. It must be on this machine or the local network.</p>
             </div>
           </div>
           <%= render "settings/toggle", form: form, field: :searchable_pdf, title: "Make scans searchable", description: "Adds a text layer with Tesseract so text in the viewer can be selected and found." %>
@@ -81,7 +81,7 @@
           <%= render "settings/toggle", form: form, field: :blank_page_detection, title: "Find blank pages", description: "Empty sheets and pages that only show print bleeding through are left out of OCR and offered for removal." %>
           <%= render "settings/ai_gated", ai_enabled: @setting.ai_enabled?, inline_hint: true do %>
             <%= render "settings/toggle", form: form, field: :blank_page_ai_check, title: "Check unclear pages with AI",
-                  description: "Pages the local check cannot settle are sent to the OCR model. Spends tokens.",
+                  description: "Pages the local check cannot settle are sent to the OCR model. Spends tokens. Skipped while a privacy rule still has to read a document's text.",
                   aside: render("settings/ai_hint", ai_enabled: @setting.ai_enabled?) %>
           <% end %>
         <% end %>
