@@ -91,12 +91,12 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
 
     get settings_path
 
-    assert_select "fieldset[disabled][data-ai-gate-target=gated] el-select[name='setting[extraction_provider_id]']"
+    assert_select "fieldset[disabled][data-gate-target=gated] el-select[name='setting[extraction_provider_id]']"
     assert_select "fieldset[disabled] input[name='setting[blank_page_ai_check]']"
-    assert_select "fieldset[disabled] p[data-ai-gate-target=hint]", text: "Turn on Use AI to choose."
+    assert_select "fieldset[disabled] p[data-gate-target=hint]", text: "Turn on Use AI to choose."
     assert_select ".switch-input[name='setting[blank_page_ai_check]']"
-    assert_select "label:has(input[name='setting[blank_page_ai_check]']) span[data-ai-gate-target=hint]", text: "Turn on Use AI to choose."
-    assert_select "input[name='setting[ai_enabled]'][data-ai-gate-target=toggle]"
+    assert_select "label:has(input[name='setting[blank_page_ai_check]']) span[data-gate-target=hint]", text: "Turn on Use AI to choose."
+    assert_select "input[name='setting[ai_enabled]'][data-gate-target=toggle]"
     assert_select "fieldset[disabled] el-select[name='setting[local_ocr_provider]']", count: 0
     assert_select "el-select[name='setting[local_ocr_provider]']"
   end
@@ -155,5 +155,14 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     refute setting.ai_enabled?
     refute setting.ai_creates_types?, "AI-only switches are not changed while AI is off"
     refute setting.ai_creates_tags?
+  end
+
+  test "the ingest folders are greyed out while watching is off" do
+    get settings_path
+    assert_select "#folder fieldset:not([disabled]) code", text: Setting.instance.ingest_path
+
+    Setting.instance.update!(ingest_enabled: false)
+    get settings_path
+    assert_select "#folder fieldset[disabled].opacity-50 code", text: Setting.instance.ingest_path
   end
 end

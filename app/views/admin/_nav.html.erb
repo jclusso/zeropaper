@@ -14,8 +14,7 @@
     <p class="eyebrow px-3 pb-2">Manage</p>
     <div class="space-y-0.5">
       <%= nav_link_to "Users", users_path, icon: :users, active: controller_name == "users" %>
-      <%= nav_link_to "Export", exports_path, icon: :download, active: controller_name == "exports" %>
-      <%= nav_link_to "Restore", new_restore_path, icon: :upload, active: controller_name == "restores" %>
+      <%= nav_link_to "Backups", backups_path, icon: :archive, active: controller_name == "backups" %>
     </div>
   </div>
 </nav>

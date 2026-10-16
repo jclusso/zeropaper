@@ -29,12 +29,12 @@
         <%= link_to new_ai_provider_path, class: "btn-secondary btn-sm" do %><%= icon(:plus, class: "size-4") %> Add provider<% end %>
       <% end %>
 
-      <%= form_with model: @setting, url: settings_path, method: :patch, class: "space-y-6", data: { controller: "ai-gate" } do |form| %>
+      <%= form_with model: @setting, url: settings_path, method: :patch, class: "space-y-6", data: { controller: "gate" } do |form| %>
         <%= form_errors(@setting) %>
 
         <%= render layout: "settings/section", locals: { id: "ai-tasks", title: "AI Tasks", description: "Which provider and model each job uses. Private documents are never sent." } do %>
           <%= render "settings/toggle", form: form, field: :ai_enabled, title: "Use AI", description: "Off means everything runs on this machine: local OCR and rule-based details. Research needs it on.",
-                data: { ai_gate_target: "toggle", action: "ai-gate#update" } %>
+                data: { gate_target: "toggle", action: "gate#update" } %>
           <% if AIProvider.exists? %>
             <%= render "settings/ai_gated", ai_enabled: @setting.ai_enabled? do %>
               <% Setting::TASKS.each do |task, label| %>
@@ -96,16 +96,16 @@
         <% end %>
 
         <%= render layout: "settings/section", locals: { id: "folder", title: "Ingest Folder", description: "Files dropped in the folder are added within a minute and then removed from it." } do %>
-          <%= render "settings/toggle", form: form, field: :ingest_enabled, title: "Watch a folder" %>
-          <div>
-            <%= form.label :ingest_dir, "Folder", class: "label" %>
-            <%= form.text_field :ingest_dir, no_autofill(placeholder: Rails.configuration.x.ingest_dir, class: "input font-mono", spellcheck: false) %>
-            <p class="hint">Leave empty to use <code class="break-all"><%= Rails.configuration.x.ingest_dir %></code>. With Docker, use a path inside the container that the compose file mounts.</p>
-          </div>
-          <div>
-            <span class="label flex items-center gap-1.5"><%= private_badge(interactive: false) %> folder</span>
-            <code class="block break-all text-xs"><%= @setting.private_ingest_path %></code>
-            <p class="hint">Files here are imported as private. It is created automatically.</p>
+          <div class="space-y-5" data-controller="gate">
+            <%= render "settings/toggle", form: form, field: :ingest_enabled, title: "Watch a folder", data: { gate_target: "toggle", action: "gate#update" } %>
+            <fieldset class="min-w-0 space-y-4 transition-opacity <%= "opacity-50" unless @setting.ingest_enabled? %>" data-gate-target="gated" <%= "disabled" unless @setting.ingest_enabled? %>>
+              <% { tag.span("Standard", class: "badge-slate") => @setting.ingest_path, private_badge => @setting.private_ingest_path }.each do |badge, path| %>
+                <div class="space-y-1.5">
+                  <div><%= badge %></div>
+                  <p class="flex min-w-0 items-center gap-1.5 text-xs muted" title="<%= path %>"><%= icon(:folder, class: "size-3.5 shrink-0") %><code class="truncate"><%= path %></code></p>
+                </div>
+              <% end %>
+            </fieldset>
           </div>
         <% end %>
 

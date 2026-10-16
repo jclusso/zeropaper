@@ -6,7 +6,7 @@
     <div><%= form.label :password, (user.new_record? ? "Password" : "New password"), class: "label" %><%= form.password_field :password, required: user.new_record?, minlength: 8, maxlength: 72, autocomplete: "new-password", placeholder: (user.new_record? ? "new password" : "Leave empty to keep it"), class: "input" %><% unless user.new_record? %><p class="hint">Leave blank to keep the current password.</p><% end %></div>
     <div><%= form.label :password_confirmation, "Confirm password", class: "label" %><%= form.password_field :password_confirmation, maxlength: 72, autocomplete: "new-password", placeholder: "confirm password", class: "input" %></div>
   </div>
-  <%= render "shared/switch", form: form, field: :admin, title: "Admin", description: "Can change settings, manage users and export the library." %>
+  <%= render "shared/switch", form: form, field: :admin, title: "Admin", description: "Can change settings, manage users and back up the library." %>
   <div class="flex items-center justify-between border-t border-border pt-5">
     <% if user.persisted? && user != current_user %>
       <%= link_to "Remove user", user_path(user), class: "btn-danger", data: { turbo_method: :delete, turbo_confirm: "Remove #{user.name}? Their documents stay in the library." } %>

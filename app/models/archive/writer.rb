@@ -9,19 +9,19 @@ require "zip"
 #   documents/<id>/original/<name>    the upload before pages were removed
 #   documents/<id>/archive.pdf        searchable PDF made by OCR
 #   documents/<id>/thumbnail.jpg
-#
-# An export without private documents also leaves out what could say
-# something about them: mark-private rules, taxonomy names used only by
-# private documents, and rules that name those.
 module Archive
   class Writer
-    def initialize(documents, include_private: true)
+    # made_at and made_by are recorded in the manifest, so the backup can be
+    # described wherever it ends up without the database that made it.
+    def initialize(documents, made_at: Time.current, made_by: nil)
       @documents = documents
-      @include_private = include_private
+      @made_at = made_at
+      @made_by = made_by
     end
 
-    def write(path)
-      Zip::OutputStream.open(path) do |zip|
+    # Writes to a file the caller opened.
+    def write(io)
+      Zip::OutputStream.write_buffer(io) do |zip|
         add(zip, "manifest.json", JSON.pretty_generate(manifest))
         @documents.includes(:correspondent, :document_type, :tags).find_each { |document| add_document(zip, document) }
       end
@@ -32,11 +32,14 @@ module Archive
         {
           format: FORMAT,
           version: VERSION,
-          exported_at: Time.current.iso8601,
-          correspondents: taxonomy(Correspondent).map { |record| record.slice(:name, :auto_match) },
-          document_types: taxonomy(DocumentType).map { |record| record.slice(:name, :auto_match) },
-          tags: taxonomy(Tag).map { |record| record.slice(:name, :color, :auto_match) },
-          rules: rules.map do |rule|
+          exported_at: @made_at.iso8601,
+          made_by: @made_by,
+          documents_count: @documents.count,
+          private_documents_count: @documents.where(private: true).count,
+          correspondents: Correspondent.alphabetically.map { |record| record.slice(:name, :auto_match) },
+          document_types: DocumentType.alphabetically.map { |record| record.slice(:name, :auto_match) },
+          tags: Tag.alphabetically.map { |record| record.slice(:name, :color, :auto_match) },
+          rules: Rule.ordered.map do |rule|
             rule.slice(:name, :enabled, :position, :match_mode, :conditions, :mark_private).merge(
               correspondent: rule.correspondent&.name,
               document_type: rule.document_type&.name,
@@ -44,20 +47,6 @@ module Archive
             )
           end
         }
-      end
-
-      def taxonomy(model)
-        @include_private ? model.alphabetically : model.shareable.alphabetically
-      end
-
-      def rules
-        return Rule.ordered.to_a if @include_private
-
-        Rule.ordered.where(mark_private: false).select do |rule|
-          (rule.correspondent.nil? || Correspondent.shareable.exists?(rule.correspondent_id)) &&
-            (rule.document_type.nil? || DocumentType.shareable.exists?(rule.document_type_id)) &&
-            Tag.shareable.where(id: rule.tag_ids).count == rule.tag_ids.uniq.size
-        end
       end
 
       def add_document(zip, document)
@@ -86,6 +75,9 @@ module Archive
         return unless attachment.attached?
 
         add(zip, name, attachment.download)
+      rescue ActiveStorage::FileNotFoundError
+        document = attachment.record
+        raise "#{document.title.presence || document.original_filename} (document #{document.id}) is missing its #{attachment.name.humanize(capitalize: false)} in storage."
       end
 
       def add(zip, name, data)

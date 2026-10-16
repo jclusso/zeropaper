@@ -25,7 +25,7 @@ class SettingsController < ApplicationController
       permitted = params.expect(setting: [
         :ai_enabled, *AI_FIELDS,
         :local_ocr_provider, :docling_url, :searchable_pdf,
-        :auto_rotate_pages, :ingest_enabled, :ingest_dir, :blank_page_detection, :always_require_review, :review_confidence_threshold
+        :auto_rotate_pages, :ingest_enabled, :blank_page_detection, :always_require_review, :review_confidence_threshold
       ])
       ai_on = permitted.key?(:ai_enabled) ? ActiveModel::Type::Boolean.new.cast(permitted[:ai_enabled]) : Setting.instance.ai_enabled?
       ai_on ? permitted : permitted.except(*AI_FIELDS)

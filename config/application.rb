@@ -37,6 +37,7 @@ module ZeroPaper
     config.assets.paths << Rails.root.join("vendor/pdfjs")
 
     config.x.ingest_dir = ENV.fetch("INGEST_DIR") { Rails.root.join("storage/ingest").to_s }
+    config.x.backup_dir = ENV.fetch("BACKUP_DIR") { Rails.root.join("storage/backups").to_s }
     config.x.models_dir = ENV.fetch("MODELS_DIR") { Rails.root.join("storage/models").to_s }
   end
 end

@@ -57,6 +57,9 @@ volumes:
   # Uploaded files, encrypted private files, the ingest folder and the
   # embedding model cache, shared by the web and job containers.
   - zeropaper_storage:/rails/storage
+  # Backups go to /rails/storage/backups. To keep them off the server, mount
+  # a NAS share on the host and map it there:
+  # - /mnt/nas/zeropaper:/rails/storage/backups
 
 asset_path: /rails/public/assets
 
