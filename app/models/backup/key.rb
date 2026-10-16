@@ -27,15 +27,4 @@ module Backup::Key
   def id(bytes)
     Digest::SHA256.hexdigest(bytes).first(8)
   end
-
-  def file_contents(text)
-    <<~TEXT
-      ZeroPaper backup key #{id(parse(text))}
-
-      Backups from this ZeroPaper are encrypted with this key and cannot be
-      restored without it. Keep it somewhere safe and apart from the backups.
-
-      #{text}
-    TEXT
-  end
 end

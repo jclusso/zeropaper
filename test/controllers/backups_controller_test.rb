@@ -53,8 +53,8 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
 
     get backups_key_path
     assert_response :success
-    assert_equal "text/plain", response.media_type
-    assert_equal Setting.instance.reload.backup_key_bytes, Backup::Key.parse(response.body)
+    assert_equal "#{Backup::Key.encode(Setting.instance.reload.backup_key_bytes)}\n", response.body
+    assert_match 'filename="zeropaper.key"', response.headers["Content-Disposition"]
     assert Setting.instance.backup_key_downloaded_at
 
     get backups_path
