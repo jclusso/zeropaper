@@ -17,13 +17,28 @@ class Document::ProcessingControlTest < ActiveSupport::TestCase
   test "a document with a live queued job is left alone" do
     waiting = document_with_text("Queued behind others", status: "pending")
     waiting.update_columns(updated_at: 20.minutes.ago)
-    SolidQueue::Job.create!(queue_name: "default", class_name: "ProcessDocumentJob",
-      arguments: ProcessDocumentJob.new(waiting).serialize)
+    SolidQueue::Job.enqueue(ProcessDocumentJob.new(waiting))
 
     assert waiting.processing_job_alive?
     Document.recover_stuck
 
     assert_equal "pending", waiting.reload.status
+  end
+
+  test "only this document's unfinished jobs count as live, found by their concurrency key" do
+    document = document_with_text("Queued", status: "pending")
+    other = document_with_text("Another", status: "pending")
+    SolidQueue::Job.enqueue(ProcessDocumentJob.new(other))
+    SolidQueue::Job.enqueue(ProcessDocumentJob.new(document)).update!(finished_at: Time.current)
+    statements = []
+    callback = ->(*, payload) { statements << payload[:sql] if payload[:sql].include?("solid_queue_jobs") }
+
+    alive = ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { document.processing_job_alive? }
+
+    refute alive
+    assert other.processing_job_alive?
+    assert statements.any? { |sql| sql.include?("concurrency_key") }
+    assert statements.none? { |sql| sql.include?("LIKE") }
   end
 
   test "stopping marks the document failed so it can be retried" do

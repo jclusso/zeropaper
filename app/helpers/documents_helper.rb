@@ -70,7 +70,7 @@ module DocumentsHelper
       items << ReviewItem.new(key: "blank_pages", icon: :grid, tone: "text-warning",
         message: "#{pluralize(pages.size, "page")} #{pages.size == 1 ? "looks" : "look"} blank (#{pages.to_sentence}).",
         actions: safe_join([ tag.button("Review pages", type: "button", class: "btn-secondary btn-sm", command: "show-modal", commandfor: "pages-dialog"),
-          button_to("Not blank", document_page_removal_path(document), class: "btn-ghost btn-sm", title: "Keep these pages and read them") ]))
+          button_to("Not blank", document_page_removal_path(document), params: { version: document.checksum }, class: "btn-ghost btn-sm", title: "Keep these pages and read them") ]))
     end
 
     if document.duplicate_of
@@ -96,7 +96,7 @@ module DocumentsHelper
     end
 
     if (pages = rotated_pages(document)).any?
-      restore = button_to("Restore original", document_original_restoration_path(document), class: "btn-danger btn-sm",
+      restore = button_to("Restore original", document_original_restoration_path(document), params: { version: document.checksum }, class: "btn-danger btn-sm",
         form: { data: { turbo_confirm: "Restore the file as it was uploaded? This also undoes any page removals, and the document is read again." } })
       items << ReviewItem.new(key: "rotated", icon: :rotate, tone: "text-strong-accent",
         message: "#{pages.size == 1 ? "Page" : "Pages"} #{pages.to_sentence} #{pages.size == 1 ? "was" : "were"} turned upright.",

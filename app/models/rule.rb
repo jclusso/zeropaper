@@ -37,6 +37,7 @@ class Rule < ApplicationRecord
 
   scope :enabled, -> { where(enabled: true) }
   scope :ordered, -> { order(:position, :id) }
+  scope :without_action, -> { where(correspondent_id: nil, document_type_id: nil, tag_ids: [], mark_private: false) }
 
   # A new or changed mark-private rule also runs over the documents already
   # in the library, locally, so they do not stay shareable.
@@ -73,6 +74,10 @@ class Rule < ApplicationRecord
 
   def tags
     Tag.where(id: tag_ids)
+  end
+
+  def action?
+    correspondent_id.present? || document_type_id.present? || tag_ids.any? || mark_private?
   end
 
   def needs_content?
@@ -173,7 +178,7 @@ class Rule < ApplicationRecord
     end
 
     def has_an_action
-      return if correspondent || document_type || tag_ids.any? || mark_private?
+      return if action?
 
       errors.add(:base, "Choose at least one thing for the rule to do")
     end

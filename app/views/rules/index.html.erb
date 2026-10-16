@@ -25,6 +25,7 @@
             </div>
             <p class="mt-2 text-xs"><span class="eyebrow mr-1.5">When</span><%= rule_conditions_summary(rule) %></p>
             <p class="mt-1 text-xs"><span class="eyebrow mr-1.5">Then</span><%= rule_actions_summary(rule) %></p>
+            <% unless rule.enabled? || rule.action? %><%= render "rules/actionless_note" %><% end %>
           </div>
           <% if current_user.admin? %>
             <%= link_to "Edit", edit_rule_path(rule), class: "btn-secondary btn-sm" %>

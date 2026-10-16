@@ -83,7 +83,7 @@ module Document::Processing
       run_step("text") { read_text(path) }
       run_step("metadata") { extract_metadata ? extract_metadata! : :skipped }
     end
-    run_step("index") { index! }
+    run_step("index") { index_or_wait! }
     run_step("duplicates") do
       record_page_hashes!
       flag_possible_duplicate
@@ -171,7 +171,11 @@ module Document::Processing
 
       record_step(name, "running")
       detail = yield
-      record_step(name, detail == :skipped ? "skipped" : "done", detail.is_a?(String) ? detail : nil)
+      case detail
+      when :skipped then record_step(name, "skipped")
+      when :waiting then record_step(name, "waiting", Document::INDEX_WAITING_NOTE)
+      else record_step(name, "done", detail.is_a?(String) ? detail : nil)
+      end
     rescue Stopped
       raise
     rescue StandardError => error
@@ -200,7 +204,7 @@ module Document::Processing
     def processing_jobs
       return [] unless defined?(SolidQueue::Job) && SolidQueue::Job.table_exists?
 
-      SolidQueue::Job.where(class_name: "ProcessDocumentJob").where("arguments::text LIKE ?", "%#{to_global_id}\"%")
+      SolidQueue::Job.where(concurrency_key: ProcessDocumentJob.new(self).concurrency_key, finished_at: nil)
     end
 
     def discard_queued_processing

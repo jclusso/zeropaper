@@ -112,6 +112,15 @@ class RulesControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "a rule turned off because its tag was deleted says so" do
+    tags(:taxes).destroy!
+
+    get rules_path
+
+    assert_select "li", text: /Tax returns.*Turned off because what it set was deleted/m
+    assert_select "p", text: /Turned off because what it set was deleted/, count: 1
+  end
+
   test "members can see rules but not change them" do
     sign_in_as users(:two)
 
