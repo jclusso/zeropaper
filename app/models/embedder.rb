@@ -6,8 +6,20 @@ module Embedder
   DIMENSIONS = 768
   QUERY_PREFIX = "Represent this sentence for searching relevant passages: ".freeze
   BATCH_SIZE = 16
+  # What the embedding pipeline loads from the model's repository.
+  FILES = %w[config.json tokenizer.json tokenizer_config.json onnx/model.onnx].freeze
 
   extend self
+
+  # Fetches the model files without loading the model, so the job worker
+  # can do it at start without holding the model in memory.
+  def download
+    FILES.each { |file| Informers::Utils::Hub.get_model_file(MODEL, file) }
+  end
+
+  def downloaded?
+    FILES.all? { |file| File.exist?(File.join(Informers.cache_dir, MODEL, file)) }
+  end
 
   def embed_documents(texts)
     texts.each_slice(BATCH_SIZE).flat_map { |batch| run(batch) }

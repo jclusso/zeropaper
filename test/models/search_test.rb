@@ -34,6 +34,22 @@ class SearchTest < ActiveSupport::TestCase
     assert_equal @bill, Search.new(query: "statement").results.first
   end
 
+  test "a misspelled title still matches by keyword" do
+    Embedder.stubs(:embed_query).raises(RuntimeError, "model missing")
+
+    assert_equal [ @letter ], Search.new(query: "dentst").results
+  end
+
+  test "semantic search keeps scanning past ef_search when pgvector supports it" do
+    statements = []
+    callback = ->(*, payload) { statements << payload[:sql] }
+
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { Search.new(query: "electricity").ranked_ids }
+
+    assert Search.iterative_scan?
+    assert_includes statements, "SET LOCAL hnsw.iterative_scan = strict_order"
+  end
+
   test "a blank query lists documents newest first" do
     assert_equal [ @bill, @letter ], Search.new(query: " ", filters: { privacy: "shareable" }).results
   end

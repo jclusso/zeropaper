@@ -2,6 +2,12 @@ class Message < ApplicationRecord
   ROLES = %w[user assistant].freeze
   STATUSES = %w[streaming complete failed].freeze
   BROADCAST_INTERVAL = 0.25
+  # An answer streaming longer than this with no live job behind it is
+  # stuck, usually because its worker was killed by a restart.
+  STUCK_AFTER = 10.minutes
+  STUCK_MESSAGE = "The answer stopped unexpectedly, probably because the app restarted.".freeze
+
+  class NotRetryable < StandardError; end
 
   belongs_to :conversation
 
@@ -10,12 +16,48 @@ class Message < ApplicationRecord
 
   scope :completed, -> { where(status: "complete") }
 
+  def self.recover_stuck
+    where(status: "streaming").where(updated_at: ...STUCK_AFTER.ago).find_each do |message|
+      message.fail!(STUCK_MESSAGE) unless message.research_job_alive?
+    end
+  end
+
   def user?
     role == "user"
   end
 
   def streaming?
     status == "streaming"
+  end
+
+  # Only the latest answer can be asked again, so later turns never lose
+  # the context they were answered with.
+  def retryable?
+    status == "failed" && !user? && conversation.messages.last == self
+  end
+
+  # Whether a queued or running job will still answer this message.
+  def research_job_alive?
+    research_jobs.any? { |job| !job.finished? && job.failed_execution.nil? }
+  end
+
+  # Answers once per attempt. A job that runs again after the answer
+  # finished, failed or moved to a retry does nothing, and a rerun of the
+  # same attempt starts from an empty answer so no text appears twice.
+  def research!
+    return unless streaming?
+
+    update!(content: "", steps: [])
+    Research.new(self).run
+  end
+
+  def retry!
+    raise NotRetryable, "Only the latest answer that stopped can be retried." unless retryable?
+
+    update!(status: "streaming", content: "", steps: [], cited_document_ids: [], private_match_ids: [])
+    conversation.touch
+    broadcast_now
+    ResearchJob.perform_later(self)
   end
 
   def cited_documents
@@ -59,6 +101,12 @@ class Message < ApplicationRecord
   end
 
   private
+    def research_jobs
+      return [] unless defined?(SolidQueue::Job) && SolidQueue::Job.table_exists?
+
+      SolidQueue::Job.where(class_name: "ResearchJob").where("arguments::text LIKE ?", "%#{to_global_id}\"%")
+    end
+
     def broadcast_now
       @last_broadcast_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       Turbo::StreamsChannel.broadcast_replace_to(conversation, target: self, partial: "messages/message", locals: { message: self })

@@ -3,6 +3,7 @@ class Document < ApplicationRecord
 
   STATUSES = %w[pending processing ready failed].freeze
   SOURCES = %w[upload folder restore].freeze
+  SPREADSHEET_VIEW_ROWS = 2_000
 
   # Private documents are stored on the encrypted disk service.
   STORAGE = ->(document) { document.storage_service_name }
@@ -32,6 +33,9 @@ class Document < ApplicationRecord
   scope :chronologically, -> { order(Arel.sql("coalesce(documents.document_date, documents.created_at::date) desc, documents.id desc")) }
   scope :recently_added, -> { order(created_at: :desc, id: :desc) }
 
+  # Documents that looked like copies of this one are no longer duplicates.
+  before_destroy :clear_duplicate_flags
+
   broadcasts_refreshes
 
   def display_title
@@ -52,6 +56,20 @@ class Document < ApplicationRecord
 
   def spreadsheet?
     content_type.in?(NativeText::SPREADSHEET_TYPES)
+  end
+
+  # Sheets for the viewer, parsed once per file rather than on every view.
+  # Keyed by the blob, so a replaced file is parsed again.
+  def spreadsheet_sheets
+    return [] unless spreadsheet? && file.attached?
+
+    json = SealedCache.fetch([ "spreadsheet-sheets", file.blob.key ], expires_in: 1.week) do
+      sheets = file.open { |copy| NativeText.sheets(copy.path, content_type) }
+      sheets.map { |sheet| sheet.merge(rows: sheet[:rows].first(SPREADSHEET_VIEW_ROWS)) }.to_json
+    end
+    JSON.parse(json, symbolize_names: true)
+  rescue StandardError
+    []
   end
 
   # What the viewer shows: the searchable PDF made by OCR when there is one,
@@ -98,7 +116,11 @@ class Document < ApplicationRecord
     tags_changed = attributes.key?(:tag_names)
     assign_attributes(attributes)
     self.metadata_source = "manual" if changed? || tags_changed
-    save
+    return false unless save
+
+    refresh_search_vector
+    review_checked!
+    true
   end
 
   def tag_names=(names)
@@ -108,4 +130,12 @@ class Document < ApplicationRecord
   def settings
     @settings ||= Setting.instance
   end
+
+  private
+    def clear_duplicate_flags
+      Document.where(duplicate_of_id: id).find_each do |copy|
+        copy.update_columns(duplicate_of_id: nil)
+        copy.review_resolved!("possible_duplicate")
+      end
+    end
 end

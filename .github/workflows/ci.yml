@@ -95,3 +95,27 @@ jobs:
           RAILS_ENV: test
           DATABASE_URL: postgres://postgres:postgres@localhost:5432
         run: bin/rails db:test:prepare test
+
+  # Runs the OCR stack as shipped (pinned ocrmypdf and pypdfium2, Debian's
+  # Tesseract and poppler) on a generated scan, since the test job uses
+  # Ubuntu's packages instead. Reuses the amd64 cache the image workflow fills.
+  image_ocr:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build the production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: zeropaper:ci
+          cache-from: type=gha,scope=image-linux-amd64
+
+      - name: Read a scan with the image's OCR stack
+        run: docker run --rm --entrypoint ./bin/rails -e SECRET_KEY_BASE_DUMMY=1 zeropaper:ci runner script/ocr_smoke.rb

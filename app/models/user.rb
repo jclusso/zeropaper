@@ -3,6 +3,8 @@ class User < ApplicationRecord
   has_many :sessions, dependent: :destroy
   has_many :passkeys, dependent: :destroy
   has_many :conversations, dependent: :destroy
+  has_many :backups, dependent: :nullify
+  has_many :restores, dependent: :nullify
   has_many :uploaded_documents, class_name: "Document", foreign_key: :uploaded_by_id, inverse_of: :uploaded_by, dependent: :nullify
 
   normalizes :email_address, with: ->(e) { e.strip.downcase }

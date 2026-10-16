@@ -94,7 +94,9 @@ module Archive
 
       def restore_document(zip, folder)
         details = JSON.parse(read(zip, "#{folder}document.json"))
-        return :skipped if Document.exists?(checksum: details["checksum"])
+        if (existing = Document.find_by(checksum: details["checksum"]))
+          return existing.source == "restore" && existing.status != "ready" ? finish_restore(existing) : :skipped
+        end
 
         file_entry = zip.glob("#{folder}file/*").first or return :skipped
         document = Document.new(
@@ -107,7 +109,8 @@ module Archive
         document.correspondent = Correspondent.named(details["correspondent"])
         document.document_type = DocumentType.named(details["document_type"])
         document.tags = Array(details["tags"]).filter_map { |name| Tag.named(name) }
-        document.status = "ready"
+        # Not ready until indexed, so a failed restore run resumes it.
+        document.status = "processing"
         screen_for_privacy(document)
 
         attach(document.file, file_entry)
@@ -116,7 +119,13 @@ module Archive
         attach(document.thumbnail, zip.find_entry("#{folder}thumbnail.jpg"))
         document.save!
 
+        finish_restore(document)
+      end
+
+      def finish_restore(document)
         document.index!
+        document.update!(status: "ready", error: nil)
+        document.review_resolved!("failed")
         :restored
       ensure
         @tempfiles&.each(&:close!)

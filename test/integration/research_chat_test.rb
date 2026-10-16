@@ -91,7 +91,7 @@ class ResearchChatTest < ActionDispatch::IntegrationTest
     assert_select "article[data-message-status=failed]" do
       assert_select "p", text: /Research stopped/
       assert_select "p", text: "The server is overloaded."
-      assert_select "p", text: "Ask the question again to retry."
+      assert_select "button", text: "Retry"
       assert_select "summary", text: /Stopped · 1 step/
       assert_select ".prose-answer", count: 0
     end

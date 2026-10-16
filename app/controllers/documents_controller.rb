@@ -45,8 +45,6 @@ class DocumentsController < ApplicationController
 
   def update
     if @document.edit_details(document_params)
-      @document.refresh_search_vector
-      @document.review_checked!
       redirect_to @document, notice: "Saved."
     else
       render :show, status: :unprocessable_entity
@@ -54,11 +52,7 @@ class DocumentsController < ApplicationController
   end
 
   def destroy
-    flagged = Document.where(duplicate_of: @document).to_a
     @document.destroy
-    # Documents that looked like copies of this one are no longer duplicates.
-    flagged.each { |document| document.review_resolved!("possible_duplicate") }
-
     redirect_to (Document.find_by(id: params[:then_open]) || documents_path), notice: "Deleted “#{@document.display_title}”.", status: :see_other
   end
 

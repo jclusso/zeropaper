@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_16_160000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_16_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -187,7 +187,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_160000) do
   end
 
   create_table "restores", force: :cascade do |t|
-    t.bigint "user_id", null: false
+    t.bigint "user_id"
     t.string "status", default: "pending", null: false
     t.integer "restored_count", default: 0, null: false
     t.integer "skipped_count", default: 0, null: false
@@ -472,7 +472,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_160000) do
   add_foreign_key "documents", "users", column: "uploaded_by_id", on_delete: :nullify
   add_foreign_key "messages", "conversations", on_delete: :cascade
   add_foreign_key "passkeys", "users"
-  add_foreign_key "restores", "users"
+  add_foreign_key "restores", "users", on_delete: :nullify
   add_foreign_key "rules", "correspondents", on_delete: :nullify
   add_foreign_key "rules", "document_types", on_delete: :nullify
   add_foreign_key "sessions", "users"

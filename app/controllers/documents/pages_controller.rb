@@ -20,7 +20,6 @@ class Documents::PagesController < ApplicationController
     return head(:not_found) unless page.between?(1, @document.page_count.to_i)
 
     edge = EDGES.fetch(params[:size], EDGES["thumb"])
-    image = source.open { |file| Pdf.render_page(file.path, page, edge: edge, format: :jpeg) }
-    send_image image
+    send_image @document.page_image(source, page, edge: edge)
   end
 end

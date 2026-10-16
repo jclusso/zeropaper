@@ -64,7 +64,9 @@ The stack has three containers:
 | `db` | `pgvector/pgvector:pg18` | Postgres with the pgvector extension |
 | `docling` | `quay.io/docling-project/docling-serve-cpu` | Local layout-aware OCR (about 4 GB) |
 
-The first time a document is indexed, the app downloads the embedding model (about 400 MB) into the storage volume. After that, embeddings are computed without any network access.
+When the job worker starts, it downloads the embedding model (about 400 MB) from Hugging Face into `MODELS_DIR` on the storage volume, unless it is already there. With AI turned off, this is the only outbound request ZeroPaper makes, and it sends nothing about your documents. After that, embeddings are computed without any network access.
+
+To run fully offline, seed the volume ahead of time: run `bin/rails embedder:prefetch` on a machine with network access and copy `MODELS_DIR` into the volume, or run it once in the container before you cut it off.
 
 ## Configuration
 
@@ -163,7 +165,7 @@ bin/dev
 To use Docling during development, run the container and set `DOCLING_URL`:
 
 ```sh
-docker run -d -p 5001:5001 quay.io/docling-project/docling-serve-cpu:latest
+docker run -d -p 5001:5001 quay.io/docling-project/docling-serve-cpu:v1.37.0
 DOCLING_URL=http://localhost:5001 bin/dev
 ```
 

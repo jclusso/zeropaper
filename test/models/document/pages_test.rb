@@ -82,4 +82,45 @@ class Document::PagesTest < ActiveSupport::TestCase
   test "restore_original! needs an original" do
     assert_raises(Document::Pages::EditRefused) { @document.restore_original! }
   end
+
+  test "removing a skipped blank page drops its text and renumbers the passages after it" do
+    pdf = PdfFactory.build([ "Alpha opening page about the lease", PdfFactory.blank, "Gamma closing page about the deposit" ])
+    document = process(ingest(pdf, filename: "lease.pdf"))
+    assert_equal [ 2 ], document.page_record["ocr_skipped"]
+    assert_equal 3, document.page_texts.size
+
+    assert_no_enqueued_jobs(only: ProcessDocumentJob) { document.remove_pages!([ 2 ]) }
+
+    document.reload
+    assert_equal 2, document.page_texts.size
+    assert_match "Gamma", document.page_texts.last
+    gamma = document.chunks.find { |chunk| chunk.content.include?("Gamma") }
+    assert_equal 2, gamma.page_number
+    assert_equal [ 1, 2 ], document.chunks.map(&:page_number).uniq.sort
+  end
+
+  test "a page edit that fails partway leaves the files and details as they were" do
+    @document.update!(archive_file: { io: StringIO.new(@pdf), filename: "scan.pdf", content_type: "application/pdf" })
+    checksum, file_blob, archive_blob = @document.checksum, @document.file.blob, @document.archive_file.blob
+    Pdf.stubs(:render_page).raises(Pdf::CommandFailed, "pdftoppm crashed")
+
+    assert_raises(Pdf::CommandFailed) { @document.remove_pages!([ 1 ]) }
+
+    @document.reload
+    assert_equal checksum, @document.checksum
+    assert_equal 3, @document.page_count
+    assert_equal file_blob, @document.file.blob
+    assert_equal archive_blob, @document.archive_file.blob
+    refute @document.original_file.attached?
+  end
+
+  test "restore_original! drops the searchable PDF made from the edited pages" do
+    @document.remove_pages!([ 2 ])
+    @document.reload.update!(archive_file: { io: StringIO.new(@pdf), filename: "scan.pdf", content_type: "application/pdf" })
+
+    @document.restore_original!
+
+    refute @document.reload.archive_file.attached?
+    assert_equal @pdf, @document.viewable_pdf.download
+  end
 end

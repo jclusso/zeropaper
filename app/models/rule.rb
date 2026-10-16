@@ -49,12 +49,21 @@ class Rule < ApplicationRecord
 
   # Marks documents that mention the correspondent private and files them
   # under it, which is what older exports' "documents from this correspondent
-  # are private" setting meant. Skipped when such a rule already exists.
+  # are private" setting meant. Skipped when an enabled rule already marks
+  # private any text with that phrase, whatever its case, alone or as one of
+  # several "any" conditions.
   def self.privatize_mentions_of!(correspondent)
-    phrase = { "field" => "content", "operator" => "phrase", "value" => correspondent.name }
-    return if enabled.where(mark_private: true).any? { |rule| rule.conditions == [ phrase ] }
+    return if enabled.where(mark_private: true).any? { |rule| rule.privatizes_phrase?(correspondent.name) }
 
+    phrase = { "field" => "content", "operator" => "phrase", "value" => correspondent.name }
     create!(name: "Private: #{correspondent.name}", conditions: [ phrase ], correspondent: correspondent, mark_private: true)
+  end
+
+  def privatizes_phrase?(name)
+    phrase = conditions.any? do |condition|
+      condition["field"] == "content" && condition["operator"] == "phrase" && condition["value"].to_s.squish.casecmp?(name.squish)
+    end
+    phrase && (conditions.size == 1 || match_mode == "any")
   end
 
   def tags

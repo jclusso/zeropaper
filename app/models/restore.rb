@@ -8,7 +8,7 @@
 class Restore < ApplicationRecord
   STATUSES = %w[pending processing ready failed].freeze
 
-  belongs_to :user
+  belongs_to :user, optional: true
 
   encrypts :key
 

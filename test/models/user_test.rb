@@ -14,4 +14,16 @@ class UserTest < ActiveSupport::TestCase
     user.password = "12345678"
     assert user.valid?
   end
+
+  test "deleting a user keeps their backups and restores without them" do
+    user = users(:two)
+    backup = Backup.create!(user: user)
+    restore = Restore.new(user: user, filename: "zeropaper-2026-01-01-030000.zpbackup")
+    restore.save!(validate: false)
+
+    user.destroy!
+
+    assert_nil backup.reload.user
+    assert_nil restore.reload.user
+  end
 end

@@ -90,4 +90,42 @@ class MergeableTest < ActiveSupport::TestCase
     assert_includes pairs, %w[Utilities Utility]
     refute_includes pairs, [ "BMW M3", "BMW X5 M" ]
   end
+
+  test "spelling comparison runs a fixed number of queries however many names there are" do
+    40.times { Tag.create!(name: SecureRandom.alphanumeric(12)) }
+    Tag.create!(name: "Electricity")
+    Tag.create!(name: "Electricty")
+    Embedder.stubs(:embed_documents).returns([])
+
+    pairs = assert_queries_count(3) { Tag.similar_pairs(limit: 100).to_a }
+
+    assert_includes pairs.map { |pair| [ pair.keep.name, pair.merge.name ].sort }, %w[Electricity Electricty]
+  end
+
+  test "cached name vectors follow names, not the order of the records" do
+    Tag.delete_all
+    car = Tag.create!(name: "Car")
+    Tag.create!(name: "Vehicle")
+    Tag.create!(name: "Apple")
+    vectors = { "Apple" => [ 0.0, 1.0 ], "Car" => [ 1.0, 0.0 ], "Vehicle" => [ 1.0, 0.0 ] }
+    Embedder.stubs(:embed_documents).with { |names| names == names.sort }.returns(vectors.values_at(*vectors.keys.sort))
+
+    with_memory_cache do
+      first = Tag.similar_pairs.map { |pair| [ pair.keep.name, pair.merge.name ].sort }
+      document_with_text("Registration", tags: [ car ])
+      second = Tag.similar_pairs.map { |pair| [ pair.keep.name, pair.merge.name ].sort }
+
+      assert_equal [ %w[Car Vehicle] ], first
+      assert_equal [ %w[Car Vehicle] ], second
+    end
+  end
+
+  private
+    def with_memory_cache
+      original = Rails.cache
+      Rails.cache = ActiveSupport::Cache::MemoryStore.new
+      yield
+    ensure
+      Rails.cache = original
+    end
 end

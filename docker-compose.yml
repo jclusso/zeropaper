@@ -43,7 +43,7 @@ services:
       retries: 20
 
   docling:
-    image: quay.io/docling-project/docling-serve-cpu:latest
+    image: quay.io/docling-project/docling-serve-cpu:v1.37.0
     restart: unless-stopped
     environment:
       DOCLING_SERVE_MAX_SYNC_WAIT: "900"
