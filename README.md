@@ -101,6 +101,17 @@ Text that is already in the file (PDFs with a text layer, Word, spreadsheets, pl
 
 Files placed in `./ingest` are imported within a minute and then removed from the folder. Files in `./ingest/private` are imported as private. Duplicates of documents already in the library are removed without importing. The folder can be switched off or moved under Settings › Ingest Folder; inside Docker a new path must be a mounted volume.
 
+### Deploying with Kamal
+
+`config/deploy.yml.example` deploys the app and Postgres (pgvector) to one server with [Kamal](https://kamal-deploy.org), using a registry that Kamal runs on the server. Copy it to `config/deploy.yml` and fill in your server and host name, then copy `.kamal/secrets.example` to `.kamal/secrets`. Both copies are gitignored.
+
+```sh
+bin/kamal setup    # first time: proxy, Postgres and the app
+bin/kamal deploy   # later deploys
+```
+
+Docling is a commented-out accessory in the example; Tesseract is built in.
+
 ## Backups
 
 Back up three things together:

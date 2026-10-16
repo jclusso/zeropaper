@@ -8,8 +8,9 @@ if [ -z "${SECRET_KEY_BASE}" ]; then
   exit 1
 fi
 
-# If running the rails server then create or migrate existing database
-if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
+# Create or migrate the database before the web server or the job worker
+# starts. Either may boot first; migrations take a lock, so both is safe.
+if { [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; } || [ "${1}" == "bin/jobs" ]; then
   ./bin/rails db:prepare
 fi
 

@@ -10,14 +10,22 @@ FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 
 WORKDIR /rails
 
-# Runtime packages: poppler and qpdf for PDF work, ocrmypdf and Tesseract for
-# local OCR, ghostscript for ocrmypdf, libvips for thumbnails.
+# Runtime packages: poppler and qpdf for PDF work, Tesseract for local OCR,
+# ghostscript for ocrmypdf, libvips for thumbnails.
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
-      curl libjemalloc2 libvips postgresql-client \
-      poppler-utils qpdf ghostscript ocrmypdf tesseract-ocr tesseract-ocr-eng tesseract-ocr-osd && \
+      curl libjemalloc2 libvips postgresql-client python3 python3-venv \
+      poppler-utils qpdf ghostscript tesseract-ocr tesseract-ocr-eng tesseract-ocr-osd && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
+
+# ocrmypdf from PyPI rather than Debian: version 17 rasterizes pages with
+# pdfium, while Debian's 16.x relies on its Ghostscript, which fails on some
+# scans that carry an old OCR layer ("Ghostscript rasterizing failed").
+ARG OCRMYPDF_VERSION=17.13.0
+RUN python3 -m venv /opt/ocrmypdf && \
+    /opt/ocrmypdf/bin/pip install --no-cache-dir "ocrmypdf==${OCRMYPDF_VERSION}" pypdfium2 && \
+    ln -s /opt/ocrmypdf/bin/ocrmypdf /usr/local/bin/ocrmypdf
 
 # Production environment, jemalloc for lower memory use, and jobs inside Puma
 # so one container runs the whole app.

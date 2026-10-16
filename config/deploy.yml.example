@@ -1,0 +1,93 @@
+# Kamal deploy for a single server: the web app, a separate job container for
+# document processing, and Postgres with pgvector. Copy to config/deploy.yml (gitignored), replace the placeholder
+# hosts, and copy .kamal/secrets.example to .kamal/secrets.
+service: zeropaper
+image: zeropaper
+
+servers:
+  web:
+    hosts:
+      - 192.168.0.1
+    env:
+      clear:
+        # Jobs run in the job container below, not inside Puma.
+        SOLID_QUEUE_IN_PUMA: false
+  # OCR, page cleanup, indexing and Research. Kept apart so heavy processing
+  # never slows the web app.
+  job:
+    hosts:
+      - 192.168.0.1
+    cmd: bin/jobs
+    options:
+      # The image's health check calls the web server, which this container
+      # does not run.
+      no-healthcheck: true
+
+proxy:
+  host: zeropaper.example.com
+  ssl: false
+  # Thruster listens on 3000 inside the container.
+  app_port: 3000
+
+# Kamal runs this registry on the server and reaches it through SSH, so no
+# Docker Hub or GHCR account is needed.
+registry:
+  server: localhost:5555
+
+builder:
+  arch: amd64
+
+env:
+  secret:
+    - SECRET_KEY_BASE
+    - DATABASE_URL
+  clear:
+    APP_HOST: zeropaper.example.com
+    # Set to true when the proxy (or one in front of it) terminates TLS.
+    # Passkeys only work over HTTPS.
+    ASSUME_SSL: false
+    TZ: UTC
+    PROCESSING_THREADS: 6
+    INGEST_DIR: /rails/storage/ingest
+    MODELS_DIR: /rails/storage/models
+    # Uncomment with the docling accessory below.
+    # DOCLING_URL: http://zeropaper-docling:5001
+
+volumes:
+  # Uploaded files, encrypted private files, the ingest folder and the
+  # embedding model cache, shared by the web and job containers.
+  - zeropaper_storage:/rails/storage
+
+asset_path: /rails/public/assets
+
+# The first boot creates the database and loads the app, which can take a while.
+deploy_timeout: 120
+# Each old image is a couple of gigabytes.
+retain_containers: 2
+
+accessories:
+  db:
+    image: pgvector/pgvector:pg18
+    host: 192.168.0.1
+    env:
+      clear:
+        POSTGRES_USER: zeropaper
+        POSTGRES_DB: zeropaper_production
+      secret:
+        - POSTGRES_PASSWORD
+    volumes:
+      - zeropaper_postgres:/var/lib/postgresql
+
+  # Local layout-aware OCR, about 4 GB. Optional: Tesseract is built in.
+  # docling:
+  #   image: quay.io/docling-project/docling-serve-cpu:latest
+  #   host: 192.168.0.1
+  #   env:
+  #     clear:
+  #       DOCLING_SERVE_MAX_SYNC_WAIT: "900"
+
+aliases:
+  console: app exec --interactive --reuse "bin/rails console"
+  shell: app exec --interactive --reuse "bash"
+  logs: app logs -f
+  dbc: app exec --interactive --reuse "bin/rails dbconsole"

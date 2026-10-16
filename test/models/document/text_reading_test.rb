@@ -96,6 +96,48 @@ class Document::TextReadingTest < ActiveSupport::TestCase
     assert_match "PAYROLL SUMMARY from tesseract", document.content
   end
 
+  test "when only the searchable PDF fails, the AI text is kept" do
+    mistral = AIProvider.create!(kind: "mistral", api_key: TestKeys::MISTRAL)
+    configure_openai(vision_provider: mistral, vision_model: "mistral-ocr-latest", searchable_pdf: true)
+    # Nothing could make it private, so no local read has to come first.
+    Rule.update_all(mark_private: false)
+    Correspondent.update_all(private_documents: false)
+    document = ingest(scanned_text_pdf("PAYROLL SUMMARY\nEmployee salary report\n"), filename: "scan_0010.pdf")
+    Ocr::Tesseract.any_instance.stubs(:call).raises(Pdf::CommandFailed, "ocrmypdf failed: SubprocessOutputError: Ghostscript rasterizing failed")
+
+    VCR.use_cassette("ocr/mistral_ocr") { document.process!(extract_metadata: false) }
+    document.reload
+
+    assert_equal "ready", document.status
+    assert_equal "Mistral · mistral-ocr-latest", document.text_source
+    assert_match "Employee salary report for March 2026", document.content
+    refute document.archive_file.attached?
+    assert_match "No searchable PDF (ocrmypdf failed", document.step_state("text")["detail"]
+  end
+
+  test "when the local read that screens for privacy fails, nothing is sent to the AI" do
+    configure_openai(searchable_pdf: true)
+    assert ingest(text_pdf("placeholder"), filename: "x.pdf").needs_privacy_screening?, "fixtures include a private rule"
+    document = ingest(scanned_text_pdf("PAYROLL SUMMARY\n"), filename: "scan_0012.pdf")
+    Ocr::Tesseract.any_instance.stubs(:call).raises(Pdf::CommandFailed, "ocrmypdf failed: boom")
+    Ocr::AI.any_instance.expects(:call).never
+
+    document.process!(extract_metadata: false)
+
+    assert_equal "failed", document.reload.status
+  end
+
+  test "when Tesseract is the reader, its failure still fails the document" do
+    Setting.instance.update!(searchable_pdf: true)
+    document = ingest(scanned_text_pdf("PAYROLL SUMMARY\n"), filename: "scan_0011.pdf")
+    Ocr::Tesseract.any_instance.stubs(:call).raises(Pdf::CommandFailed, "ocrmypdf failed: boom")
+
+    document.process!(extract_metadata: false)
+
+    assert_equal "failed", document.reload.status
+    assert_match "ocrmypdf failed", document.error
+  end
+
   private
     def scan_with_ocr_layer
       @scan_with_ocr_layer ||= with_pdf_file(scanned_text_pdf("PAYROLL SUMMARY\nEmployee salary report\n")) do |path|

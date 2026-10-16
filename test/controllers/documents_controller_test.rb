@@ -8,6 +8,9 @@ class DocumentsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "[data-controller=upload] label[data-upload-target=zone]", count: 1
+    # Without `for`, the label would open its first labelable child: the folder button.
+    assert_select "label[data-upload-target=zone][for=upload_files]"
+    assert_select "input#upload_files[type=file][name='files[]']:not([webkitdirectory])"
     assert_select "input[webkitdirectory][name='files[]']", count: 1
     assert_select "label[data-upload-target=zone] button[data-action='upload#chooseFolder']", text: "Choose a folder"
     assert_select "label[data-upload-target=zone]", text: /Dragging a folder in skips that/

@@ -300,10 +300,10 @@ module Document::Processing
         engine_run.pages
       end
 
-      attach_searchable_pdf(searchable&.value)
+      attach_searchable_pdf(finished_searchable_pdf(searchable))
       texts
     ensure
-      searchable&.join
+      finished_searchable_pdf(searchable)
       @ocr_runs&.each_value { |run| FileUtils.rm_rf(File.dirname(run.archive_path)) if run&.archive_path }
     end
 
@@ -316,6 +316,18 @@ module Document::Processing
       run.report_on_exception = false
       run.join unless alongside
       run
+    end
+
+    # The searchable PDF is an extra: when only it fails, the document keeps
+    # the text that was read and the viewer shows the file as uploaded. When
+    # Tesseract was also the reader, its failure already surfaced above.
+    def finished_searchable_pdf(run)
+      run&.value
+    rescue StandardError => error
+      @searchable_error ||= error.message.squish.truncate(160).tap do |message|
+        @text_note = [ @text_note, "No searchable PDF (#{message})" ].compact.join(". ")
+      end
+      nil
     end
 
     def attach_searchable_pdf(run)

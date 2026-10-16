@@ -48,3 +48,7 @@
 
 # Ingest folder for docker compose.
 /ingest/
+
+# Deploy settings and secrets.
+/.kamal/
+/config/deploy*.yml
