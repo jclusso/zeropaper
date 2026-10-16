@@ -28,7 +28,7 @@ module Archive
           format: FORMAT,
           version: VERSION,
           exported_at: Time.current.iso8601,
-          correspondents: Correspondent.alphabetically.map { |record| record.slice(:name, :auto_match, :private_documents) },
+          correspondents: Correspondent.alphabetically.map { |record| record.slice(:name, :auto_match) },
           document_types: DocumentType.alphabetically.map { |record| record.slice(:name, :auto_match) },
           tags: Tag.alphabetically.map { |record| record.slice(:name, :color, :auto_match) },
           rules: Rule.ordered.map do |rule|

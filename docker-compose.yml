@@ -2,8 +2,10 @@ name: zeropaper
 
 services:
   app:
+    # Published for amd64 and arm64 on every push to master. `docker compose
+    # pull` fetches it; `docker compose up --build` builds this checkout instead.
+    image: ghcr.io/jclusso/zeropaper:latest
     build: .
-    image: zeropaper:latest
     restart: unless-stopped
     env_file: .env
     environment:

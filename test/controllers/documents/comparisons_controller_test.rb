@@ -12,7 +12,7 @@ class Documents::ComparisonsControllerTest < ActionDispatch::IntegrationTest
     get document_comparison_path(@copy)
 
     assert_response :success
-    assert_select "h1", text: "Compare documents"
+    assert_select "h1", text: "Compare Documents"
     assert_select "[data-comparison-column=#{@copy.id}]" do
       assert_select "p", text: "This document"
       assert_select "a[href=?]", document_path(@copy), text: "Acme statement copy"

@@ -27,7 +27,6 @@
               <td class="font-bold">
                 <div class="flex flex-wrap items-center gap-2">
                   <% if record.is_a?(Tag) %><%= tag_chip(record, link: false) %><% else %><%= record.name %><% end %>
-                  <% if record.is_a?(Correspondent) && record.private_documents? %><%= private_badge(label: "Private documents") %><% end %>
                 </div>
               </td>
               <td><%= record.auto_match? ? tag.span("By name", class: "badge-green") : tag.span("Off", class: "badge-slate") %></td>

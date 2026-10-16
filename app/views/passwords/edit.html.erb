@@ -1,6 +1,6 @@
-<% content_for :title, "Choose a new password" %>
+<% content_for :title, "Choose a New Password" %>
 <div class="card card-body">
-  <h1 class="text-lg font-bold">Choose a new password</h1>
+  <h1 class="text-lg font-bold">Choose a New Password</h1>
   <%= form_with url: password_path(params[:token]), method: :put, class: "mt-6 space-y-4" do |form| %>
     <div>
       <%= form.label :password, "New password", class: "label" %>

@@ -101,7 +101,6 @@ class Document::TextReadingTest < ActiveSupport::TestCase
     configure_openai(vision_provider: mistral, vision_model: "mistral-ocr-latest", searchable_pdf: true)
     # Nothing could make it private, so no local read has to come first.
     Rule.update_all(mark_private: false)
-    Correspondent.update_all(private_documents: false)
     document = ingest(scanned_text_pdf("PAYROLL SUMMARY\nEmployee salary report\n"), filename: "scan_0010.pdf")
     Ocr::Tesseract.any_instance.stubs(:call).raises(Pdf::CommandFailed, "ocrmypdf failed: SubprocessOutputError: Ghostscript rasterizing failed")
 

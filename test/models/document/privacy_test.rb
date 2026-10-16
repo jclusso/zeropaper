@@ -49,12 +49,29 @@ class Document::PrivacyTest < ActiveSupport::TestCase
     assert_no_hosted_ai_requests
   end
 
-  test "a document mentioning a private correspondent becomes private" do
+  test "a rule naming a correspondent keeps its documents private and files them" do
     document = process(ingest("Appointment reminder from City Clinic on May 2, 2026.", filename: "reminder.txt"))
 
     assert document.private?
-    assert_match "City Clinic", document.private_reason
+    assert_equal "Matched rule “Private: City Clinic”", document.private_reason
+    assert_equal correspondents(:city_clinic), document.correspondent
     assert_no_hosted_ai_requests
+  end
+
+  test "a rule for a correspondent is created once" do
+    clinic = correspondents(:city_clinic)
+    hospital = Correspondent.create!(name: "Harbor Hospital")
+
+    assert_no_difference -> { Rule.count } do
+      Rule.privatize_mentions_of!(clinic)
+    end
+    rule = Rule.privatize_mentions_of!(hospital)
+
+    assert rule.mark_private?
+    assert_equal hospital, rule.correspondent
+    assert_equal "Private: Harbor Hospital", rule.name
+    assert rule.matches?(Document.new, text: "Discharge summary from Harbor Hospital")
+    refute rule.matches?(Document.new, text: "Harbor tour tickets")
   end
 
   test "a scan is screened with local OCR before hosted OCR could see it" do

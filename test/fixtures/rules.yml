@@ -12,3 +12,9 @@ taxes:
   name: Tax returns
   conditions: <%= [ { field: "content", operator: "phrase", value: "tax return" } ].to_json %>
   tag_ids: [ <%= ActiveRecord::FixtureSet.identify(:taxes) %> ]
+
+clinic_private:
+  name: "Private: City Clinic"
+  conditions: <%= [ { field: "content", operator: "phrase", value: "City Clinic" } ].to_json %>
+  correspondent: city_clinic
+  mark_private: true

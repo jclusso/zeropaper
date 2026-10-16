@@ -19,6 +19,18 @@ class Metadata::AITest < ActiveSupport::TestCase
     assert_in_delta 0.55, document.confidence
   end
 
+  test "types and tags the AI invents start without auto-match, correspondents keep it" do
+    configure_openai(ai_creates_types: true, ai_creates_tags: true)
+    document = ingest(BILL_TEXT, filename: "bill.txt")
+
+    VCR.use_cassette("metadata/openai_electricity_bill") { process(document) }
+
+    invented = Tag.find_by!(name: "Electricity")
+    refute invented.auto_match?, "a tag the AI made up does not match by name"
+    assert Tag.find_or_create_named("Garden Supplies").auto_match?, "a tag you add yourself matches by name"
+    assert Correspondent.find_or_create_named("New Utility Co").auto_match?
+  end
+
   test "sends the text and the extraction model" do
     document = ingest(BILL_TEXT, filename: "bill.txt")
 

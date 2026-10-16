@@ -3,7 +3,6 @@ acme_power:
 
 city_clinic:
   name: City Clinic
-  private_documents: true
 
 unmatched:
   name: Never Matched

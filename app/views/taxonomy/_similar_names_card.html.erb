@@ -4,7 +4,7 @@
   <section class="card mb-6" aria-labelledby="similar-names-title">
     <div class="card-header flex flex-wrap items-center justify-between gap-2">
       <div>
-        <h2 id="similar-names-title" class="section-title">Similar names</h2>
+        <h2 id="similar-names-title" class="section-title">Similar Names</h2>
         <p class="mt-1 text-xs muted">These might be the same <%= noun %>. Merging moves documents and rules onto the one you keep.</p>
       </div>
     </div>
@@ -23,7 +23,7 @@
             <%= button_to "Dismiss", polymorphic_path([ resource_class.model_name.singular.to_sym, :merge_dismissals ]),
                   params: { keep_id: pair.keep.id, merge_id: pair.merge.id }, class: "btn-ghost btn-sm", title: "These are different, stop suggesting them",
                   form: { data: { turbo_confirm: "“#{pair.merge.name}” and “#{pair.keep.name}” are different #{noun.pluralize} and won’t be suggested again.",
-                                  turbo_confirm_title: "Keep them separate?", turbo_confirm_button: "Dismiss" } } %>
+                                  turbo_confirm_title: "Keep Them Separate?", turbo_confirm_button: "Dismiss" } } %>
             <%= render "taxonomy/merge_button", from: pair.keep, into: pair.merge, label: "Keep “#{pair.merge.name}” instead", button_class: "btn-secondary btn-sm" %>
             <%= render "taxonomy/merge_button", from: pair.merge, into: pair.keep, label: "Merge", button_class: "btn-primary btn-sm" %>
           </div>

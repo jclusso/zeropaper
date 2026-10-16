@@ -1,8 +1,8 @@
-<% content_for :title, "Set up ZeroPaper" %>
+<% content_for :title, "Set Up ZeroPaper" %>
 <% content_for :wide, true %>
 <%= render "setup/steps", current: 1 %>
 <div class="card card-body">
-  <h1 class="text-lg font-bold">Create the admin account</h1>
+  <h1 class="text-lg font-bold">Create the Admin Account</h1>
   <p class="mt-1 text-sm muted">You can add other people later. Next you choose whether to use AI, then how scans are read.</p>
 
   <%= form_with model: @user, url: setup_path, class: "mt-6 space-y-4" do |form| %>

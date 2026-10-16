@@ -1,13 +1,20 @@
-<%= form_with model: rule, class: "space-y-6", data: { controller: "rule-conditions" } do |form| %>
+<%# locals: (rule:, title:) %>
+<%# The on/off switch sits in the page header and joins the form through its `form` attribute. %>
+<%= page_header title do %>
+  <%= fields_for :rule, rule do |header| %>
+    <span title="Turned off, the rule never runs.">
+      <%= render "shared/switch", form: header, field: :enabled, title: "Enabled", inline: true, form_id: "rule_form", id: "rule_enabled" %>
+    </span>
+  <% end %>
+<% end %>
+
+<%= form_with model: rule, id: "rule_form", class: "space-y-6", data: { controller: "rule-conditions" } do |form| %>
   <%= form_errors(rule) %>
 
   <section class="card">
-    <div class="card-body grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
-      <div>
-        <%= form.label :name, class: "label" %>
-        <%= form.text_field :name, no_autofill(required: true, autofocus: rule.new_record?, placeholder: "e.g. bank statements", class: "input") %>
-      </div>
-      <div class="sm:w-56"><%= render "shared/switch", form: form, field: :enabled, title: "Enabled", description: "Turned off, the rule never runs." %></div>
+    <div class="card-body">
+      <%= form.label :name, class: "label" %>
+      <%= form.text_field :name, no_autofill(required: true, autofocus: rule.new_record?, placeholder: "e.g. bank statements", class: "input") %>
     </div>
   </section>
 
@@ -38,21 +45,20 @@
     <div class="card-body space-y-5">
       <div class="grid gap-4 sm:grid-cols-2">
         <div>
-          <label class="label" for="rule_correspondent_id">Set correspondent</label>
-          <%= render "shared/combobox", name: "rule[correspondent_id]", value: rule.correspondent_id, id: "rule_correspondent_id",
-                options: Correspondent.alphabetically.pluck(:name, :id), placeholder: "Leave as is", clearable: true %>
+          <label class="label" for="rule_correspondent_name">Set correspondent</label>
+          <%= render "shared/combobox", name: "rule[correspondent_name]", value: rule.correspondent&.name, id: "rule_correspondent_name",
+                options: Correspondent.alphabetically.pluck(:name, :name), placeholder: "Leave as is", creatable: true, clearable: true %>
         </div>
         <div>
-          <label class="label" for="rule_document_type_id">Set type</label>
-          <%= render "shared/combobox", name: "rule[document_type_id]", value: rule.document_type_id, id: "rule_document_type_id",
-                options: DocumentType.alphabetically.pluck(:name, :id), placeholder: "Leave as is", clearable: true %>
+          <label class="label" for="rule_document_type_name">Set type</label>
+          <%= render "shared/combobox", name: "rule[document_type_name]", value: rule.document_type&.name, id: "rule_document_type_name",
+                options: DocumentType.alphabetically.pluck(:name, :name), placeholder: "Leave as is", creatable: true, clearable: true %>
         </div>
       </div>
 
       <div>
-        <label class="label" for="rule_tag_ids">Add tags</label>
-        <%= render "shared/tag_input", name: "rule[tag_ids][]", selected: rule.tags.alphabetically, by: :id, id: "rule_tag_ids" %>
-        <p class="hint">Choose from existing tags. <%= link_to "Create a tag", new_tag_path, class: "link" %> first to add a new one.</p>
+        <label class="label" for="rule_tag_names">Add tags</label>
+        <%= render "shared/tag_input", name: "rule[tag_names][]", selected: rule.tags.alphabetically, id: "rule_tag_names" %>
       </div>
 
       <%= render "shared/switch", form: form, field: :mark_private, title: safe_join([ "Mark as ", private_badge(interactive: false) ]),

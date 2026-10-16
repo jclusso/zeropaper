@@ -16,15 +16,16 @@ class MergeableTest < ActiveSupport::TestCase
     assert_equal [ car.id ], rule.reload.tag_ids
   end
 
-  test "merging correspondents keeps documents private when either was" do
+  test "merging correspondents moves their documents and the rules that keep them private" do
     clinic = correspondents(:city_clinic)
     other = Correspondent.create!(name: "City Clinic Billing")
-    letter = document_with_text("Bill", correspondent: other)
+    letter = document_with_text("Bill", correspondent: clinic)
 
     clinic.merge_into!(other)
 
     assert_equal other, letter.reload.correspondent
-    assert other.reload.private_documents?
+    assert_equal other, rules(:clinic_private).reload.correspondent
+    assert rules(:clinic_private).mark_private?
     refute Correspondent.exists?(clinic.id)
   end
 

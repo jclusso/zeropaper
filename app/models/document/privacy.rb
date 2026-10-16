@@ -45,21 +45,17 @@ module Document::Privacy
     move_attachments_to_current_service
   end
 
-  # Runs the local checks that can make a document private once its text is
-  # known: rules that mark documents private, and correspondents whose
-  # documents are private.
+  # Runs the rules that mark documents private once the text is known.
   def screen_for_privacy(text)
     return if private? || text.blank?
 
     if (rule = Rule.where(mark_private: true).matching(self, text: text).first)
       privatize_during_processing!(rule.private_reason)
-    elsif (correspondent = Correspondent.where(private_documents: true).mentioned_in(text).first)
-      privatize_during_processing!("Mentions #{correspondent.name}, whose documents are private")
     end
   end
 
   def needs_privacy_screening?
-    !private? && (Rule.enabled.where(mark_private: true).exists? || Correspondent.auto_matching.where(private_documents: true).exists?)
+    !private? && Rule.enabled.where(mark_private: true).exists?
   end
 
   private

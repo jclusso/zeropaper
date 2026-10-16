@@ -41,7 +41,7 @@ module Metadata
       if @overwrite || @document.tags.empty?
         names = Array(details["tags"]).first(5)
         names = names.filter_map { |name| Tag.named(name)&.name } unless @settings.ai_creates_tags?
-        @document.tag_names = names
+        @document.tags = names.uniq(&:downcase).filter_map { |name| existing_or_new(Tag, name, create: true) }
       end
       Metadata::Rules.file(@document, text: text, overwrite: @overwrite)
       @document.summary = details["summary"].to_s.strip.presence
@@ -93,7 +93,10 @@ module Metadata
       end
 
       def existing_or_new(model, name, create:)
-        create ? model.find_or_create_named(name) : model.named(name)
+        # A type or tag the AI invents starts without auto-match: a word it
+        # picked for one document ("Insurance") would otherwise land on every
+        # document that mentions it.
+        create ? model.find_or_create_named(name, auto_match: false) : model.named(name)
       end
 
       # Recent titles of non-private documents, as a naming style to follow.

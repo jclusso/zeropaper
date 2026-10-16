@@ -1,7 +1,7 @@
 <% content_for :title, "Upload" %>
 <div class="mx-auto max-w-3xl" data-controller="upload"
   data-upload-url-value="<%= documents_path %>" data-upload-library-url-value="<%= documents_path %>">
-  <%= page_header "Upload documents", "PDFs, scans and photos, text, Word and Excel files." %>
+  <%= page_header "Upload Documents", "PDFs, scans and photos, text, Word and Excel files." %>
 
   <%= form_with url: documents_path, multipart: true, class: "space-y-5", data: { action: "submit->upload#start", upload_target: "form" } do |form| %>
     <%# `for` matters: without it the label activates its first labelable child, the folder button. %>

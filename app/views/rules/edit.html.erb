@@ -1,5 +1,4 @@
 <% content_for :title, @rule.name %>
 <div class="mx-auto max-w-3xl">
-  <%= page_header "Edit rule" %>
-  <%= render "rules/form", rule: @rule %>
+  <%= render "rules/form", rule: @rule, title: "Edit Rule" %>
 </div>

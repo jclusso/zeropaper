@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_16_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_16_130100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -77,7 +77,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_120000) do
   create_table "correspondents", force: :cascade do |t|
     t.string "name", null: false
     t.boolean "auto_match", default: true, null: false
-    t.boolean "private_documents", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index "lower((name)::text)", name: "index_correspondents_on_lower_name", unique: true
@@ -85,7 +84,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_120000) do
 
   create_table "document_types", force: :cascade do |t|
     t.string "name", null: false
-    t.boolean "auto_match", default: false, null: false
+    t.boolean "auto_match", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index "lower((name)::text)", name: "index_document_types_on_lower_name", unique: true
@@ -430,7 +429,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_120000) do
   create_table "tags", force: :cascade do |t|
     t.string "name", null: false
     t.string "color", default: "slate", null: false
-    t.boolean "auto_match", default: false, null: false
+    t.boolean "auto_match", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index "lower((name)::text)", name: "index_tags_on_lower_name", unique: true

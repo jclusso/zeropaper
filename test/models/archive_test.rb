@@ -71,4 +71,18 @@ class ArchiveTest < ActiveSupport::TestCase
     assert_equal "failed", restore.status
     assert_match "manifest.json is missing", restore.error
   end
+
+  test "an older export's private correspondent comes back as a rule" do
+    manifest = { format: Archive::FORMAT, version: 1, correspondents: [ { name: "Harbor Hospital", auto_match: true, private_documents: true } ] }
+    zip = Zip::OutputStream.write_buffer { |stream| stream.put_next_entry("manifest.json"); stream.write(manifest.to_json) }.string
+    restore = Restore.new(user: users(:one))
+    restore.archive.attach(io: StringIO.new(zip), filename: "old.zip", content_type: "application/zip")
+    restore.save!
+    restore.process!
+
+    assert_equal "ready", restore.status
+    rule = Rule.find_by!(name: "Private: Harbor Hospital")
+    assert rule.mark_private?
+    assert_equal Correspondent.named("Harbor Hospital"), rule.correspondent
+  end
 end

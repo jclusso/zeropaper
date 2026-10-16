@@ -1,4 +1,4 @@
-<% content_for :title, "Set up OCR" %>
+<% content_for :title, "Set Up OCR" %>
 <% content_for :wide, true %>
 <%= render "setup/steps", current: 3 %>
 <div class="card card-body">
@@ -15,7 +15,7 @@
     </div>
 
     <fieldset class="space-y-3" data-controller="reveal" data-reveal-when-value="docling">
-      <legend class="section-title mb-1">Fallback engine</legend>
+      <legend class="section-title mb-1">Fallback Engine</legend>
       <p class="hint mb-3"><%= fallback_explanation %></p>
       <% Setting::LOCAL_OCR_PROVIDERS.each_key do |key| %>
         <%= render "setup/ocrs/engine", field: :local_ocr_provider, key: key, title: Setting::LOCAL_OCR_PROVIDERS[key],

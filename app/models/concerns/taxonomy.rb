@@ -23,10 +23,11 @@ module Taxonomy
       find_by("lower(name) = ?", name.to_s.squish.downcase) if name.present?
     end
 
-    def find_or_create_named(name)
+    # `attributes` only apply when the record is new.
+    def find_or_create_named(name, **attributes)
       return if name.blank?
 
-      named(name) || create!(name: name.to_s.squish.truncate(120, omission: ""))
+      named(name) || create!(name: name.to_s.squish.truncate(120, omission: ""), **attributes)
     rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
       named(name)
     end

@@ -47,6 +47,16 @@ class Rule < ApplicationRecord
     enabled.ordered.reject(&:needs_content?).select { |rule| rule.matches?(document) }
   end
 
+  # Marks documents that mention the correspondent private and files them
+  # under it, which is what older exports' "documents from this correspondent
+  # are private" setting meant. Skipped when such a rule already exists.
+  def self.privatize_mentions_of!(correspondent)
+    phrase = { "field" => "content", "operator" => "phrase", "value" => correspondent.name }
+    return if enabled.where(mark_private: true).any? { |rule| rule.conditions == [ phrase ] }
+
+    create!(name: "Private: #{correspondent.name}", conditions: [ phrase ], correspondent: correspondent, mark_private: true)
+  end
+
   def tags
     Tag.where(id: tag_ids)
   end

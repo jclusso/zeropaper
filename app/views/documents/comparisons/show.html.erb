@@ -1,11 +1,11 @@
-<% content_for :title, "Compare documents" %>
+<% content_for :title, "Compare Documents" %>
 <% comparison = document_comparison(@document, @other) %>
 
 <div class="mx-auto max-w-6xl space-y-6">
   <div class="flex items-center gap-3">
     <%= link_to @document, class: "btn-icon", "aria-label": "Back to the document" do %><%= icon(:chevron_left, class: "size-4") %><% end %>
     <div class="min-w-0">
-      <h1 class="page-title">Compare documents</h1>
+      <h1 class="page-title">Compare Documents</h1>
       <p class="mt-1 text-sm muted">Decide whether these are the same document and which one to keep.</p>
     </div>
   </div>
@@ -52,7 +52,7 @@
     <p class="text-sm muted">Use <strong class="text-foreground">Keep this one</strong> under the document you want. If they are different documents, keep both.</p>
     <% if @document.duplicate_of == @other %>
       <%= button_to "Not duplicates, keep both", document_duplicate_dismissal_path(@document), class: "btn-secondary btn-sm",
-            form: { data: { turbo_confirm: "Keep both documents and stop flagging them as duplicates?", turbo_confirm_title: "Not duplicates?", turbo_confirm_button: "Keep both" } } %>
+            form: { data: { turbo_confirm: "Keep both documents and stop flagging them as duplicates?", turbo_confirm_title: "Not Duplicates?", turbo_confirm_button: "Keep both" } } %>
     <% end %>
   </section>
 </div>

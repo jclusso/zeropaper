@@ -4,4 +4,4 @@
 <%= button_to label, polymorphic_path([ from, :merge ]), params: { target_id: into.id }, class: button_class,
       form: { data: { turbo_frame: "_top",
                       turbo_confirm: "Move #{moving ? pluralize(moving, "document") : "its documents"} from “#{from.name}” to “#{into.name}” and delete “#{from.name}”? Rules that use it are updated too.",
-                      turbo_confirm_title: "Merge #{noun.pluralize}?", turbo_confirm_button: "Merge" } } %>
+                      turbo_confirm_title: title_case("Merge #{noun.pluralize}?"), turbo_confirm_button: "Merge" } } %>

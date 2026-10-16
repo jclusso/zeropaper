@@ -11,7 +11,7 @@ ZeroPaper is a self-hosted document archive built with Ruby on Rails. It turns s
 - **Page cleanup** turns pages that were scanned upside down or sideways upright, and blank page detection finds empty sheets and pages that only show print bleeding through from the other side. It leaves them out of OCR and offers to remove them.
 - **Private documents** never leave your machine.
 - **Review inbox** collects documents with low-confidence details, possible duplicates, blank pages or processing errors, each with its own fix. Duplicates are found by shared text and can be compared side by side.
-- **Rules** file documents automatically: when the text, filename or source matches, set the correspondent and type, add tags, or mark the document private. Correspondents, types and tags can also match by name.
+- **Rules** file documents automatically: when the text, filename or source matches, set the correspondent and type, add tags, or mark the document private. Correspondents, types and tags also match documents that mention their name; this is on by default and can be turned off for generic names.
 - **Tidy up** correspondents, types and tags: ZeroPaper suggests similar names (plurals, spelling, meaning) and merges them, moving their documents and rules.
 - **Import** from uploads (files or whole folders, with progress) and a watched folder.
 - **Export and restore** the whole library as one zip file.
@@ -26,12 +26,11 @@ A private document is processed only on your machine:
 - Its files are stored encrypted on disk with AES-256-GCM, and its text, summary and search passages are encrypted in the database.
 - Research searches private documents locally but never sends them to the model. When private documents match a question, the answer lists them as links.
 
-There are four ways to mark a document private:
+There are three ways to mark a document private:
 
 1. Tick **Private** when uploading.
 2. Put the file in the `private/` folder inside the ingest folder.
-3. Add a rule with **Mark private** that matches the filename, source or document text. Text conditions are checked against locally read text before anything is sent out.
-4. Mark a correspondent as private. Documents that mention it by name are found locally and marked private.
+3. Add a rule with **Mark private** that matches the filename, source or document text. Text conditions are checked against locally read text before anything is sent out. To keep everything from one correspondent private, make a rule whose text condition is that correspondent's name; the correspondent's page links to a rule started that way.
 
 Limits:
 
@@ -49,8 +48,11 @@ cd zeropaper
 cp .env.example .env
 # Set SECRET_KEY_BASE (openssl rand -hex 64) and POSTGRES_PASSWORD in .env
 mkdir -p ingest/private
+docker compose pull
 docker compose up -d
 ```
+
+`docker compose pull` downloads the published image (amd64 and arm64). To build from your checkout instead, run `docker compose up -d --build`.
 
 Open http://localhost:3000. The setup wizard creates the admin account, then asks whether to use AI, which provider and models to use, and how to read scans. Everything it asks can be changed later under **Admin**.
 

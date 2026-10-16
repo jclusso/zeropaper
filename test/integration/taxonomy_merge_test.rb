@@ -61,10 +61,11 @@ class TaxonomyMergeTest < ActionDispatch::IntegrationTest
     assert_select "el-option", text: /Bank Statement/, count: 0
   end
 
-  test "correspondent merges mention that private documents carry over" do
+  test "correspondent merges say rules move with it" do
     get new_correspondent_merge_path(correspondents(:city_clinic))
 
-    assert_select "li", text: /keep documents private/
+    assert_select "li", text: /Rules that set or add it/
+    assert_select "li", text: /keep documents private/, count: 0
   end
 
   test "dismissing hides the pair" do

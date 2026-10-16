@@ -34,7 +34,7 @@
   <div class="mt-auto border-t border-border px-4 py-3">
     <%= button_to document_path(other), method: :delete, params: { then_open: document.id }, class: "btn-primary btn-sm w-full", form_class: "w-full",
           form: { data: { turbo_confirm: "Keep “#{document.display_title}” (#{comparison_identity(document)}) and permanently delete “#{other.display_title}” (#{comparison_identity(other)})?",
-                          turbo_confirm_title: "Keep this one?", turbo_confirm_button: "Delete the other one" } } do %>
+                          turbo_confirm_title: "Keep This One?", turbo_confirm_button: "Delete the other one" } } do %>
       <%= icon(:check, class: "size-4") %> Keep this one
     <% end %>
     <p class="mt-1.5 text-center text-xs muted">Deletes the other document.</p>

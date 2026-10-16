@@ -6,7 +6,7 @@
   <%= page_header "Export", "Everything in one zip: files, OCR text, details, thumbnails, correspondents, types, tags and rules. Restore it here or into another ZeroPaper." %>
 
   <div class="card card-body">
-    <h2 class="section-title">New export</h2>
+    <h2 class="section-title">New Export</h2>
     <%= form_with url: exports_path, class: "mt-4 space-y-4" do |form| %>
       <%= render "shared/switch", name: :include_private, checked: true, title: safe_join([ "Include ", private_badge(interactive: false), " documents" ]),
             description: "They are decrypted into the zip, so keep the file somewhere safe." %>

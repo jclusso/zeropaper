@@ -1,8 +1,8 @@
-<% content_for :title, "Choose models" %>
+<% content_for :title, "Choose Models" %>
 <% content_for :wide, true %>
 <%= render "setup/steps", current: 2 %>
 <div class="card card-body">
-  <h1 class="text-lg font-bold">Choose models</h1>
+  <h1 class="text-lg font-bold">Choose Models</h1>
   <p class="mt-1 text-sm muted">Each task can use a different provider and model. The suggestions are a good start; pick one from the list or type any model id.</p>
 
   <%= form_with model: @setting, url: setup_models_path, method: :patch, class: "mt-6 space-y-6" do |form| %>

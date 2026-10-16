@@ -23,6 +23,18 @@ module ApplicationHelper
     end
   end
 
+  TITLE_SMALL_WORDS = %w[a an and as at but by for from in of on or the to with].freeze
+
+  # Title Case for headings built from words like a model name: "New document
+  # type" becomes "New Document Type". Capitals already present (AI, OCR) stay.
+  def title_case(text)
+    words = text.to_s.split(" ")
+    words.each_with_index.map do |word, index|
+      inner = index.positive? && index < words.size - 1
+      inner && TITLE_SMALL_WORDS.include?(word.downcase) ? word.downcase : word.sub(/\A[[:alpha:]]/, &:upcase)
+    end.join(" ")
+  end
+
   def page_header(title, subtitle = nil, &actions)
     tag.div(class: "mb-6 flex flex-wrap items-end justify-between gap-4") do
       tag.div { safe_join([ tag.h1(title, class: "page-title"), (tag.p(subtitle, class: "mt-1 max-w-2xl text-sm muted") if subtitle) ].compact) } +

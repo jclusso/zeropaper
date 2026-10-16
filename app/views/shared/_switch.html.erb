@@ -8,6 +8,7 @@
     description:         optional text under the title
     data:                data attributes for the checkbox
     id, disabled
+    form_id:             id of the form the checkbox belongs to, when it sits outside it
     inline:              switch before a short label, for toolbars
     title_icon:          optional icon name shown before the title
     aside:               optional HTML shown on the title's line, e.g. a hint
@@ -15,6 +16,7 @@
 <% data = local_assigns[:data] || {} %>
 <% box_options = { class: "switch-input", data: data, disabled: local_assigns[:disabled] } %>
 <% box_options[:id] = local_assigns[:id] if local_assigns[:id] %>
+<% box_options[:form] = local_assigns[:form_id] if local_assigns[:form_id] %>
 <% box = local_assigns[:form] ? form.check_box(field, box_options) : check_box_tag(name, local_assigns.fetch(:value, "1"), local_assigns[:checked], box_options.merge(id: local_assigns[:id] || name.to_s.parameterize(separator: "_"))) %>
 <% track = capture do %>
   <span class="switch"><%= box %><span class="switch-knob" aria-hidden="true"></span></span>

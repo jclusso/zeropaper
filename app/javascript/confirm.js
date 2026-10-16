@@ -1,7 +1,7 @@
 // Replaces the browser's confirm() for data-turbo-confirm with the dialog in
 // layouts/_confirm. Destructive actions (DELETE requests or danger buttons)
 // get a red confirm button. Optional attributes on the form or link:
-//   data-turbo-confirm-title    heading, default "Are you sure?"
+//   data-turbo-confirm-title    heading, default "Are You Sure?"
 //   data-turbo-confirm-button   confirm button label
 import { Turbo } from "@hotwired/turbo-rails"
 
@@ -26,7 +26,7 @@ export function confirmWithDialog(message, element, submitter) {
   const button = dialog.querySelector("[data-confirm-button]")
   const icon = dialog.querySelector("[data-confirm-icon]")
 
-  dialog.querySelector("[data-confirm-title]").textContent = dataFrom(element, submitter, "turboConfirmTitle") || "Are you sure?"
+  dialog.querySelector("[data-confirm-title]").textContent = dataFrom(element, submitter, "turboConfirmTitle") || "Are You Sure?"
   dialog.querySelector("[data-confirm-message]").textContent = message
   button.textContent = dataFrom(element, submitter, "turboConfirmButton") || (destructive ? "Delete" : "Confirm")
   button.className = destructive ? "btn-danger-solid" : "btn-primary"

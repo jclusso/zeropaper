@@ -6,7 +6,6 @@ class FormControlsTest < ActionDispatch::IntegrationTest
   test "on/off settings are switches over real checkboxes" do
     get new_correspondent_path
     assert_select ".switch input.switch-input[type=checkbox][name='correspondent[auto_match]']"
-    assert_select ".switch input.switch-input[type=checkbox][name='correspondent[private_documents]']"
 
     get edit_rule_path(rules(:taxes))
     assert_select ".switch input.switch-input[name='rule[enabled]']"
@@ -29,7 +28,7 @@ class FormControlsTest < ActionDispatch::IntegrationTest
     assert_select "input.swatch[type=radio][name='tag[color]']", count: Tag::COLORS.size
     assert_select "input.swatch[type=radio][name='tag[color]'][value=red][checked][aria-label=Red]"
     assert_select "[data-tag-preview-target=chip]", text: "Taxes"
-    assert_select "span", text: /generic name like/
+    assert_select "span", text: /generic name like/, count: 0
   end
 
   test "short fixed lists are plain selects with no text box; long lists are searchable" do
@@ -47,7 +46,7 @@ class FormControlsTest < ActionDispatch::IntegrationTest
 
     get new_rule_path
     assert_select "[data-rule-conditions-target=row] el-select[name$='[field]']"
-    assert_select "[data-controller=combobox] input[type=hidden][name='rule[correspondent_id]']"
+    assert_select "[data-controller=combobox][data-combobox-creatable-value=true] input[type=hidden][name='rule[correspondent_name]']"
   end
 
   test "switches save on and off" do
@@ -68,5 +67,13 @@ class FormControlsTest < ActionDispatch::IntegrationTest
 
     get new_user_path
     assert_select "input[name='user[name]'][data-1p-ignore]", count: 0
+  end
+
+  test "new and edit pages for names are titled in Title Case" do
+    get new_document_type_path
+    assert_select "h1", text: "New Document Type"
+
+    get edit_correspondent_path(correspondents(:acme_power))
+    assert_select "h1", text: "Edit Correspondent"
   end
 end

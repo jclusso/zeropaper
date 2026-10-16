@@ -1,6 +1,6 @@
-<% content_for :title, "Add an AI provider" %>
+<% content_for :title, "Add an AI Provider" %>
 <div>
-  <%= page_header "Add an AI provider", "Keys are stored encrypted. Private documents are never sent to any provider." %>
+  <%= page_header "Add an AI Provider", "Keys are stored encrypted. Private documents are never sent to any provider." %>
   <div class="card card-body">
     <%= form_with model: @provider, url: ai_providers_path, class: "space-y-6", data: { turbo: false } do |form| %>
       <%= form_errors(@provider) %>

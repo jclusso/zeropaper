@@ -8,7 +8,7 @@
   <% else %>
     <%= form_with url: polymorphic_path([ @record, :merge ]), method: :post, class: "card",
           data: { turbo_confirm: "Move #{pluralize(@documents_count, "document")} from “#{@record.name}” and delete it? Rules that use it are updated too.",
-                  turbo_confirm_title: "Merge #{noun.pluralize}?", turbo_confirm_button: "Merge" } do %>
+                  turbo_confirm_title: title_case("Merge #{noun.pluralize}?"), turbo_confirm_button: "Merge" } do %>
       <div class="card-body space-y-5">
         <div>
           <span class="label">Merging</span>
@@ -23,9 +23,6 @@
         <ul class="list-disc space-y-1 pl-5 text-sm muted">
           <li>Its documents move to the <%= noun %> you choose.</li>
           <li>Rules that set or add it are updated to use that <%= noun %>.</li>
-          <% if @record.is_a?(Correspondent) && @record.private_documents? %>
-            <li>Its documents are private, so the <%= noun %> you choose will keep documents private too.</li>
-          <% end %>
           <li>“<%= @record.name %>” is deleted.</li>
         </ul>
       </div>

@@ -2,7 +2,7 @@
 <div class="flex max-h-[85dvh] flex-col" data-controller="page-selection" data-page-selection-suggested-value="<%= suggested.size %>">
   <div class="flex items-start gap-4 border-b border-border px-5 py-4 sm:px-6">
     <div class="min-w-0 flex-1">
-      <h2 id="pages-dialog-title" class="section-title">Review pages</h2>
+      <h2 id="pages-dialog-title" class="section-title">Review Pages</h2>
       <p class="mt-1 text-xs muted">
         <% if suggested.any? %>
           <%= pluralize(suggested.size, "page") %> <%= suggested.one? ? "looks" : "look" %> blank and <%= suggested.one? ? "is" : "are" %> selected for removal.

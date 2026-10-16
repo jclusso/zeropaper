@@ -1,7 +1,7 @@
 <% name = resource_class.model_name.human %>
-<% content_for :title, @record.new_record? ? "New #{name.downcase}" : @record.name %>
+<% content_for :title, @record.new_record? ? title_case("New #{name}") : @record.name %>
 <div class="mx-auto max-w-2xl">
-  <%= page_header(@record.new_record? ? "New #{name.downcase}" : "Edit #{name.downcase}") %>
+  <%= page_header(title_case(@record.new_record? ? "New #{name}" : "Edit #{name}")) %>
 
   <%= form_with model: @record, class: "card card-body space-y-5", data: ({ controller: "tag-preview" } if @record.is_a?(Tag)) do |form| %>
     <%= form_errors(@record) %>
@@ -29,19 +29,11 @@
     <% end %>
 
     <% auto_match_hint = capture do %>
-      Assign this <%= name.downcase %> to documents whose text mentions “<%= @record.name.presence || "the name" %>”. Runs locally, so private documents are filed too. For anything more specific, use <%= link_to "Rules", rules_path, class: "link" %>.
-      <% unless @record.is_a?(Correspondent) %>
-        <span class="mt-1.5 block">Off by default: a generic name like “Invoice” or “Insurance” appears in far more documents than it describes. A <%= link_to "rule", rules_path, class: "link" %> with specific words is usually the better tool.</span>
-      <% end %>
+      Assign this <%= name.downcase %> to documents whose text mentions “<%= @record.name.presence || "the name" %>”. Runs on this machine, so private documents are filed too. For anything more specific, <%= link_to "create a rule", new_rule_for(@record), class: "link" %>.
     <% end %>
     <div class="rounded-sm border border-border bg-subtle p-3">
       <%= render "shared/switch", form: form, field: :auto_match, title: "Auto-match by name", description: auto_match_hint %>
     </div>
-
-    <% if @record.is_a?(Correspondent) %>
-      <%= render "shared/switch", form: form, field: :private_documents, title: safe_join([ "Documents from this correspondent are ", private_badge(interactive: false) ]),
-            description: "Checked on locally read text before anything is sent out. Needs auto-match by name." %>
-    <% end %>
 
     <div class="flex items-center justify-between border-t border-border pt-5">
       <% if @record.persisted? %>

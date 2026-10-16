@@ -85,14 +85,15 @@ class RuleTest < ActiveSupport::TestCase
     assert_no_hosted_ai_requests
   end
 
-  test "only correspondents match by name unless a tag or type opts in" do
+  test "correspondents, types and tags match by name unless turned off" do
     assert Correspondent.new.auto_match?
-    refute Tag.new.auto_match?
-    refute DocumentType.new.auto_match?
+    assert Tag.new.auto_match?
+    assert DocumentType.new.auto_match?
 
-    Tag.create!(name: "Car")
-    document = process(ingest("Letter from Acme Power about the car park", filename: "letter.txt", private: true))
-    assert_empty document.tags
+    car = Tag.create!(name: "Car")
+    Tag.create!(name: "Garden", auto_match: false)
+    document = process(ingest("Letter from Acme Power about the car park and the garden", filename: "letter.txt", private: true))
+    assert_equal [ car ], document.tags.to_a
   end
 
   test "auto-match can be turned off" do

@@ -32,7 +32,11 @@ module Archive
       end
 
       def restore_taxonomy(manifest)
-        Array(manifest["correspondents"]).each { |attributes| upsert_named(Correspondent, attributes) }
+        Array(manifest["correspondents"]).each do |attributes|
+          correspondent = upsert_named(Correspondent, attributes)
+          # Older exports marked a correspondent's documents private; that is a rule now.
+          Rule.privatize_mentions_of!(correspondent) if attributes["private_documents"]
+        end
         Array(manifest["document_types"]).each { |attributes| upsert_named(DocumentType, attributes) }
         Array(manifest["tags"]).each { |attributes| upsert_named(Tag, attributes) }
         Array(manifest["rules"]).each do |attributes|
