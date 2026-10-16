@@ -134,8 +134,7 @@ module Archive
 
       # This instance's mark-private rules decide too, on the filename, the
       # source and the restored text, before the files are stored and before
-      # the document can be shared. Runs before attaching so private files go
-      # straight to the encrypted service.
+      # the document can be shared.
       def screen_for_privacy(document)
         return if document.private?
 

@@ -23,7 +23,6 @@ A private document is processed only on your machine:
 
 - Its file, text, filename and details are never sent to a hosted AI provider. Every outbound AI request goes through one check that refuses private documents.
 - OCR runs locally with Tesseract or Docling. Docling counts as local only when its address is on this machine or the local network; otherwise private documents are read with Tesseract. Details come from Rules and from matching correspondent, type and tag names in the text, and dates are found in the text.
-- Its files are stored encrypted on disk with AES-256-GCM, and its text, summary and search passages are encrypted in the database.
 - Research searches private documents locally but never sends them to the model. When private documents match a question, the answer lists them as links.
 
 There are three ways to mark a document private:
@@ -36,7 +35,8 @@ Limits:
 
 - The full-text index (individual words) and the embeddings of private documents are stored unencrypted in Postgres, because search needs them. Someone with access to the database can learn which words a private document contains, but not its full text.
 - Marking a document private after it was processed normally stops any processing in progress and reprocesses it locally. Details the hosted provider already returned are kept, and nothing more is sent. What was already sent to the provider cannot be recalled.
-- Encryption keys are derived from `SECRET_KEY_BASE`. Losing it makes private files and encrypted text unreadable.
+- Private documents' files are stored unencrypted, like every other document's, so anyone who can read the storage folder can open them. Keep that folder on an encrypted disk or share if this matters. Every document's text, summary and search passages are encrypted in the database.
+- Encryption keys are derived from `SECRET_KEY_BASE`. Losing it makes document text unreadable.
 
 ## Quick start
 
@@ -140,7 +140,7 @@ The container runs as uid 1000, so that user needs write access to the share.
 Backups hold the library but not users, AI providers or settings. To move a whole server, copy these three together:
 
 1. The `.env` file, especially `SECRET_KEY_BASE`.
-2. The `storage` volume, which holds the files.
+2. The `storage` volume, which holds the files. To keep document files on a NAS instead, mount the share at `/rails/storage/files`.
 3. The `postgres` volume, or a dump made with `docker compose exec db pg_dump -U zeropaper zeropaper_production`.
 
 ## Development

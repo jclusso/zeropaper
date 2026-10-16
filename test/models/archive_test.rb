@@ -34,7 +34,6 @@ class ArchiveTest < ActiveSupport::TestCase
 
     restored_private = Document.find_by!(original_filename: "diagnosis.txt")
     assert restored_private.private?
-    assert_equal "test_private", restored_private.file.blob.service_name
     assert_no_external_requests
   end
 
@@ -47,8 +46,6 @@ class ArchiveTest < ActiveSupport::TestCase
     restored = Document.find_by!(original_filename: "statement.txt")
     assert restored.private?
     assert_equal "Matched rule “Power bills”", restored.private_reason
-    assert_equal "test_private", restored.file.blob.service_name
-    assert_equal "test_private", restored.thumbnail.blob.service_name if restored.thumbnail.attached?
     assert_no_external_requests
   end
 

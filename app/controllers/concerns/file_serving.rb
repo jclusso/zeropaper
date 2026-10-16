@@ -4,10 +4,9 @@ module FileServing
   extend ActiveSupport::Concern
 
   private
-    # Streams files from the plain disk service instead of reading them into
+    # Streams files from the disk service instead of reading them into
     # memory, and answers a single byte range (the PDF viewer asks for
-    # these). Encrypted files are sealed whole, so they are decrypted in
-    # memory either way.
+    # these).
     def send_attachment(attachment, disposition: :inline)
       blob = attachment.blob
       options = { filename: blob.filename.to_s, type: blob.content_type, disposition: disposition }

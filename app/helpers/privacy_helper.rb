@@ -1,5 +1,5 @@
 module PrivacyHelper
-  EXPLANATION = "Never sent to an AI provider. Read on this machine with local OCR and rules, stored encrypted, and left out of anything Research sends to AI.".freeze
+  EXPLANATION = "Never sent to an AI provider. Read on this machine with local OCR and rules, and left out of anything Research sends to AI.".freeze
 
   # The standard Private badge. Hover or focus shows what private means and,
   # for a document, why it is private. Pass interactive: false inside links.

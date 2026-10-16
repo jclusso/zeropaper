@@ -5,9 +5,6 @@ class Document < ApplicationRecord
   SOURCES = %w[upload folder restore].freeze
   SPREADSHEET_VIEW_ROWS = 2_000
 
-  # Private documents are stored on the encrypted disk service.
-  STORAGE = ->(document) { document.storage_service_name }
-
   belongs_to :correspondent, optional: true
   belongs_to :document_type, optional: true
   belongs_to :duplicate_of, class_name: "Document", optional: true
@@ -17,10 +14,10 @@ class Document < ApplicationRecord
   has_many :tags, through: :taggings
   has_many :chunks, -> { order(:position) }, dependent: :delete_all
 
-  has_one_attached :file, service: STORAGE
-  has_one_attached :original_file, service: STORAGE
-  has_one_attached :archive_file, service: STORAGE
-  has_one_attached :thumbnail, service: STORAGE
+  has_one_attached :file
+  has_one_attached :original_file
+  has_one_attached :archive_file
+  has_one_attached :thumbnail
 
   encrypts :content, :summary
 
@@ -92,11 +89,6 @@ class Document < ApplicationRecord
     return original_file if original_file.attached?
 
     file if archive_file.attached?
-  end
-
-  def storage_service_name
-    base = ActiveStorage::Blob.service.name.to_s
-    private? ? "#{base}_private" : base
   end
 
   # Saves details edited by a person. They only become "from you" when a

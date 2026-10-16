@@ -27,11 +27,8 @@ class Document::PrivacyTest < ActiveSupport::TestCase
     assert_no_external_requests
   end
 
-  test "private files are stored encrypted and their text is encrypted in the database" do
+  test "private text is encrypted in the database" do
     document = process(ingest(BILL_TEXT, filename: "bill.txt", private: true))
-
-    assert_equal "test_private", document.file.blob.service_name
-    refute_includes stored_bytes(document.file), "Acme Power"
 
     raw_content = Document.connection.select_value("SELECT content FROM documents WHERE id = #{document.id}")
     refute_includes raw_content, "Acme Power"
@@ -45,7 +42,6 @@ class Document::PrivacyTest < ActiveSupport::TestCase
     assert document.private?
     assert_equal "Matched rule “Medical”", document.private_reason
     assert_equal "rules", document.metadata_source
-    assert_equal "test_private", document.file.blob.service_name
     assert_no_external_requests
   end
 
@@ -89,23 +85,19 @@ class Document::PrivacyTest < ActiveSupport::TestCase
 
     assert document.private?
     assert_equal "Matched rule “Tax files”", document.private_reason
-    assert_equal "test_private", document.file.blob.service_name
   end
 
-  test "privatize! moves files to encrypted storage and keeps details AI already returned" do
+  test "privatize! keeps details AI already returned" do
     Setting.instance.update!(ai_enabled: false)
     document = process(ingest(BILL_TEXT, filename: "bill.txt"))
     energy = Correspondent.create!(name: "Acme Energy Group")
     document.update!(title: "Acme Electricity Bill", summary: "AI summary", document_date: Date.new(2026, 3, 1), correspondent: energy,
       tag_names: [ "Utilities" ], metadata_source: "ai", ai_model: "gpt-5.6-luna", confidence: 0.9)
-    assert_equal "test", document.file.blob.service_name
 
     assert_enqueued_with(job: ProcessDocumentJob) { document.privatize!(reason: "Marked private by Ada") }
 
     document.reload
     assert document.private?
-    assert_equal "test_private", document.file.blob.service_name
-    assert_equal "test_private", document.thumbnail.blob.service_name if document.thumbnail.attached?
     assert_equal "AI summary", document.summary
     assert_equal "gpt-5.6-luna", document.ai_model
     assert_equal "ai", document.metadata_source
@@ -148,7 +140,6 @@ class Document::PrivacyTest < ActiveSupport::TestCase
     assert_equal "pending", document.status, "the local run that privatize! queued owns the document"
     assert_nil document.content, "the stale run wrote no text"
     refute document.archive_file.attached?
-    assert_equal "test_private", document.file.blob.service_name
     assert_no_external_requests
   end
 
@@ -240,7 +231,6 @@ class Document::PrivacyTest < ActiveSupport::TestCase
     document.reload
     assert document.private?
     assert_equal "Added from the private folder", document.private_reason
-    assert_equal "test_private", document.file.blob.service_name
   end
 
   test "a shareable copy of a stored document changes nothing" do
@@ -261,10 +251,9 @@ class Document::PrivacyTest < ActiveSupport::TestCase
 
     assert document.reload.private?
     assert_match "“Tax files” still marks this document private", document.errors.full_messages.to_sentence
-    assert_equal "test_private", document.file.blob.service_name
   end
 
-  test "publicize! moves files back and queues normal processing" do
+  test "publicize! queues normal processing" do
     document = process(ingest(BILL_TEXT, filename: "bill.txt", private: true))
 
     assert_enqueued_with(job: ProcessDocumentJob) { document.publicize! }
@@ -272,7 +261,6 @@ class Document::PrivacyTest < ActiveSupport::TestCase
     document.reload
     refute document.private?
     assert_nil document.private_reason
-    assert_equal "test", document.file.blob.service_name
     assert_equal BILL_TEXT, document.file.download
   end
 
