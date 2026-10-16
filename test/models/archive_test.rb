@@ -155,6 +155,25 @@ class ArchiveTest < ActiveSupport::TestCase
     assert_equal Correspondent.named("Harbor Hospital"), rule.correspondent
   end
 
+  test "a restore that failed while indexing resumes the document when run again" do
+    name = back_up_and_clear
+
+    Embedder.stubs(:embed_documents).raises(RuntimeError, "model missing")
+    first = Restore.create!(user: users(:one), filename: name)
+    first.process!
+    assert_equal "failed", first.status
+    stalled = Document.find_by!(original_filename: "statement.txt")
+    refute_equal "ready", stalled.status
+    assert_empty stalled.chunks
+
+    Embedder.unstub(:embed_documents)
+    second = restore!(name)
+
+    assert_operator second.restored_count, :>=, 1
+    assert_equal "ready", stalled.reload.status
+    assert stalled.chunks.any?
+  end
+
   private
     def back_up_and_clear
       backup = Backup.create!(user: users(:one))

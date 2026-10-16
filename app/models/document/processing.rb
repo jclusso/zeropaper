@@ -13,6 +13,9 @@ module Document::Processing
 
   included do
     before_save :ensure_current_run
+    # A deleted document discards its queued run; a running one finds its
+    # row gone at the next save and stops without attaching anything.
+    before_destroy :discard_queued_processing
   end
 
   STEPS = {

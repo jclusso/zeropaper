@@ -5,8 +5,18 @@ class Search
   RRF_K = 60
   KEYWORD_CANDIDATES = 100
   SEMANTIC_CANDIDATES = 20
+  TITLE_SIMILARITY = 0.5
 
   attr_reader :query
+
+  # pgvector 0.8 can keep scanning the HNSW index until enough rows pass
+  # the filter; before that a scan stops at ef_search (40) rows.
+  def self.iterative_scan?
+    return @iterative_scan if defined?(@iterative_scan)
+
+    version = Chunk.connection.select_value("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
+    @iterative_scan = Gem::Version.new(version.to_s) >= Gem::Version.new("0.8.0")
+  end
 
   def initialize(query:, filters: {}, scope: Document.all)
     @query = query.to_s.squish
@@ -35,21 +45,29 @@ class Search
       tsquery = "websearch_to_tsquery(#{language}::regconfig, #{Document.connection.quote(query)})"
       quoted_query = Document.connection.quote(query)
 
-      @scope
-        .where("documents.search_vector @@ #{tsquery} OR word_similarity(#{quoted_query}, coalesce(documents.title, '')) > 0.5")
-        .order(Arel.sql("ts_rank_cd(documents.search_vector, #{tsquery}) + word_similarity(#{quoted_query}, coalesce(documents.title, '')) DESC"))
-        .limit(KEYWORD_CANDIDATES)
-        .pluck(:id)
+      # <% is word_similarity above the threshold, written as an operator so
+      # the title's trigram index and the full-text index can both be used.
+      Document.transaction do
+        Document.connection.execute("SET LOCAL pg_trgm.word_similarity_threshold = #{TITLE_SIMILARITY}")
+        @scope
+          .where("documents.search_vector @@ #{tsquery} OR #{quoted_query} <% documents.title")
+          .order(Arel.sql("ts_rank_cd(documents.search_vector, #{tsquery}) + word_similarity(#{quoted_query}, coalesce(documents.title, '')) DESC"))
+          .limit(KEYWORD_CANDIDATES)
+          .pluck(:id)
+      end
     end
 
     def semantic_ids
       vector = Embedder.embed_query(query)
-      Chunk.where(document_id: @scope.select(:id))
-        .nearest_neighbors(:embedding, vector, distance: "cosine")
-        .limit(SEMANTIC_CANDIDATES * 4)
-        .pluck(:document_id)
-        .uniq
-        .first(SEMANTIC_CANDIDATES)
+      Chunk.transaction do
+        Chunk.connection.execute("SET LOCAL hnsw.iterative_scan = strict_order") if self.class.iterative_scan?
+        Chunk.where(document_id: @scope.select(:id))
+          .nearest_neighbors(:embedding, vector, distance: "cosine")
+          .limit(SEMANTIC_CANDIDATES * 4)
+          .pluck(:document_id)
+          .uniq
+          .first(SEMANTIC_CANDIDATES)
+      end
     rescue StandardError => error
       Rails.logger.warn("[search] semantic search unavailable: #{error.message}")
       []

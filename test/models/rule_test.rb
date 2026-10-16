@@ -103,6 +103,26 @@ class RuleTest < ActiveSupport::TestCase
     assert_nil document.correspondent
   end
 
+  test "a restored private correspondent reuses a rule that already covers its name" do
+    clinic = Correspondent.create!(name: "Harbor Hospital")
+    Rule.create!(name: "Medical", match_mode: "any", mark_private: true, conditions: [
+      { field: "content", operator: "phrase", value: "harbor  HOSPITAL" },
+      { field: "content", operator: "phrase", value: "Oak Clinic" }
+    ])
+
+    assert_no_difference(-> { Rule.count }) { Rule.privatize_mentions_of!(clinic) }
+  end
+
+  test "a rule that needs other conditions too does not count as covering the name" do
+    clinic = Correspondent.create!(name: "Harbor Hospital")
+    Rule.create!(name: "Medical bills", match_mode: "all", mark_private: true, conditions: [
+      { field: "content", operator: "phrase", value: "Harbor Hospital" },
+      { field: "content", operator: "any", value: "invoice" }
+    ])
+
+    assert_difference(-> { Rule.count }) { Rule.privatize_mentions_of!(clinic) }
+  end
+
   private
     def rule(**condition)
       Rule.new(name: "Test", mark_private: true, conditions: [ condition ])

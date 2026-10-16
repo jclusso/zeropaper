@@ -79,6 +79,17 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal name, Restore.last.filename
   end
 
+  test "a restore run by a deleted user still lists" do
+    restore = Restore.new(user: users(:two), filename: "zeropaper-2026-01-01-030000.zpbackup", status: "ready")
+    restore.save!(validate: false)
+    users(:two).destroy!
+
+    get backups_path
+
+    assert_response :success
+    assert_match "Deleted user", response.body
+  end
+
   test "a backup made with another key asks for it" do
     other = Backup::Key.generate
     name = put_sealed(build_zip, key: Backup::Key.parse(other))

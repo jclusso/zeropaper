@@ -38,7 +38,9 @@ Rails.application.routes.draw do
   resource :search, only: :show
 
   resources :conversations, only: %i[ index show create destroy ] do
-    resources :messages, only: :create, module: :conversations
+    resources :messages, only: :create, module: :conversations do
+      resource :retry, only: :create, module: :messages
+    end
   end
 
   # Correspondents, document types and tags share merging: a merge page per

@@ -14,7 +14,11 @@
       <div class="callout-danger mt-3 text-sm">
         <p class="flex items-center gap-2 font-semibold text-danger"><%= icon(:warning, class: "size-4") %> Research stopped</p>
         <p class="mt-1 muted"><%= message.content.to_s.sub(/\A.*?Research stopped: /m, "").presence || "Something went wrong." %></p>
-        <p class="mt-2 text-xs muted">Ask the question again to retry.</p>
+        <% if message.retryable? %>
+          <%= button_to "Retry", conversation_message_retry_path(message.conversation, message), class: "btn-secondary btn-sm mt-3" %>
+        <% else %>
+          <p class="mt-2 text-xs muted">Ask the question again to retry.</p>
+        <% end %>
       </div>
     <% end %>
 

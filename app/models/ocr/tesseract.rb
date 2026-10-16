@@ -34,10 +34,14 @@ module Ocr
       texts = File.exist?(sidecar) ? File.read(sidecar).split("\f", -1) : []
       numbered = texts.each_with_index.to_h { |text, index| [ index + 1, text ] }
       FileUtils.rm_f(sidecar)
-      return Result.new(pages: numbered.slice(*pages), archive_path: output) if File.exist?(output)
+      return Result.new(pages: numbered.slice(*pages)) unless File.exist?(output)
 
-      FileUtils.rm_rf(dir)
-      Result.new(pages: numbered.slice(*pages))
+      # The caller owns the directory from here and removes it with the PDF.
+      result = Result.new(pages: numbered.slice(*pages), archive_path: output)
+      dir = nil
+      result
+    ensure
+      FileUtils.rm_rf(dir) if dir
     end
   end
 end

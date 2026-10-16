@@ -98,7 +98,7 @@ accessories:
 
   # Local layout-aware OCR, about 4 GB. Optional: Tesseract is built in.
   # docling:
-  #   image: quay.io/docling-project/docling-serve-cpu:latest
+  #   image: quay.io/docling-project/docling-serve-cpu:v1.37.0
   #   host: 192.168.0.1
   #   env:
   #     clear:

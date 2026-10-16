@@ -46,29 +46,45 @@ module Mergeable
 
     private
       def spelling_pairs(records)
+        similar = trigram_similar_ids(records)
         records.combination(2).select do |a, b|
           x, y = a.name.downcase, b.name.downcase
           short, long = [ x, y ].sort_by(&:length)
           contains = short.length >= CONTAINED_MIN_LENGTH && short != long && long.match?(/(?<![[:alnum:]])#{Regexp.escape(short)}(?![[:alnum:]])/)
           plural = x.split.map(&:singularize) == y.split.map(&:singularize)
-          plural || contains || trigram_similarity(x, y) >= SPELLING_SIMILARITY
+          plural || contains || similar.include?([ a.id, b.id ].minmax)
         end
       end
 
+      # Every pair among records whose names clear SPELLING_SIMILARITY, as
+      # sorted id pairs, in one query.
+      def trigram_similar_ids(records)
+        ids = records.map(&:id)
+        sql = sanitize_sql_array([ <<~SQL.squish, ids, ids, SPELLING_SIMILARITY ])
+          SELECT a.id, b.id FROM #{quoted_table_name} a JOIN #{quoted_table_name} b ON a.id < b.id
+          WHERE a.id IN (?) AND b.id IN (?) AND similarity(lower(a.name), lower(b.name)) >= ?
+        SQL
+        connection.select_rows(sql).to_set { |pair| pair.map(&:to_i) }
+      end
+
       def meaning_pairs(records)
-        vectors = Rails.cache.fetch([ "taxonomy-name-vectors", name, Digest::SHA256.hexdigest(records.map(&:name).sort.join("\n")) ], expires_in: 1.day) do
-          Embedder.embed_documents(records.map(&:name))
-        end
-        records.each_with_index.to_a.combination(2).filter_map do |(a, i), (b, j)|
-          [ a, b ] if vectors[i].zip(vectors[j]).sum { |x, y| x * y } >= MEANING_SIMILARITY
+        vectors = name_vectors(records.map(&:name))
+        records.combination(2).filter_map do |a, b|
+          x, y = vectors[a.name], vectors[b.name]
+          [ a, b ] if x && y && x.zip(y).sum { |p, q| p * q } >= MEANING_SIMILARITY
         end
       rescue StandardError => error
         Rails.logger.warn("[merge] meaning comparison unavailable: #{error.message}")
         []
       end
 
-      def trigram_similarity(x, y)
-        connection.select_value(sanitize_sql_array([ "SELECT similarity(?, ?)", x, y ])).to_f
+      # Keyed by name, so a change in document counts (and so in record
+      # order) cannot hand one name another's vector.
+      def name_vectors(names)
+        names = names.sort
+        Rails.cache.fetch([ "taxonomy-name-vectors-by-name", name, Digest::SHA256.hexdigest(names.join("\n")) ], expires_in: 1.day) do
+          names.zip(Embedder.embed_documents(names)).to_h
+        end
       end
   end
 

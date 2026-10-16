@@ -23,8 +23,9 @@ RUN apt-get update -qq && \
 # pdfium, while Debian's 16.x relies on its Ghostscript, which fails on some
 # scans that carry an old OCR layer ("Ghostscript rasterizing failed").
 ARG OCRMYPDF_VERSION=17.13.0
+ARG PYPDFIUM2_VERSION=5.14.0
 RUN python3 -m venv /opt/ocrmypdf && \
-    /opt/ocrmypdf/bin/pip install --no-cache-dir "ocrmypdf==${OCRMYPDF_VERSION}" pypdfium2 && \
+    /opt/ocrmypdf/bin/pip install --no-cache-dir "ocrmypdf==${OCRMYPDF_VERSION}" "pypdfium2==${PYPDFIUM2_VERSION}" && \
     ln -s /opt/ocrmypdf/bin/ocrmypdf /usr/local/bin/ocrmypdf
 
 # Production environment, jemalloc for lower memory use, and jobs inside Puma

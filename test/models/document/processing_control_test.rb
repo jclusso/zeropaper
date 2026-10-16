@@ -52,6 +52,30 @@ class Document::ProcessingControlTest < ActiveSupport::TestCase
     assert_operator ProcessDocumentJob.concurrency_duration, :>, Ocr::Tesseract::TIMEOUT
   end
 
+  test "deleting a document mid-run stops the run without attaching files to it" do
+    document = ingest(text_pdf("Lease agreement"), filename: "lease.pdf")
+    blobs = ActiveStorage::Blob.count
+    Pdf.stubs(:page_count).with { Document.find(document.id).destroy!; true }.returns(1)
+
+    document.process!
+
+    refute Document.exists?(document.id)
+    assert_empty ActiveStorage::Attachment.where(record_type: "Document", record_id: document.id)
+    assert_equal blobs, ActiveStorage::Blob.count
+  end
+
+  test "deleting a document discards its queued run and clears copies flagged against it" do
+    original = document_with_text("Lease agreement")
+    copy = document_with_text("Lease agreement copy", duplicate_of: original, review_reasons: [ "possible_duplicate" ], needs_review: true)
+    original.expects(:discard_queued_processing).once
+
+    original.destroy!
+
+    copy.reload
+    assert_nil copy.duplicate_of_id
+    refute_includes copy.review_reasons, "possible_duplicate"
+  end
+
   test "turning pages upright can be switched off" do
     Setting.instance.update!(auto_rotate_pages: false)
     Orientation.expects(:pdf_rotations).never
