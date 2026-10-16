@@ -22,15 +22,20 @@
           options: [ [ "Fit width", "page-width" ], [ "Fit page", "page-fit" ], [ "Automatic", "auto" ], [ "Actual size", "1" ], [ "150%", "1.5" ], [ "200%", "2" ] ],
           data: { pdf_viewer_target: "scaleSelect", action: "change->pdf-viewer#setScale" } %>
 
-    <div class="ml-auto hidden items-center gap-1 @xl:flex">
-      <div class="relative">
-        <span class="pointer-events-none absolute inset-y-0 left-2 flex items-center muted"><%= icon(:search, class: "size-3.5") %></span>
-        <input type="search" placeholder="find in document" class="input h-8 w-40 pl-7 text-xs @4xl:w-56" data-pdf-viewer-target="findInput"
-          data-action="input->pdf-viewer#find keydown.enter->pdf-viewer#find" aria-label="Find in document">
+    <%# One field like a browser's find bar; the count and buttons appear once something is typed. %>
+    <div class="ml-auto hidden @xl:block" role="search">
+      <div class="group/find flex h-8 w-56 items-center rounded-sm border border-input bg-card shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/40 dark:bg-(--input-surface) @4xl:w-72">
+        <span class="pl-2.5 muted"><%= icon(:search, class: "size-3.5") %></span>
+        <input type="text" placeholder="find in document" class="h-full min-w-0 flex-1 bg-transparent px-2 text-xs text-foreground outline-none placeholder:text-muted-foreground"
+          data-pdf-viewer-target="findInput" aria-label="Find in document" <%= tag.attributes(no_autofill(data: { action: "input->pdf-viewer#find keydown.enter->pdf-viewer#find keydown.esc->pdf-viewer#clearFind" })) %>>
+        <div class="flex shrink-0 items-center group-has-[input:placeholder-shown]/find:hidden">
+          <span class="px-1.5 text-xs tabular-nums muted data-[empty]:text-danger" data-pdf-viewer-target="findStatus" aria-live="polite"></span>
+          <span class="h-4 w-px bg-border"></span>
+          <button type="button" class="flex size-7 items-center justify-center muted hover:text-foreground" data-action="pdf-viewer#findPrevious" title="Previous match (Shift+Enter)" aria-label="Previous match"><%= icon(:chevron_up, class: "size-3.5") %></button>
+          <button type="button" class="flex size-7 items-center justify-center muted hover:text-foreground" data-action="pdf-viewer#findNext" title="Next match (Enter)" aria-label="Next match"><%= icon(:chevron_down, class: "size-3.5") %></button>
+          <button type="button" class="mr-0.5 flex size-7 items-center justify-center muted hover:text-foreground" data-action="pdf-viewer#clearFind" title="Clear (Esc)" aria-label="Clear search"><%= icon(:x, class: "size-3.5") %></button>
+        </div>
       </div>
-      <span class="hidden w-20 text-xs muted @4xl:inline" data-pdf-viewer-target="findStatus" aria-live="polite"></span>
-      <button type="button" class="btn-icon" data-action="pdf-viewer#findPrevious" title="Previous match (Shift+Enter)" aria-label="Previous match"><%= icon(:chevron_up, class: "size-3.5") %></button>
-      <button type="button" class="btn-icon" data-action="pdf-viewer#findNext" title="Next match (Enter)" aria-label="Next match"><%= icon(:chevron_down, class: "size-3.5") %></button>
     </div>
     <div class="ml-auto flex items-center gap-1 @xl:ml-0">
       <span class="mx-1 hidden h-5 w-px bg-border @xl:block"></span>

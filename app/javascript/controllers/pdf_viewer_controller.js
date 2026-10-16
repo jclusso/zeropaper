@@ -121,22 +121,37 @@ export default class extends Controller {
     if (event?.type === "keydown") event.preventDefault()
   }
 
+  clearFind() {
+    this.findInputTarget.value = ""
+    this.findStatusTarget.textContent = ""
+    this.eventBus?.dispatch("findbarclose", { source: this })
+    this.findInputTarget.focus()
+  }
+
   findNext() { this.dispatchFind("again", false) }
   findPrevious() { this.dispatchFind("again", true) }
 
   dispatchFind(type, findPrevious = false) {
     if (!this.eventBus) return
     const query = this.findInputTarget.value
-    if (!query) return this.findStatusTarget.textContent = ""
+    if (!query) {
+      this.findStatusTarget.textContent = ""
+      return this.eventBus.dispatch("findbarclose", { source: this })
+    }
     this.eventBus.dispatch("find", {
       source: this, type, query, caseSensitive: false, entireWord: false, highlightAll: true, findPrevious, matchDiacritics: false
     })
   }
 
   showMatches(matchesCount, state) {
-    if (!this.findInputTarget.value) return this.findStatusTarget.textContent = ""
-    if (state === 1 || matchesCount?.total === 0) return this.findStatusTarget.textContent = "No matches"
-    if (matchesCount?.total) this.findStatusTarget.textContent = `${matchesCount.current} of ${matchesCount.total}`
+    const status = this.findStatusTarget
+    status.removeAttribute("data-empty")
+    if (!this.findInputTarget.value) return status.textContent = ""
+    if (state === 1 || matchesCount?.total === 0) {
+      status.toggleAttribute("data-empty", true)
+      return status.textContent = "0/0"
+    }
+    if (matchesCount?.total) status.textContent = `${matchesCount.current}/${matchesCount.total}`
   }
 
   // Keyboard: j/k or arrows for pages, + and - to zoom, 0 to fit width,

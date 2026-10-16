@@ -53,14 +53,15 @@ COPY Gemfile Gemfile.lock ./
 
 # onnxruntime (used by informers for local embeddings) installs as a
 # precompiled platform gem for x86_64-linux and aarch64-linux.
+# The gems' bootsnap cache is set aside so the final image keeps it in its own
+# layer, which only changes with the Gemfile and so is not shipped on every
+# deploy. The app's own files are compiled at runtime on first use.
 RUN bundle install && \
     rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
-    # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
-    bundle exec bootsnap precompile -j 1 --gemfile
+    bundle exec bootsnap precompile --gemfile && \
+    mv tmp/cache/bootsnap /bootsnap
 
 COPY . .
-
-RUN bundle exec bootsnap precompile -j 1 app/ lib/
 
 # Precompile assets (including Tailwind) without the real secret.
 RUN SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile
@@ -74,7 +75,8 @@ RUN groupadd --system --gid 1000 rails && \
     chown -R rails:rails /rails
 
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
-COPY --chown=rails:rails --from=build /rails /rails
+COPY --chown=rails:rails --from=build /bootsnap /rails/tmp/cache/bootsnap
+COPY --chown=rails:rails --from=build --exclude=tmp/cache /rails /rails
 
 USER 1000:1000
 

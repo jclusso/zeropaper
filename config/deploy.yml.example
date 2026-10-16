@@ -62,6 +62,9 @@ asset_path: /rails/public/assets
 
 # The first boot creates the database and loads the app, which can take a while.
 deploy_timeout: 120
+# How long the job container (no health check) must stay up before the deploy
+# moves on. It restarts by itself if it crashes later.
+readiness_delay: 3
 # Each old image is a couple of gigabytes.
 retain_containers: 2
 
