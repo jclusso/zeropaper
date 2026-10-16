@@ -12,7 +12,7 @@ class FormControlsTest < ActionDispatch::IntegrationTest
     assert_select ".switch input.switch-input[name='rule[mark_private]']"
 
     get settings_path
-    assert_select ".switch input.switch-input[name='setting[ai_enabled]'][data-ai-gate-target=toggle][data-action='ai-gate#update']"
+    assert_select ".switch input.switch-input[name='setting[ai_enabled]'][data-gate-target=toggle][data-action='gate#update']"
     assert_select ".switch input.switch-input[name='setting[searchable_pdf]']"
 
     get new_document_path

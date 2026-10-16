@@ -42,6 +42,7 @@
 
 # Files dropped in for import (see docker-compose.yml).
 /ingest
+/backups
 
 # Kamal config and secrets hold your own hosts and keys; the .example files are the templates.
 /config/deploy.yml

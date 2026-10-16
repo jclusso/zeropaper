@@ -14,14 +14,15 @@ class Setting < ApplicationRecord
   belongs_to :research_provider, class_name: "AIProvider", optional: true
   belongs_to :vision_provider, class_name: "AIProvider", optional: true
 
+  encrypts :backup_key
+
   validates :local_ocr_provider, inclusion: { in: LOCAL_OCR_PROVIDERS.keys }
   validates :review_confidence_threshold, numericality: { in: 0..1 }
   validates :docling_url, presence: true, if: -> { local_ocr_provider == "docling" }
   validate :docling_url_is_local, if: -> { docling_url.present? && docling_url_changed? }
   validate :tasks_have_models
-  validate :ingest_dir_usable, if: -> { ingest_enabled? && ingest_dir_changed? && ingest_dir.present? }
-
-  normalizes :ingest_dir, with: ->(dir) { dir.strip.presence }
+  validates :backup_frequency, inclusion: { in: Backup::FREQUENCIES.keys }
+  validates :backup_keep_daily, :backup_keep_weekly, :backup_keep_monthly, :backup_keep_yearly, numericality: { only_integer: true, in: 0..1000 }
 
   def self.instance
     first || create!(from_environment)
@@ -92,15 +93,29 @@ class Setting < ApplicationRecord
     task_configured?(:vision) ? Outbound.model_label(:vision) : local_ocr_label
   end
 
-  # The watched folder: the one chosen in Settings, or INGEST_DIR. In Docker
-  # this is a path inside the container, so it must be one the compose file
-  # mounts.
+  # The watched folder, INGEST_DIR. Docker installs choose where it lives by
+  # what they mount there.
   def ingest_path
-    ingest_dir.presence || Rails.configuration.x.ingest_dir
+    Rails.configuration.x.ingest_dir
   end
 
   def private_ingest_path
     File.join(ingest_path, Ingest::Folder::PRIVATE_DIR)
+  end
+
+  # The raw backup key, made the first time it is needed. The lock keeps two
+  # processes from each making one and encrypting a backup with the loser.
+  def backup_key_bytes
+    with_lock { update!(backup_key: Backup::Key.generate) if backup_key.blank? } if backup_key.blank?
+    Backup::Key.parse(backup_key)
+  end
+
+  def backup_key_id
+    Backup::Key.id(backup_key_bytes)
+  end
+
+  def backup_interval
+    Backup::FREQUENCIES.fetch(backup_frequency)
   end
 
   def setup_complete?
@@ -112,14 +127,6 @@ class Setting < ApplicationRecord
   end
 
   private
-    def ingest_dir_usable
-      if !File.directory?(ingest_dir)
-        errors.add(:ingest_dir, "does not exist on this machine")
-      elsif !File.writable?(ingest_dir)
-        errors.add(:ingest_dir, "is not writable by ZeroPaper")
-      end
-    end
-
     def docling_url_is_local
       errors.add(:docling_url, "must be on this machine or the local network, such as http://zeropaper-docling:5001") unless docling_local?
     end

@@ -1,0 +1,68 @@
+<% content_for :title, "Backups" %>
+<% if @unfinished.any? { |backup| backup.status.in?(%w[pending processing]) } || @restores.any? { |restore| restore.status.in?(%w[pending processing]) } %>
+  <meta data-controller="refresh" data-refresh-interval-value="3000">
+<% end %>
+<div class="space-y-6">
+  <%= page_header "Backups", "Each backup holds the whole library, private documents included, encrypted with the backup key." %>
+
+  <% unless @setting.backup_key_downloaded_at %>
+    <div class="card card-body flex flex-wrap items-center justify-between gap-4 border-strong-accent/40">
+      <p class="flex items-start gap-2 text-sm"><%= icon(:key, class: "mt-0.5 size-4 shrink-0 text-strong-accent") %>Download the backup key and keep it somewhere safe. Backups cannot be restored without it, and it is not stored inside them.</p>
+      <%= link_to backups_key_path, class: "btn-primary shrink-0", data: { turbo: false } do %><%= icon(:download, class: "size-4") %> Download key<% end %>
+    </div>
+  <% end %>
+
+  <section class="card">
+    <div class="card-header flex items-center justify-between gap-4">
+      <div class="min-w-0">
+        <h2 class="section-title">Backups</h2>
+        <p class="mt-1 flex min-w-0 items-center gap-1.5 text-xs muted" title="<%= Backup.folder %>"><%= icon(:folder, class: "size-3.5 shrink-0") %><code class="truncate"><%= Backup.folder %></code></p>      </div>
+      <%= button_to "Back up now", backups_path, class: "btn-primary", form: { class: "shrink-0" } %>
+    </div>
+
+    <% if @files.any? || @unfinished.any? %>
+      <table class="table">
+        <thead><tr><th>Made</th><th class="hidden md:table-cell">Contents</th><th class="hidden sm:table-cell">Size</th><th></th></tr></thead>
+        <tbody>
+          <%= render partial: "backups/unfinished", collection: @unfinished, as: :backup %>
+          <%= render partial: "backups/file", collection: @files %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="card-body text-sm muted">No backups yet.</p>
+    <% end %>
+
+    <%= form_with url: backups_uploads_path, multipart: true, class: "card-body flex flex-wrap items-end gap-3 border-t border-border" do |form| %>
+      <div class="min-w-0 flex-1">
+        <%= form.label :archive, "Add a backup or an older export", class: "label" %>
+        <%= form.file_field :archive, accept: ".zpbackup,.zip", required: true, class: "block w-full text-sm file:mr-4 file:h-9 file:cursor-pointer file:rounded-sm file:border file:border-border file:bg-card file:px-4 file:text-xs file:font-semibold file:uppercase file:tracking-wide file:text-foreground hover:file:bg-muted" %>
+      </div>
+      <%= form.submit "Upload", class: "btn-secondary" %>
+    <% end %>
+  </section>
+
+  <% if @restores.any? %>
+    <section id="restores" class="card scroll-mt-24">
+      <div class="card-header"><h2 class="section-title">Restores</h2></div>
+      <ul class="divide-y divide-border text-sm">
+        <%= render partial: "backups/restore", collection: @restores %>
+      </ul>
+    </section>
+  <% end %>
+
+  <%= render "backups/schedule", setting: @setting %>
+
+  <section id="key" class="card scroll-mt-24">
+    <div class="card-header">
+      <h2 class="section-title">Backup Key</h2>
+      <p class="mt-1 text-xs muted">Backups are encrypted with this key and cannot be restored without it. Keep a copy somewhere safe and apart from the backups.</p>
+    </div>
+    <div class="card-body flex flex-wrap items-center justify-between gap-4">
+      <p class="text-sm">
+        <code><%= @setting.backup_key_id %></code>
+        <span class="block text-xs muted"><%= @setting.backup_key_downloaded_at ? "Last downloaded #{@setting.backup_key_downloaded_at.to_fs(:long)}" : "Not downloaded yet" %></span>
+      </p>
+      <%= link_to backups_key_path, class: "btn-secondary", data: { turbo: false } do %><%= icon(:download, class: "size-4") %> Download key<% end %>
+    </div>
+  </section>
+</div>

@@ -21,12 +21,42 @@ module Archive
       end
     end
 
+    def manifest
+      Zip::File.open(@path) { |zip| read_manifest(zip) }
+    rescue Zip::Error, JSON::ParserError => error
+      raise InvalidArchive, "This backup is damaged (#{error.message})."
+    end
+
+    # Reads the whole archive so a damaged backup is refused before anything
+    # is restored: every entry must match its CRC (rubyzip does not check),
+    # and every document's file must match the checksum it was saved with.
+    def verify!
+      Zip::File.open(@path) do |zip|
+        read_manifest(zip)
+        zip.each do |entry|
+          next unless entry.file?
+          raise InvalidArchive, "#{entry.name} is damaged." unless Zlib.crc32(entry.get_input_stream.read) == entry.crc
+        end
+        folders(zip).each { |folder| verify_document(zip, folder) }
+      end
+    rescue Zip::Error, Zlib::Error, JSON::ParserError => error
+      raise InvalidArchive, "This backup is damaged (#{error.message})."
+    end
+
     private
+      def verify_document(zip, folder)
+        details = JSON.parse(read(zip, "#{folder}document.json"))
+        entry = zip.glob("#{folder}file/*").first or return
+        return if Digest::SHA256.hexdigest(entry.get_input_stream.read) == details["checksum"]
+
+        raise InvalidArchive, "#{details["title"].presence || details["original_filename"]} does not match the checksum it was backed up with."
+      end
+
       def read_manifest(zip)
         entry = zip.find_entry("manifest.json") or raise InvalidArchive, "manifest.json is missing"
         manifest = JSON.parse(entry.get_input_stream.read)
-        raise InvalidArchive, "This is not a ZeroPaper export." unless manifest["format"] == FORMAT
-        raise InvalidArchive, "Export version #{manifest["version"]} is newer than this ZeroPaper." if manifest["version"].to_i > VERSION
+        raise InvalidArchive, "This is not a ZeroPaper backup." unless manifest["format"] == FORMAT
+        raise InvalidArchive, "Backup version #{manifest["version"]} is newer than this ZeroPaper." if manifest["version"].to_i > VERSION
 
         manifest
       end

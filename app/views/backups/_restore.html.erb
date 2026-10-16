@@ -1,0 +1,17 @@
+<li class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+  <span class="min-w-0">
+    <span class="font-mono text-xs"><%= restore.filename || "Uploaded backup" %></span>
+    <span class="block text-xs muted"><%= restore.created_at.to_fs(:long) %> · <%= restore.user.name %></span>
+  </span>
+  <span class="flex items-center gap-3">
+    <span class="text-xs muted"><%= restore.restored_count %> restored, <%= restore.skipped_count %> already here</span>
+    <% case restore.status %>
+    <% when "ready" %>
+      <span class="badge-green">Done</span>
+    <% when "failed" %>
+      <%= render layout: "shared/tooltip", locals: { text: restore.error.presence || "The restore failed.", tone: "danger" } do %><span class="badge-red cursor-help">Failed</span><% end %>
+    <% else %>
+      <span class="badge-accent">Restoring</span>
+    <% end %>
+  </span>
+</li>

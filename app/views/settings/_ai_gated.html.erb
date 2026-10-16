@@ -1,9 +1,9 @@
 <%# AI-only fields. Disabled, and so left out of the form, while Use AI is off.
     inline_hint: true when the gated content is a single control that shows
     the hint on its own line (see settings/_ai_hint). %>
-<fieldset class="min-w-0 space-y-5 transition-opacity <%= "opacity-50" unless ai_enabled %>" data-ai-gate-target="gated" <%= "disabled" unless ai_enabled %>>
+<fieldset class="min-w-0 space-y-5 transition-opacity <%= "opacity-50" unless ai_enabled %>" data-gate-target="gated" <%= "disabled" unless ai_enabled %>>
   <%= yield %>
   <% unless local_assigns[:inline_hint] %>
-    <p class="hint" data-ai-gate-target="hint" <%= "hidden" if ai_enabled %>>Turn on Use AI to choose.</p>
+    <p class="hint" data-gate-target="hint" <%= "hidden" if ai_enabled %>>Turn on Use AI to choose.</p>
   <% end %>
 </fieldset>

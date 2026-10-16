@@ -14,7 +14,7 @@ ZeroPaper is a self-hosted document archive built with Ruby on Rails. It turns s
 - **Rules** file documents automatically: when the text, filename or source matches, set the correspondent and type, add tags, or mark the document private. Correspondents, types and tags also match documents that mention their name; this is on by default and can be turned off for generic names.
 - **Tidy up** correspondents, types and tags: ZeroPaper suggests similar names (plurals, spelling, meaning) and merges them, moving their documents and rules.
 - **Import** from uploads (files or whole folders, with progress) and a watched folder.
-- **Export and restore** the whole library as one zip file.
+- **Back up and restore** the whole library as one encrypted file, on demand or on a schedule to a folder such as a NAS share.
 - **Sign in** with a password or a passkey. An admin adds other users. Each user picks a light, dark or system theme.
 
 ## Private documents
@@ -47,7 +47,7 @@ git clone <this repository> zeropaper
 cd zeropaper
 cp .env.example .env
 # Set SECRET_KEY_BASE (openssl rand -hex 64) and POSTGRES_PASSWORD in .env
-mkdir -p ingest/private
+mkdir -p ingest/private backups
 docker compose pull
 docker compose up -d
 ```
@@ -68,7 +68,7 @@ The first time a document is indexed, the app downloads the embedding model (abo
 
 ## Configuration
 
-Settings that take effect at runtime (AI providers and keys, models, OCR, page cleanup, review options, the ingest folder) are under **Admin › Settings**. The environment sets the rest:
+Settings that take effect at runtime (AI providers and keys, models, OCR, page cleanup, review options, whether to watch the ingest folder) are under **Admin › Settings**; the backup schedule is under **Admin › Backups**. The environment sets the rest:
 
 | Variable | Purpose |
 | --- | --- |
@@ -77,6 +77,8 @@ Settings that take effect at runtime (AI providers and keys, models, OCR, page c
 | `TZ` | Time zone. Defaults to `UTC`. |
 | `DOCLING_URL` | Where Docling runs. Set by Compose; when present, Docling is the default local engine. It must be on this machine or the local network. |
 | `PROCESSING_THREADS` | How many documents are processed at once. Defaults to `6`. Each scan uses up to 2 cores for Tesseract, so about half your cores is a good ceiling. |
+| `INGEST_DIR` | The ingest folder. Defaults to `/rails/storage/ingest`; with Docker, mount that path instead of changing it. |
+| `BACKUP_DIR` | The backup folder. Defaults to `/rails/storage/backups`; with Docker, mount that path instead of changing it. |
 | `PORT` | Host port for the app. Defaults to `3000`. |
 | `APP_HOST` | Host name the app is served under. When set, other hosts are refused. |
 | `ASSUME_SSL` | `true` when a reverse proxy terminates TLS. |
@@ -101,7 +103,7 @@ Text that is already in the file (PDFs with a text layer, Word, spreadsheets, pl
 
 ### Ingest folder
 
-Files placed in `./ingest` are imported within a minute and then removed from the folder. Files in `./ingest/private` are imported as private. Duplicates of documents already in the library are removed without importing. The folder can be switched off or moved under Settings › Ingest Folder; inside Docker a new path must be a mounted volume.
+Files placed in `./ingest` are imported within a minute and then removed from the folder. Files in `./ingest/private` are imported as private. Duplicates of documents already in the library are removed without importing. Watching can be switched off under Settings › Ingest Folder. To use another folder, such as a scanner's network share, change the left side of the `./ingest` mount in `docker-compose.yml`.
 
 ### Deploying with Kamal
 
@@ -116,13 +118,24 @@ Docling is a commented-out accessory in the example; Tesseract is built in.
 
 ## Backups
 
-Back up three things together:
+**Admin › Backups** writes the library to `./backups` as one `.zpbackup` file per backup: every document's file, text, details and thumbnail, plus correspondents, types, tags and rules, private documents included. Back up now, or turn on the schedule to back up every day or week. The schedule keeps the newest backup from each of the last few days, weeks, months and years (7, 4, 12 and 2 by default) and removes the rest. Each backup in the list can be restored, downloaded or deleted, and a backup or an export from an older ZeroPaper can be uploaded. Restoring checks the whole backup first and skips documents that are already in the library.
+
+Backups are encrypted (AES-256-GCM) with a backup key that ZeroPaper creates. **Download the key from Admin › Backups and keep it apart from the backups.** A backup and its key restore into a new install without the old database or `SECRET_KEY_BASE`; without the key, nobody can read the backup, including you. Restoring a backup made with another key asks for that key.
+
+To keep backups on a NAS, mount the share on the host and point the `./backups` mount at it in `docker-compose.yml`:
+
+```yaml
+    volumes:
+      - /mnt/nas/zeropaper:/rails/storage/backups
+```
+
+The container runs as uid 1000, so that user needs write access to the share.
+
+Backups hold the library but not users, AI providers or settings. To move a whole server, copy these three together:
 
 1. The `.env` file, especially `SECRET_KEY_BASE`.
 2. The `storage` volume, which holds the files.
 3. The `postgres` volume, or a dump made with `docker compose exec db pg_dump -U zeropaper zeropaper_production`.
-
-**Admin › Export** creates a zip with every document's file, text, details and thumbnail, plus correspondents, types, tags and rules. **Admin › Restore** loads it into this or another ZeroPaper instance, skipping documents that are already there. An export that includes private documents contains them unencrypted, so store it accordingly.
 
 ## Development
 

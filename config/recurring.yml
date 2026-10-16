@@ -5,6 +5,9 @@ default: &default
   recover_stuck_documents:
     class: RecoverStuckDocumentsJob
     schedule: every 5 minutes
+  scheduled_backup:
+    class: ScheduledBackupJob
+    schedule: every hour at minute 7
 
 development:
   <<: *default

@@ -1,0 +1,29 @@
+<% enabled = setting.backup_enabled? %>
+<section id="schedule" class="card scroll-mt-24">
+  <div class="card-header">
+    <h2 class="section-title">Schedule</h2>
+    <p class="mt-1 text-xs muted">Backs up on its own and thins out older backups in the folder.</p>
+  </div>
+  <%= form_with model: setting, url: backups_schedule_path, method: :patch, class: "card-body space-y-5", data: { controller: "gate" } do |form| %>
+    <%= render "settings/toggle", form: form, field: :backup_enabled, title: "Back up automatically", data: { gate_target: "toggle", action: "gate#update" } %>
+    <fieldset class="min-w-0 space-y-5 transition-opacity <%= "opacity-50" unless enabled %>" data-gate-target="gated" <%= "disabled" unless enabled %>>
+      <div class="max-w-xs">
+        <label class="label" for="setting_backup_frequency">How often</label>
+        <%= render "shared/select", name: "setting[backup_frequency]", value: setting.backup_frequency, id: "setting_backup_frequency", options: [ [ "Every day", "daily" ], [ "Every week", "weekly" ] ] %>
+      </div>
+      <div>
+        <span class="label">Keep</span>
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <% { "daily" => "days", "weekly" => "weeks", "monthly" => "months", "yearly" => "years" }.each do |period, unit| %>
+            <label class="flex items-center gap-2 text-sm">
+              <%= form.number_field :"backup_keep_#{period}", min: 0, max: 1000, step: 1, class: "input w-20 tabular-nums" %>
+              <span class="muted"><%= unit %></span>
+            </label>
+          <% end %>
+        </div>
+        <p class="hint">Keeps the newest backup from each of that many days, weeks, months and years, and always the newest backup. Others in the folder are removed after each scheduled backup.</p>
+      </div>
+    </fieldset>
+    <div class="flex justify-end border-t border-border pt-4"><%= form.submit "Save schedule", class: "btn-primary" %></div>
+  <% end %>
+</section>

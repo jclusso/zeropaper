@@ -1,7 +1,9 @@
 import { Controller } from "@hotwired/stimulus"
 
-// Locks AI-only settings while "Use AI" is off. Gated fields sit in
-// fieldsets, so disabling them also keeps them out of the submitted form.
+// Locks settings while the switch that enables them is off, such as the AI
+// settings under "Use AI" or the backup schedule under "Back up
+// automatically". Gated fields sit in fieldsets, so disabling them also keeps
+// them out of the submitted form and the saved values stay as they were.
 export default class extends Controller {
   static targets = ["toggle", "gated", "hint"]
 

@@ -64,8 +64,16 @@ Rails.application.routes.draw do
     end
   end
   resources :users, except: :show
-  resources :exports, only: %i[ index create show ]
-  resources :restores, only: %i[ new create show ]
+  namespace :backups do
+    resource :schedule, only: :update
+    resources :uploads, only: :create
+    resource :key, only: :show
+  end
+  resources :backups, only: %i[ index create show destroy ] do
+    resource :restoration, only: :create, module: :backups
+  end
+  get "exports", to: redirect("/backups")
+  get "restores(/*rest)", to: redirect("/backups")
 
   get "up" => "rails/health#show", as: :rails_health_check
 

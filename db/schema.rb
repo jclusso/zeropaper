@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_16_140000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_16_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -51,6 +51,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_140000) do
     t.string "base_url"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "backups", force: :cascade do |t|
+    t.bigint "user_id"
+    t.string "filename"
+    t.string "status", default: "pending", null: false
+    t.integer "documents_count"
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_backups_on_user_id"
   end
 
   create_table "chunks", force: :cascade do |t|
@@ -137,17 +148,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_140000) do
     t.index ["uploaded_by_id"], name: "index_documents_on_uploaded_by_id"
   end
 
-  create_table "exports", force: :cascade do |t|
-    t.bigint "user_id", null: false
-    t.boolean "include_private", default: true, null: false
-    t.string "status", default: "pending", null: false
-    t.integer "documents_count"
-    t.text "error"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["user_id"], name: "index_exports_on_user_id"
-  end
-
   create_table "merge_dismissals", force: :cascade do |t|
     t.string "kind", null: false
     t.bigint "first_id", null: false
@@ -193,6 +193,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_140000) do
     t.text "error"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "filename"
+    t.string "key"
     t.index ["user_id"], name: "index_restores_on_user_id"
   end
 
@@ -241,9 +243,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_140000) do
     t.bigint "vision_provider_id"
     t.boolean "auto_rotate_pages", default: true, null: false
     t.boolean "ingest_enabled", default: true, null: false
-    t.string "ingest_dir"
     t.boolean "ai_creates_types", default: true, null: false
     t.boolean "ai_creates_tags", default: true, null: false
+    t.boolean "backup_enabled", default: false, null: false
+    t.string "backup_frequency", default: "daily", null: false
+    t.integer "backup_keep_daily", default: 7, null: false
+    t.integer "backup_keep_weekly", default: 4, null: false
+    t.integer "backup_keep_monthly", default: 12, null: false
+    t.integer "backup_keep_yearly", default: 2, null: false
+    t.string "backup_key"
+    t.datetime "backup_key_downloaded_at"
     t.index ["extraction_provider_id"], name: "index_settings_on_extraction_provider_id"
     t.index ["research_provider_id"], name: "index_settings_on_research_provider_id"
     t.index ["vision_provider_id"], name: "index_settings_on_vision_provider_id"
@@ -451,13 +460,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_140000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "backups", "users", on_delete: :nullify
   add_foreign_key "chunks", "documents", on_delete: :cascade
   add_foreign_key "conversations", "users"
   add_foreign_key "documents", "correspondents", on_delete: :nullify
   add_foreign_key "documents", "document_types", on_delete: :nullify
   add_foreign_key "documents", "documents", column: "duplicate_of_id", on_delete: :nullify
   add_foreign_key "documents", "users", column: "uploaded_by_id", on_delete: :nullify
-  add_foreign_key "exports", "users"
   add_foreign_key "messages", "conversations", on_delete: :cascade
   add_foreign_key "passkeys", "users"
   add_foreign_key "restores", "users"

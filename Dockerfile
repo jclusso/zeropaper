@@ -39,6 +39,7 @@ ENV RAILS_ENV="production" \
     TARGET_PORT="3001" \
     PORT="3001" \
     INGEST_DIR="/rails/storage/ingest" \
+    BACKUP_DIR="/rails/storage/backups" \
     MODELS_DIR="/rails/storage/models"
 
 # Throw-away build stage to reduce size of final image
@@ -71,7 +72,7 @@ FROM base
 
 RUN groupadd --system --gid 1000 rails && \
     useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash && \
-    mkdir -p /rails/storage/ingest/private /rails/storage/models && \
+    mkdir -p /rails/storage/ingest/private /rails/storage/backups /rails/storage/models && \
     chown -R rails:rails /rails
 
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
