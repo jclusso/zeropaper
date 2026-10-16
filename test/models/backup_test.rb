@@ -62,6 +62,18 @@ class BackupTest < ActiveSupport::TestCase
     assert_equal [ "zeropaper-2026-01-02-030000.zpbackup" ], Backup.files.map { |path| path.basename.to_s }
   end
 
+  test "a deleted backup an SMB share still lists is left out" do
+    %w[zeropaper-2026-01-01-030000 zeropaper-2026-01-02-030000].each { |name| put_backup("x", "#{name}.zpbackup") }
+    deleted = File.join(@backup_dir, "zeropaper-2026-01-02-030000.zpbackup")
+    Backup.stubs(:openable?).with { |path| path.to_s == deleted }.returns(false)
+    Backup.stubs(:openable?).with { |path| path.to_s != deleted }.returns(true)
+
+    assert_equal [ "zeropaper-2026-01-01-030000.zpbackup" ], Backup.files.map { |path| path.basename.to_s }
+    Backup.unstub(:openable?)
+    refute Backup.send(:openable?, Pathname(@backup_dir).join("gone.zpbackup"))
+    assert Backup.send(:openable?, Pathname(@backup_dir).join("zeropaper-2026-01-01-030000.zpbackup"))
+  end
+
   test "symlinks in the folder are not listed or pruned" do
     target = File.join(@backup_dir, "secret.txt")
     File.write(target, "keep me")

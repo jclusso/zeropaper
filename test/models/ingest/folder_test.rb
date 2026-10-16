@@ -139,6 +139,15 @@ class Ingest::FolderTest < ActiveSupport::TestCase
     end
   end
 
+  test "a file already gone, as a deleted one an SMB share still lists, is skipped quietly" do
+    Rails.logger.expects(:error).never
+
+    assert_no_difference -> { Document.count } do
+      @folder.send(:ingest, @root.join("private/gone.pdf"))
+    end
+    refute @root.join("private/gone.pdf").exist?
+  end
+
   test "files over the upload limit move aside without being read" do
     settled_file("huge.txt", "x" * 2.kilobytes)
     Rails.configuration.x.stubs(:max_upload_bytes).returns(1.kilobyte)

@@ -36,7 +36,7 @@ class Backup < ApplicationRecord
     def files
       return [] unless folder.directory?
 
-      folder.children.select { |path| path.basename.to_s.match?(FILENAME) && !path.symlink? && path.file? }.sort.reverse
+      folder.children.select { |path| path.basename.to_s.match?(FILENAME) && !path.symlink? && path.file? && openable?(path) }.sort.reverse
     end
 
     def file(name)
@@ -143,6 +143,14 @@ class Backup < ApplicationRecord
     end
 
     private
+      # A backup deleted from an SMB share stays listed for a while after,
+      # but can no longer be opened.
+      def openable?(path)
+        File.open(path, "rb") { true }
+      rescue Errno::ENOENT
+        false
+      end
+
       def new_file_name(made_at)
         file_name(made_at).tap do |name|
           raise Archive::Reader::InvalidArchive, "The backup from #{made_at.to_fs(:long)} is already in the folder." if folder.join(name).exist?
