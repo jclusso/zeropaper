@@ -1,7 +1,5 @@
 <% content_for :title, "Library" %>
-<% @documents.select(&:processing?).each do |document| %>
-  <%= turbo_stream_from document %>
-<% end %>
+<%= turbo_stream_from Document::LIBRARY_STREAM %>
 
 <%= page_header "Library", "#{number_with_delimiter(@total)} #{"document".pluralize(@total)}" do %>
   <div class="inline-flex rounded-sm border border-border bg-card p-0.5">

@@ -13,12 +13,12 @@ module ApplicationHelper
     Current.user&.theme.presence_in(THEMES.keys) || "system"
   end
 
-  def nav_link_to(name, path, icon:, active: current_page?(path), count: nil)
+  def nav_link_to(name, path, icon:, active: current_page?(path), badge: nil)
     link_to path, class: [ "nav-link", ("nav-link-active" if active) ], "aria-current": (active ? "page" : nil) do
       safe_join([
         icon(icon, class: "size-4.5 shrink-0"),
         tag.span(name, class: "flex-1"),
-        (tag.span(count, class: "rounded-xs bg-strong-accent px-1.5 py-px text-[0.7rem] font-bold text-strong-accent-foreground tabular-nums") if count.to_i.positive?)
+        badge
       ].compact)
     end
   end

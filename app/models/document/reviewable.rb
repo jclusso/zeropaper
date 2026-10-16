@@ -19,6 +19,7 @@ module Document::Reviewable
     return if review_reasons.include?(reason)
 
     update_columns(review_reasons: review_reasons + [ reason ], needs_review: true, updated_at: Time.current)
+    broadcast_review_changes
   end
 
   def review_resolved!(reason)
@@ -26,6 +27,7 @@ module Document::Reviewable
 
     remaining = review_reasons - [ reason ]
     update_columns(review_reasons: remaining, needs_review: remaining.any?, updated_at: Time.current)
+    broadcast_review_changes
   end
 
   # Reasons settled by looking the document over. Blank pages, duplicates and
@@ -35,6 +37,7 @@ module Document::Reviewable
   def review_checked!
     remaining = review_reasons - CHECK_REASONS - stale_review_reasons
     update_columns(review_reasons: remaining, needs_review: remaining.any?, updated_at: Time.current)
+    broadcast_review_changes
   end
 
   def only_needs_a_check?

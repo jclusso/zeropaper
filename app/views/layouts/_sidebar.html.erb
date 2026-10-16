@@ -1,3 +1,4 @@
+<%= turbo_stream_from Document::INBOX_COUNT_STREAM %>
 <div class="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 lg:hidden">
   <span class="flex items-center gap-2.5"><%= render "layouts/logo" %><span class="font-bold">ZeroPaper</span></span>
   <button type="button" class="btn-icon" data-action="sidebar#close" aria-label="Close navigation"><%= icon(:x) %></button>
@@ -6,7 +7,7 @@
 <nav class="flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-5">
   <div class="space-y-0.5">
     <%= nav_link_to "Library", documents_path, icon: :library, active: controller_name == "documents" && action_name != "new" %>
-    <%= nav_link_to "Inbox", inbox_path, icon: :inbox, count: Document.in_inbox.count %>
+    <%= nav_link_to "Inbox", inbox_path, icon: :inbox, badge: render("layouts/inbox_count") %>
     <%= nav_link_to "Research", conversations_path, icon: :sparkles, active: controller_name.in?(%w[conversations messages]) %>
     <%= nav_link_to "Upload", new_document_path, icon: :upload %>
   </div>
