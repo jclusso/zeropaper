@@ -10,6 +10,7 @@ module Document::Ingestible
   ].freeze
 
   class UnsupportedType < StandardError; end
+  class TooLarge < StandardError; end
   class Duplicate < StandardError
     attr_reader :document
 
@@ -21,15 +22,19 @@ module Document::Ingestible
 
   class_methods do
     # Adds a file to the library and queues processing. Raises Duplicate when
-    # the same bytes are already stored and UnsupportedType for formats the
-    # pipeline cannot read. A private copy of a stored document makes that
-    # document private, so the instruction is not lost with the duplicate.
+    # the same bytes are already stored, UnsupportedType for formats the
+    # pipeline cannot read and TooLarge past the upload limit. A private copy
+    # of a stored document makes that document private, so the instruction is
+    # not lost with the duplicate. The file is streamed, never read into
+    # memory whole.
     def ingest!(io:, filename:, source:, private: false, private_reason: nil, uploaded_by: nil, source_detail: nil)
-      data = io.read
-      content_type = Marcel::MimeType.for(StringIO.new(data), name: filename)
+      raise TooLarge, "#{filename} is larger than the #{UploadLimit.max_megabytes} MB upload limit" if io.size > UploadLimit.max_bytes
+
+      io.rewind
+      content_type = Marcel::MimeType.for(io, name: filename)
       raise UnsupportedType, "#{filename} is not a supported file type" unless content_type.in?(SUPPORTED_TYPES)
 
-      checksum = Digest::SHA256.hexdigest(data)
+      checksum = UploadLimit.sha256(io)
       if (existing = find_by(checksum: checksum))
         existing.privatize!(reason: private_reason.presence || "Added again as private") if private
         raise Duplicate, existing
@@ -48,7 +53,8 @@ module Document::Ingestible
       if !private && (rule = Rule.matching_before_content(document).find(&:mark_private?))
         document.assign_attributes(private: true, private_reason: rule.private_reason)
       end
-      document.file.attach(io: StringIO.new(data), filename: filename, content_type: content_type)
+      io.rewind
+      document.file.attach(io: io, filename: filename, content_type: content_type)
       document.save!
       document.process_later
       document

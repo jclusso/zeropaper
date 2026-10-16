@@ -1,6 +1,6 @@
 <% content_for :title, "Upload" %>
 <div class="mx-auto max-w-3xl" data-controller="upload"
-  data-upload-url-value="<%= documents_path %>" data-upload-library-url-value="<%= documents_path %>">
+  data-upload-url-value="<%= documents_path %>" data-upload-library-url-value="<%= documents_path %>" data-upload-max-bytes-value="<%= UploadLimit.max_bytes %>">
   <%= page_header "Upload Documents", "PDFs, scans and photos, text, Word and Excel files." %>
 
   <%= form_with url: documents_path, multipart: true, class: "space-y-5", data: { action: "submit->upload#start", upload_target: "form" } do |form| %>
@@ -15,7 +15,7 @@
         <span class="muted">·</span>
         or drag them here
       </span>
-      <span class="text-xs muted">PDF, PNG, JPEG, TIFF, WebP, HEIC, TXT, Markdown, CSV, DOCX, XLSX</span>
+      <span class="text-xs muted">PDF, PNG, JPEG, TIFF, WebP, HEIC, TXT, Markdown, CSV, DOCX, XLSX, up to <%= UploadLimit.max_megabytes %> MB each</span>
       <span class="max-w-md text-xs muted">Choosing a folder makes your browser ask to confirm the upload. Dragging a folder in skips that.</span>
       <%= file_field_tag "files[]", multiple: true, id: "upload_files", class: "sr-only", data: { upload_target: "input", action: "upload#choose" },
             accept: ".pdf,.png,.jpg,.jpeg,.tif,.tiff,.webp,.heic,.txt,.md,.csv,.docx,.xlsx" %>

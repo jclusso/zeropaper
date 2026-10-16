@@ -4,6 +4,8 @@ class Documents::PagesController < ApplicationController
 
   EDGES = { "thumb" => 240, "large" => 900 }.freeze
 
+  rate_limit to: 300, within: 1.minute, only: :show, by: -> { Current.user.id }
+
   # The page editor. The document page loads it into a dialog through a
   # Turbo Frame; opened directly it renders on its own.
   def index

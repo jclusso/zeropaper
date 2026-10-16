@@ -10,7 +10,7 @@ module Metadata
       properties: {
         title: { type: "string", description: "What the document is plus its key identifier, without the date, e.g. 'Electricity Bill', 'BMW X5 M Service Invoice', '2025 Tax Return'" },
         document_date: { type: [ "string", "null" ], description: "Date the document was issued, YYYY-MM-DD" },
-        correspondent: { type: [ "string", "null" ], description: "Organization or person who sent or issued it" },
+        correspondent: { type: [ "string", "null" ], description: "The specific organization or person's proper name as printed on the document (e.g. 'Chase Bank'), never a category like 'Bank' or 'Insurance'." },
         document_type: { type: [ "string", "null" ], description: "Kind of document, e.g. Invoice, Receipt, Contract, Letter" },
         tags: { type: "array", items: { type: "string" }, description: "Up to 5 short topical tags" },
         summary: { type: "string", description: "Two or three sentences with the key facts: amounts, dates, reference numbers, what it asks of the reader" },
@@ -36,7 +36,7 @@ module Metadata
 
       assign(:document_date, parse_date(details["document_date"]))
       assign(:title, DocumentTitle.clean(details["title"], date: @document.document_date))
-      assign(:correspondent, Correspondent.find_or_create_named(details["correspondent"]))
+      assign_correspondent(details["correspondent"])
       assign(:document_type, existing_or_new(DocumentType, details["document_type"], create: @settings.ai_creates_types?))
       if @overwrite || @document.tags.empty?
         names = Array(details["tags"]).first(5)
@@ -107,6 +107,14 @@ module Metadata
 
       def names(model)
         model.shareable.alphabetically.limit(300).pluck(:name).join("; ").presence || "(none yet)"
+      end
+
+      # A correspondent the AI names for the first time keeps auto-match on and
+      # is remembered, so the inbox can point it out as new.
+      def assign_correspondent(name)
+        correspondent = Correspondent.find_or_create_named(name)
+        assign(:correspondent, correspondent)
+        @document.ai_created_correspondent_id = correspondent.id if correspondent&.previously_new_record? && @document.correspondent == correspondent
       end
 
       def assign(attribute, value)

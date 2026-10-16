@@ -24,6 +24,53 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "changing the email address needs the current password" do
+    patch profile_path, params: { user: { name: "Ada Admin", email_address: "attacker@example.com" } }
+
+    assert_response :unprocessable_entity
+    assert_equal "one@example.com", users(:one).reload.email_address
+    assert_select ".text-danger, [role=alert], li", text: /Current password is needed to change your email or password/
+
+    patch profile_path, params: { user: { name: "Ada Admin", email_address: "attacker@example.com", current_password: "wrong" } }
+    assert_response :unprocessable_entity
+    assert_equal "one@example.com", users(:one).reload.email_address
+  end
+
+  test "the email address changes with the current password" do
+    patch profile_path, params: { user: { name: "Ada Admin", email_address: " Ada@Example.com ", current_password: "password" } }
+
+    assert_redirected_to profile_path
+    assert_equal "ada@example.com", users(:one).reload.email_address
+  end
+
+  test "saving the same email address and a new name needs no password" do
+    patch profile_path, params: { user: { name: "Ada Lovelace", email_address: "ONE@example.com" } }
+
+    assert_redirected_to profile_path
+    assert_equal "Ada Lovelace", users(:one).reload.name
+  end
+
+  test "a new password needs the current one" do
+    patch profile_path, params: { user: { email_address: "one@example.com", password: "new password", password_confirmation: "new password" } }
+
+    assert_response :unprocessable_entity
+    refute users(:one).reload.authenticate("new password")
+  end
+
+  test "a new password signs out every other session but this one" do
+    other = users(:one).sessions.create!
+    current = Current.session
+
+    patch profile_path, params: { user: { email_address: "one@example.com", current_password: "password", password: "new password", password_confirmation: "new password" } }
+
+    assert_redirected_to profile_path
+    assert users(:one).reload.authenticate("new password")
+    refute Session.exists?(other.id)
+    assert Session.exists?(current.id)
+    get profile_path
+    assert_response :success
+  end
+
   test "an unknown theme is ignored" do
     patch profile_path, params: { user: { theme: "neon" } }
 

@@ -4,6 +4,13 @@ class Research::Tool < RubyLLM::Tool
     @research = research
   end
 
+  # Past the research's tool call limit, tools stop running and say so.
+  def call(tool_call: nil, **arguments)
+    return { error: "Tool call limit reached. Answer now from what you already have and say the research was cut short." } if research.refused_tool_call?(tool_call)
+
+    super
+  end
+
   private
     attr_reader :research
 

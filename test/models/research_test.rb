@@ -58,6 +58,38 @@ class ResearchTest < ActiveSupport::TestCase
     assert_equal "Reading document ##{@private_bill.id}", @research.send(:step_label, secret)
   end
 
+  test "after 20 tool calls the model must answer with what it has and the answer says so" do
+    chat = scripted_chat(calls_per_turn: 3)
+
+    @research.run
+
+    @message.reload
+    assert_equal "complete", @message.status
+    assert_equal Research::MAX_TOOL_CALLS, chat.executed.size, "no tool ran past the limit"
+    assert_equal 21, chat.called.size, "the call after the limit in the same turn was refused"
+    assert_match "Acme Power counted.", @message.content
+    assert_match "Research stopped after 20 lookups", @message.content
+    assert_equal :none, chat.tool_options[:choice]
+  end
+
+  test "an answer within the limit has no note" do
+    scripted_chat(calls_per_turn: 1, answer_after: 2)
+
+    @research.run
+
+    assert_equal "Acme Power counted.", @message.reload.content
+  end
+
+  test "a model that ignores the limit is stopped" do
+    chat = scripted_chat(calls_per_turn: 5, obey_limit: false)
+
+    @research.run
+
+    assert_equal "failed", @message.reload.status
+    assert_match "kept looking things up", @message.content
+    assert_equal Research::MAX_TOOL_CALLS, chat.executed.size
+  end
+
   test "without an AI key the answer fails with an explanation and nothing is sent" do
     Setting.instance.update!(ai_enabled: false)
 
@@ -67,4 +99,41 @@ class ResearchTest < ActiveSupport::TestCase
     assert_match "Choose a provider and model", @message.content
     assert_no_external_requests
   end
+
+  # A model that asks for count_documents +calls_per_turn+ times a turn, and
+  # answers after +answer_after+ turns or once tools are switched off. Tools,
+  # callbacks and the loop are RubyLLM's own; only the provider is scripted.
+  module ScriptedModel
+    attr_accessor :calls_per_turn, :answer_after, :obey_limit
+    attr_reader :called, :executed
+
+    def generate(&)
+      @turns = @turns.to_i + 1
+      if (obey_limit && tool_options[:choice] == :none) || (answer_after && @turns > answer_after)
+        return add_message(role: :assistant, content: "Acme Power counted.")
+      end
+
+      tool_name = tools.keys.find { |name| name.to_s.include?("count_documents") }.to_s
+      calls = Array.new(calls_per_turn) do |index|
+        id = "call_#{@turns}_#{index}"
+        [ id, RubyLLM::ToolCall.new(id: id, name: tool_name, arguments: { "group_by" => "correspondent" }) ]
+      end.to_h
+      add_message(role: :assistant, content: "", tool_calls: calls)
+    end
+  end
+
+  private
+    def scripted_chat(calls_per_turn:, answer_after: nil, obey_limit: true)
+      openai = configure_openai
+      chat = openai.chat(model: "gpt-5.6").extend(ScriptedModel)
+      chat.calls_per_turn = calls_per_turn
+      chat.answer_after = answer_after
+      chat.obey_limit = obey_limit
+      chat.instance_variable_set(:@called, [])
+      chat.instance_variable_set(:@executed, [])
+      chat.before_tool_call { |tool_call| chat.called << tool_call.id }
+      Research::CountDocuments.any_instance.stubs(:execute).with { |**| chat.executed << true }.returns({ counts: { "Acme Power" => 1 } })
+      AIProvider.any_instance.stubs(:chat).returns(chat)
+      chat
+    end
 end

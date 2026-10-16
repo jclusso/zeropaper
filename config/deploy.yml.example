@@ -23,6 +23,13 @@ servers:
       # does not run.
       no-healthcheck: true
 
+# IMPORTANT: `ssl: false` is only for a server you reach over your LAN or
+# Tailscale. On any host reachable from the internet, set `ssl: true` (or
+# terminate TLS in front of the proxy) and set FORCE_SSL and ASSUME_SSL to
+# true below. Without TLS, passwords, session cookies and every document you
+# open cross the network in plain text, and anyone on the path can read them
+# or take over your session. FORCE_SSL also marks the session cookie secure
+# so the browser never sends it over plain HTTP.
 proxy:
   host: zeropaper.example.com
   ssl: false
@@ -46,9 +53,14 @@ env:
     # Set to true when the proxy (or one in front of it) terminates TLS.
     # Passkeys only work over HTTPS.
     ASSUME_SSL: false
+    # Set to true on any internet facing host: redirects to HTTPS, sends
+    # Strict-Transport-Security and keeps the session cookie off plain HTTP.
+    FORCE_SSL: false
     TZ: UTC
     PROCESSING_THREADS: 6
     INGEST_DIR: /rails/storage/ingest
+    # Largest file an upload or the ingest folder accepts, in MB.
+    MAX_UPLOAD_MB: 250
     MODELS_DIR: /rails/storage/models
     # Uncomment with the docling accessory below.
     # DOCLING_URL: http://zeropaper-docling:5001

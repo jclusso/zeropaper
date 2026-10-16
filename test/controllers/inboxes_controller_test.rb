@@ -16,6 +16,23 @@ class InboxesControllerTest < ActionDispatch::IntegrationTest
     assert_select "form[action='#{document_review_path(copy)}']", count: 0
   end
 
+  test "a correspondent the AI added for the document is badged new" do
+    added = Correspondent.create!(name: "Northwind Dental")
+    document_with_text("Cleaning invoice", title: "Dental invoice", correspondent: added, ai_created_correspondent_id: added.id,
+      needs_review: true, review_reasons: [ "low_confidence" ])
+    document_with_text("Electricity statement", title: "Power bill", correspondent: correspondents(:acme_power),
+      needs_review: true, review_reasons: [ "low_confidence" ])
+
+    get inbox_path
+
+    assert_select "li", text: /Dental invoice/ do
+      assert_select "span.badge-accent", text: "New", count: 1
+    end
+    assert_select "li", text: /Power bill/ do
+      assert_select "span.badge-accent", count: 0
+    end
+  end
+
   test "looks good appears only when nothing else needs fixing" do
     document_with_text("Water bill", needs_review: true, review_reasons: %w[always low_confidence])
 

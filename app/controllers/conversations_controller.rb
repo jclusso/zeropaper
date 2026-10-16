@@ -1,5 +1,7 @@
 class ConversationsController < ApplicationController
   before_action :set_conversation, only: %i[ show destroy ]
+  rate_limit to: 20, within: 1.minute, only: :create, scope: "research", by: -> { Current.user.id },
+    with: -> { redirect_to conversations_path, alert: "Too many questions. Wait a minute and ask again." }
 
   def index
     @conversations = Current.user.conversations.order(updated_at: :desc)

@@ -12,6 +12,7 @@ class User < ApplicationRecord
   validates :password, length: { minimum: 8 }, allow_nil: true
 
   before_validation -> { self.webauthn_id ||= WebAuthn.generate_user_id }, on: :create
+  after_update :end_other_sessions, if: :saved_change_to_password_digest?
 
   scope :alphabetically, -> { order(:name) }
 
@@ -22,4 +23,11 @@ class User < ApplicationRecord
   def last_admin?
     admin? && User.where(admin: true).count == 1
   end
+
+  private
+    # A new password signs out every other browser: all of them after an
+    # admin or emailed reset, all but this one when people change their own.
+    def end_other_sessions
+      sessions.where.not(id: Current.session&.id).destroy_all
+    end
 end

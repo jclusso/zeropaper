@@ -1,5 +1,7 @@
 class Conversations::MessagesController < ApplicationController
   before_action :set_conversation
+  rate_limit to: 20, within: 1.minute, only: :create, scope: "research", by: -> { Current.user.id },
+    with: -> { redirect_to @conversation, alert: "Too many questions. Wait a minute and ask again." }
 
   def create
     question = params[:question].to_s.strip

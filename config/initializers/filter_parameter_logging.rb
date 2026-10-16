@@ -6,3 +6,11 @@
 Rails.application.config.filter_parameters += [
   :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc
 ]
+
+# What documents say, what people search and ask for, and the details rules
+# match on stay out of the logs too. `q` is matched exactly, since a partial
+# match would hide most parameters.
+Rails.application.config.filter_parameters += [
+  :title, :summary, :content, :query, :question, :filename, :files, :conditions,
+  :correspondent_name, :document_type_name, :tag_names, /\Aq\z/
+]

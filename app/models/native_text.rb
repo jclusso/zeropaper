@@ -7,6 +7,10 @@ module NativeText
   SPREADSHEET_TYPES = [ "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/csv" ].freeze
   TEXT_TYPES = %w[text/plain text/markdown].freeze
 
+  # Spreadsheets stop here; the rest is left out of the text and the viewer.
+  MAX_ROWS = 50_000
+  MAX_CELLS = 1_000_000
+
   # A PDF page with fewer characters than this is treated as an image.
   MIN_PAGE_CHARACTERS = 40
   # A page whose largest image covers this much of it is a scan.
@@ -33,12 +37,23 @@ module NativeText
     end
   end
 
-  # Rows of each sheet, for the viewer and for text extraction.
+  # Rows of each sheet, for the viewer and for text extraction, up to
+  # MAX_ROWS per sheet and MAX_CELLS in all.
   def sheets(path, content_type)
     book = open_spreadsheet(path, content_type)
+    cells = 0
     book.sheets.map do |name|
       sheet = book.sheet(name)
-      rows = sheet.first_row ? (sheet.first_row..sheet.last_row).map { |row| sheet.row(row).map { |cell| cell.to_s } } : []
+      rows = []
+      if sheet.first_row
+        (sheet.first_row..[ sheet.last_row, sheet.first_row + MAX_ROWS - 1 ].min).each do |number|
+          break if cells >= MAX_CELLS
+
+          row = sheet.row(number).map(&:to_s)
+          cells += row.size
+          rows << row
+        end
+      end
       { name: name, rows: rows }
     end
   end
@@ -74,6 +89,7 @@ module NativeText
     end
 
     def word(path)
+      UploadLimit.check_zip!(path)
       Docx::Document.open(path).paragraphs.map(&:text).join("\n")
     end
 
@@ -85,6 +101,7 @@ module NativeText
 
     def open_spreadsheet(path, content_type)
       extension = content_type == "text/csv" ? :csv : :xlsx
+      UploadLimit.check_zip!(path) if extension == :xlsx
       Roo::Spreadsheet.open(path, extension: extension)
     end
 
