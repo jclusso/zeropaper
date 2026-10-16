@@ -48,6 +48,12 @@ module Document::Reviewable
       ("failed" unless status == "failed") ].compact & review_reasons
   end
 
+  # Whether the AI added this document's correspondent while filing it, so
+  # the reviewer can check a name nobody has seen before.
+  def ai_created_correspondent?
+    correspondent_id.present? && correspondent_id == ai_created_correspondent_id
+  end
+
   def review_reason_labels
     review_reasons.map { |reason| REASONS.fetch(reason, reason.humanize) }
   end

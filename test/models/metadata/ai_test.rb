@@ -31,6 +31,36 @@ class Metadata::AITest < ActiveSupport::TestCase
     assert Correspondent.find_or_create_named("New Utility Co").auto_match?
   end
 
+  test "a correspondent the AI adds keeps auto-match and is remembered as new for this document" do
+    correspondents(:acme_power).destroy
+    document = ingest(BILL_TEXT, filename: "bill.txt")
+
+    VCR.use_cassette("metadata/openai_electricity_bill") { process(document) }
+
+    assert_equal "Acme Power", document.correspondent.name
+    assert document.correspondent.auto_match?
+    assert document.ai_created_correspondent?
+
+    document.update!(correspondent: correspondents(:city_clinic))
+    refute document.ai_created_correspondent?
+  end
+
+  test "an existing correspondent is not marked new" do
+    document = ingest(BILL_TEXT, filename: "bill.txt")
+
+    VCR.use_cassette("metadata/openai_electricity_bill") { process(document) }
+
+    assert_equal correspondents(:acme_power), document.correspondent
+    refute document.ai_created_correspondent?
+  end
+
+  test "the model is asked for a proper name, not a category" do
+    description = Metadata::AI::SCHEMA.dig(:properties, :correspondent, :description)
+
+    assert_match "proper name as printed on the document", description
+    assert_match "never a category like 'Bank' or 'Insurance'", description
+  end
+
   test "sends the text and the extraction model" do
     document = ingest(BILL_TEXT, filename: "bill.txt")
 

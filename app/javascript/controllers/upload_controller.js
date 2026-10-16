@@ -6,7 +6,7 @@ import { Controller } from "@hotwired/stimulus"
 export default class extends Controller {
   static targets = ["form", "zone", "input", "folderInput", "private", "queue", "summary", "clear", "submit", "submitLabel",
     "overall", "overallBar", "list", "done", "doneSummary", "template"]
-  static values = { url: String, concurrency: { type: Number, default: 3 } }
+  static values = { url: String, concurrency: { type: Number, default: 3 }, maxBytes: Number }
 
   connect() {
     this.items = []
@@ -73,6 +73,9 @@ export default class extends Controller {
       this.field(row, "remove").addEventListener("click", () => this.remove(item))
       this.listTarget.append(row)
       this.items.push(item)
+      if (this.maxBytesValue && file.size > this.maxBytesValue) {
+        this.setRow(item, "skipped", `Larger than the ${this.format(this.maxBytesValue)} upload limit`, 1)
+      }
     })
     this.render()
   }
@@ -137,7 +140,7 @@ export default class extends Controller {
         let result = null
         try { result = JSON.parse(request.responseText).results?.[0] } catch {}
         if (request.status >= 200 && request.status < 300 && result) {
-          const states = { created: "done", duplicate: "skipped", unsupported: "skipped" }
+          const states = { created: "done", duplicate: "skipped", unsupported: "skipped", too_large: "skipped" }
           this.setRow(item, states[result.status] || "failed", result.status === "created" ? "Added. Processing has started." : result.message, 1, result)
         } else {
           this.setRow(item, "failed", `Upload failed (${request.status || "network error"})`, 1)

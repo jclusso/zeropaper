@@ -24,7 +24,11 @@
               <p class="truncate font-bold"><%= document.display_title %></p>
               <%= privacy_badge(document) %>
             </div>
-            <p class="mt-0.5 truncate text-sm muted"><%= [ document.correspondent&.name || "No correspondent", document.document_date&.to_fs(:long) || "No date", document.document_type&.name ].compact.join(" · ") %></p>
+            <p class="mt-0.5 truncate text-sm muted">
+              <%= document.correspondent&.name || "No correspondent" %>
+              <% if document.ai_created_correspondent? %><span class="badge-accent" title="The AI added this correspondent for this document">New</span><% end %>
+              <%= [ "", document.document_date&.to_fs(:long) || "No date", document.document_type&.name ].compact.join(" · ") %>
+            </p>
             <div class="mt-2 flex flex-wrap gap-1.5">
               <% document.review_reasons.each do |reason| %>
                 <% label = Document::Reviewable::REASONS.fetch(reason, reason.humanize) %>

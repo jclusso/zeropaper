@@ -73,6 +73,82 @@ class Ingest::FolderTest < ActiveSupport::TestCase
     refute @root.join("again.txt").exist?
   end
 
+  test "symlinks are skipped, logged by relative path and kept, even when they point inside the folder" do
+    settled_file("elsewhere/statement.txt", BILL_TEXT)
+    @root.join("linked.txt").make_symlink(@root.join("elsewhere/statement.txt"))
+    logged = StringIO.new
+    Rails.stubs(:logger).returns(ActiveSupport::Logger.new(logged))
+
+    @folder.scan
+
+    assert_equal 1, Document.where(source: "folder").count
+    assert_equal "elsewhere/statement.txt", Document.last.source_detail
+    assert @root.join("linked.txt").symlink?
+    assert_match "[ingest] linked.txt: skipped, symlinks are not imported", logged.string
+  end
+
+  test "a symlink to a file outside the folder is not read or deleted" do
+    Dir.mktmpdir do |outside|
+      secret = Pathname(outside).join("passwd.txt")
+      secret.write("root:x:0:0 secret contents")
+      File.utime(1.minute.ago.to_time, 1.minute.ago.to_time, secret)
+      @root.join("passwd.txt").make_symlink(secret)
+      logged = StringIO.new
+      Rails.stubs(:logger).returns(ActiveSupport::Logger.new(logged))
+
+      assert_no_difference -> { Document.count } do
+        @folder.scan
+      end
+
+      assert secret.exist?
+      assert @root.join("passwd.txt").symlink?
+      refute_match outside, logged.string
+      refute_match "secret contents", logged.string
+    end
+  end
+
+  test "files under a symlinked folder are skipped" do
+    Dir.mktmpdir do |outside|
+      secret = Pathname(outside).join("statement.txt")
+      secret.write(BILL_TEXT)
+      File.utime(1.minute.ago.to_time, 1.minute.ago.to_time, secret)
+      @root.join("share").make_symlink(outside)
+
+      assert_no_difference -> { Document.count } do
+        @folder.scan
+      end
+
+      assert secret.exist?
+    end
+  end
+
+  test "a file swapped for a symlink after the check is not followed" do
+    Dir.mktmpdir do |outside|
+      secret = Pathname(outside).join("passwd.txt")
+      secret.write("secret contents")
+      link = @root.join("swapped.txt")
+      link.make_symlink(secret)
+      @folder.stubs(:symlinked?).returns(false)
+
+      assert_no_difference -> { Document.count } do
+        @folder.send(:ingest, link)
+      end
+
+      assert secret.exist?
+      assert link.symlink?
+    end
+  end
+
+  test "files over the upload limit move aside without being read" do
+    settled_file("huge.txt", "x" * 2.kilobytes)
+    Rails.configuration.x.stubs(:max_upload_bytes).returns(1.kilobyte)
+
+    assert_no_difference -> { Document.count } do
+      @folder.scan
+    end
+    assert @root.join(".unsupported/huge.txt").exist?
+  end
+
   private
     def settled_file(relative, content)
       path = @root.join(relative)

@@ -1,5 +1,7 @@
 class Documents::OriginalRestorationsController < ApplicationController
   include DocumentScoped
+  rate_limit to: 30, within: 1.minute, only: :create, scope: "document-edits", by: -> { Current.user.id },
+    with: -> { redirect_to @document, alert: "Too many changes at once. Wait a minute and try again." }
 
   def create
     @document.restore_original!

@@ -190,6 +190,25 @@ class DocumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-controller~=multi-select][data-action='multi-select:change->auto-submit#submit']", count: 2
   end
 
+  test "a file over the upload limit is reported, not added" do
+    Rails.configuration.x.stubs(:max_upload_bytes).returns(1.megabyte)
+
+    assert_no_difference -> { Document.count } do
+      post documents_path, params: { files: [ upload("big.txt", "x" * (1.megabyte + 1)) ] }, as: :multipart, headers: { "Accept" => "application/json" }
+    end
+
+    result = response.parsed_body["results"].sole
+    assert_equal "too_large", result["status"]
+    assert_equal "Larger than the 1 MB upload limit", result["message"]
+  end
+
+  test "the upload form knows the limit" do
+    get new_document_path
+
+    assert_select "[data-controller=upload][data-upload-max-bytes-value='#{250.megabytes}']"
+    assert_select "label[data-upload-target=zone]", text: /up to 250 MB each/
+  end
+
   private
     def upload(filename, content, type = "text/plain")
       Rack::Test::UploadedFile.new(StringIO.new(content), type, original_filename: filename)

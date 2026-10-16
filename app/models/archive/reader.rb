@@ -7,10 +7,12 @@ module Archive
     def initialize(path, restored_by: nil)
       @path = path
       @restored_by = restored_by
+      @tempfiles = []
     end
 
     # Yields :restored or :skipped for each document in the archive.
     def each_result
+      UploadLimit.check_zip!(@path, each_entry: true)
       Zip::File.open(@path) do |zip|
         manifest = read_manifest(zip)
         restore_taxonomy(manifest)
@@ -116,6 +118,9 @@ module Archive
 
         document.index!
         :restored
+      ensure
+        @tempfiles&.each(&:close!)
+        @tempfiles = []
       end
 
       # This instance's mark-private rules decide too, on the filename, the
@@ -133,7 +138,12 @@ module Archive
       def attach(attachment, entry)
         return unless entry
 
-        attachment.attach(io: StringIO.new(entry.get_input_stream.read), filename: File.basename(entry.name))
+        # Copied through a temp file so large files are never held in memory.
+        # It stays open until the document is saved and uploads it.
+        file = Tempfile.new("restore", binmode: true).tap { |tempfile| @tempfiles << tempfile }
+        entry.get_input_stream { |stream| IO.copy_stream(stream, file) }
+        file.rewind
+        attachment.attach(io: file, filename: File.basename(entry.name))
       end
 
       def read(zip, name)

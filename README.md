@@ -54,7 +54,7 @@ docker compose up -d
 
 `docker compose pull` downloads the published image (amd64 and arm64). To build from your checkout instead, run `docker compose up -d --build`.
 
-Open http://localhost:3000. The setup wizard creates the admin account, then asks whether to use AI, which provider and models to use, and how to read scans. Everything it asks can be changed later under **Admin**.
+Open http://localhost:3000. The first person to open a fresh install becomes the admin, so finish setup right after deploying, before anyone else can reach it. The setup wizard creates the admin account, then asks whether to use AI, which provider and models to use, and how to read scans. Everything it asks can be changed later under **Admin**.
 
 The stack has three containers:
 
@@ -82,7 +82,9 @@ Settings that take effect at runtime (AI providers and keys, models, OCR, page c
 | `PORT` | Host port for the app. Defaults to `3000`. |
 | `APP_HOST` | Host name the app is served under. When set, other hosts are refused. |
 | `ASSUME_SSL` | `true` when a reverse proxy terminates TLS. |
-| `FORCE_SSL` | `true` to redirect to HTTPS and use secure cookies. |
+| `FORCE_SSL` | `true` to redirect to HTTPS and use secure cookies. Required on any host reachable from the internet. |
+| `INGEST_DIR` | The ingest folder used until Settings chooses another. Defaults to `storage/ingest` (`/rails/storage/ingest` in Docker). |
+| `MAX_UPLOAD_MB` | Largest file an upload or the ingest folder accepts. Defaults to `250`. Word and Excel files and restore archives may unzip to four times this. |
 
 Passkeys need the app to be reached over HTTPS (or on `localhost`) under a stable host name.
 
@@ -103,7 +105,7 @@ Text that is already in the file (PDFs with a text layer, Word, spreadsheets, pl
 
 ### Ingest folder
 
-Files placed in `./ingest` are imported within a minute and then removed from the folder. Files in `./ingest/private` are imported as private. Duplicates of documents already in the library are removed without importing. Watching can be switched off under Settings › Ingest Folder. To use another folder, such as a scanner's network share, change the left side of the `./ingest` mount in `docker-compose.yml`.
+Files placed in `./ingest` are imported within a minute and then removed from the folder. Files in `./ingest/private` are imported as private. Duplicates of documents already in the library are removed without importing. Watching can be switched off under Settings › Ingest Folder. To use another folder, such as a scanner's network share, change the left side of the `./ingest` mount in `docker-compose.yml`. Symlinks, and files in symlinked folders, are skipped and left where they are. Files larger than `MAX_UPLOAD_MB` are moved to `.unsupported/`.
 
 ### Deploying with Kamal
 
@@ -115,6 +117,8 @@ bin/kamal deploy   # later deploys
 ```
 
 Docling is a commented-out accessory in the example; Tesseract is built in.
+
+The example sets `ssl: false`, which is only safe on a LAN or a Tailscale network. On a host reachable from the internet, set `ssl: true` (or terminate TLS in front of the proxy) and set `FORCE_SSL` and `ASSUME_SSL` to `true`, or passwords, session cookies and documents travel unencrypted. Open the app right after the first deploy: the first visitor to a fresh install becomes the admin.
 
 ## Backups
 

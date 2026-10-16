@@ -87,7 +87,9 @@ module Document::Processing
   rescue Stopped
     Rails.logger.info("[process] document #{id}: run #{@run} stopped")
   rescue StandardError => error
-    Rails.logger.error("[process] document #{id}: #{error.class}: #{error.message}\n#{error.backtrace&.first(10)&.join("\n")}")
+    # The message can quote the document, so the log gets the class and
+    # backtrace only; the message is kept on the document for the person.
+    Rails.logger.error("[process] document #{id}: #{error.class}\n#{error.backtrace&.first(10)&.join("\n")}")
     return unless current_run?
 
     update_columns(status: "failed", error: error.message.truncate(1_000), processing_run: nil, updated_at: Time.current)

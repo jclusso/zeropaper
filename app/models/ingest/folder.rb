@@ -2,6 +2,10 @@
 # subfolder is private from the start, so it never reaches a hosted
 # provider. Ingested files are removed; files ZeroPaper cannot read are moved
 # to .unsupported/ so they are not retried forever.
+#
+# Symlinks, and anything under a symlinked folder, are skipped and left in
+# place, so the folder cannot be used to import (or delete) files from the
+# rest of the machine.
 module Ingest
   class Folder
     PRIVATE_DIR = "private".freeze
@@ -38,7 +42,13 @@ module Ingest
         relative = path.relative_path_from(root).to_s
         private = relative.start_with?("#{PRIVATE_DIR}/")
 
-        File.open(path, "rb") do |io|
+        if symlinked?(relative)
+          Rails.logger.warn("[ingest] #{relative}: skipped, symlinks are not imported")
+          return
+        end
+
+        # NOFOLLOW also refuses a file swapped for a symlink after the check.
+        File.open(path, File::RDONLY | File::NOFOLLOW | File::BINARY) do |io|
           Document.ingest!(
             io: io,
             filename: path.basename.to_s,
@@ -51,12 +61,19 @@ module Ingest
         path.delete
       rescue Document::Duplicate
         path.delete
-      rescue Document::UnsupportedType
+      rescue Document::UnsupportedType, Document::TooLarge => error
+        Rails.logger.warn("[ingest] #{relative}: #{error.class.name.demodulize}, moved to #{UNSUPPORTED_DIR}")
         target = root.join(UNSUPPORTED_DIR, relative)
         FileUtils.mkdir_p(target.dirname)
         FileUtils.mv(path, target)
       rescue StandardError => error
-        Rails.logger.error("[ingest] #{relative}: #{error.class}: #{error.message}")
+        # The message can quote what was read, so only the class is logged.
+        Rails.logger.error("[ingest] #{relative}: #{error.class}")
+      end
+
+      # Whether the file, or any folder between it and the root, is a symlink.
+      def symlinked?(relative)
+        Pathname(relative).descend.any? { |part| root.join(part).symlink? }
       end
   end
 end

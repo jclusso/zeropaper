@@ -2,6 +2,7 @@ class DocumentsController < ApplicationController
   PER_PAGE = 48
 
   before_action :set_document, only: %i[ show edit update destroy ]
+  rate_limit to: 60, within: 1.minute, only: :create, by: -> { Current.user.id }, with: :upload_rate_limited
 
   def index
     @filters = filter_params
@@ -73,6 +74,15 @@ class DocumentsController < ApplicationController
       { filename: filename, status: "duplicate", message: "Already in the library", title: error.document.display_title, url: document_path(error.document) }
     rescue Document::UnsupportedType
       { filename: filename, status: "unsupported", message: "Not a supported file type" }
+    rescue Document::TooLarge
+      { filename: filename, status: "too_large", message: "Larger than the #{UploadLimit.max_megabytes} MB upload limit" }
+    end
+
+    def upload_rate_limited
+      respond_to do |format|
+        format.json { render json: { error: "Too many uploads. Wait a minute and try again." }, status: :too_many_requests }
+        format.html { redirect_to new_document_path, alert: "Too many uploads. Wait a minute and try again." }
+      end
     end
 
     def set_document

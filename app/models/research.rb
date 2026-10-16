@@ -10,6 +10,12 @@
 # that turn out of its history once the document is private.
 class Research
   MAX_HISTORY = 20
+  # Tool calls per answer. Past this the model is told to answer with what it
+  # has, and the answer says the research was cut short.
+  MAX_TOOL_CALLS = 20
+  TOOL_LIMIT_NOTE = "_Research stopped after #{MAX_TOOL_CALLS} lookups, so this answer may be incomplete._".freeze
+
+  class ToolLimitExceeded < StandardError; end
 
   attr_reader :message, :cited_ids, :private_match_ids
 
@@ -18,6 +24,8 @@ class Research
     @cited_ids = Set.new
     @private_match_ids = Set.new
     @outbound = Outbound.without_documents
+    @tool_calls = 0
+    @refused_tool_calls = Set.new
   end
 
   def run
@@ -26,11 +34,15 @@ class Research
       .with_instructions(instructions)
       .with_tools(*tools)
     load_history(chat)
-    chat.before_tool_call { |tool_call| message.add_step!(step_label(tool_call)) }
+    chat.before_tool_call do |tool_call|
+      count_tool_call(chat, tool_call)
+      message.add_step!(step_label(tool_call))
+    end
 
     response = chat.ask(question) { |chunk| message.append!(chunk.content) }
 
     content = response.content.to_s
+    content = [ content.presence, TOOL_LIMIT_NOTE ].compact.join("\n\n") if tool_limit_reached?
     message.finish!(
       content: content,
       cited_document_ids: (content.scan(/\[#(\d+)\]/).flatten.map(&:to_i) & cited_ids.to_a),
@@ -40,6 +52,15 @@ class Research
   rescue StandardError => error
     Rails.logger.error("[research] message #{message.id}: #{error.class}: #{error.message}")
     message.fail!(error.is_a?(Outbound::Error) ? error.message : "#{error.class.name.demodulize}: #{error.message.truncate(200)}")
+  end
+
+  def tool_limit_reached?
+    @tool_calls >= MAX_TOOL_CALLS
+  end
+
+  # Tool calls past the limit get a refusal instead of running.
+  def refused_tool_call?(tool_call)
+    tool_call.present? && @refused_tool_calls.include?(tool_call.id)
   end
 
   # Called by tools with the documents a search matched. Shareable ones may
@@ -53,6 +74,16 @@ class Research
   end
 
   private
+    # Counts each call. The one that reaches the limit still runs, then the
+    # model may not call tools anymore. Calls it makes regardless are refused,
+    # and a model that keeps calling is stopped.
+    def count_tool_call(chat, tool_call)
+      @tool_calls += 1
+      chat.with_tool_options(choice: :none) if @tool_calls == MAX_TOOL_CALLS
+      @refused_tool_calls << tool_call.id if @tool_calls > MAX_TOOL_CALLS
+      raise ToolLimitExceeded, "the model kept looking things up after #{MAX_TOOL_CALLS} lookups" if @tool_calls > MAX_TOOL_CALLS * 2
+    end
+
     def conversation
       message.conversation
     end

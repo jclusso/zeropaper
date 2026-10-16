@@ -28,6 +28,8 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
+    setup { ActionController::Base.cache_store.clear }
+
     include ActiveJob::TestHelper
     include PdfFactory::Helpers
     include DocumentHelpers
