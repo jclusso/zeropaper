@@ -48,7 +48,10 @@ module Document::Processing
   # Queues a run. Any run already going sees it is no longer current and
   # stops at its next step, which is how Restart works.
   def process_later(extract_metadata: true)
-    update_columns(status: "pending", processing_run: nil, updated_at: Time.current) if persisted?
+    if persisted?
+      update_columns(status: "pending", processing_run: nil, updated_at: Time.current)
+      broadcast_changes
+    end
     ProcessDocumentJob.perform_later(self, extract_metadata: extract_metadata)
   end
 
@@ -58,7 +61,7 @@ module Document::Processing
     update_columns(status: "failed", processing_run: nil, error: reason, updated_at: Time.current)
     add_review_reason!("failed")
     discard_queued_processing
-    broadcast_refresh
+    broadcast_changes
   end
 
   # Whether a queued or running job will still pick this document up.
@@ -97,6 +100,7 @@ module Document::Processing
 
     update_columns(status: "failed", error: error.message.truncate(1_000), processing_run: nil, updated_at: Time.current)
     add_review_reason!("failed")
+    broadcast_changes
   ensure
     @run = nil
   end
@@ -195,7 +199,7 @@ module Document::Processing
     def record_step(name, status, detail = nil)
       steps[name] = { "status" => status, "detail" => detail, "at" => Time.current.iso8601 }.compact
       update_columns(steps: steps, updated_at: Time.current)
-      broadcast_refresh
+      broadcast_changes
     end
 
     def inspect_file(path)

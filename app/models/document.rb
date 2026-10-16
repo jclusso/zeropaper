@@ -1,5 +1,5 @@
 class Document < ApplicationRecord
-  include Ingestible, Privacy, Pages, Processing, Searchable, Reviewable, Filterable
+  include Broadcasting, Ingestible, Privacy, Pages, Processing, Searchable, Reviewable, Filterable
 
   STATUSES = %w[pending processing ready failed].freeze
   SOURCES = %w[upload folder restore].freeze
@@ -32,8 +32,6 @@ class Document < ApplicationRecord
 
   # Documents that looked like copies of this one are no longer duplicates.
   before_destroy :clear_duplicate_flags
-
-  broadcasts_refreshes
 
   def display_title
     title.presence || File.basename(original_filename, ".*")

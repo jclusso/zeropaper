@@ -1,4 +1,5 @@
 <% content_for :title, "Inbox" %>
+<%= turbo_stream_from Document::LIBRARY_STREAM %>
 <%= page_header "Inbox", "Documents that need a look: uncertain details, possible duplicates, blank pages and failures." %>
 
 <% if @documents.empty? %>

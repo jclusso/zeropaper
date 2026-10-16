@@ -1,7 +1,9 @@
 default: &default
   ingest_folder:
     class: IngestFolderJob
-    schedule: every minute
+    # Files wait 10 seconds to settle before import, so polling faster than
+    # this would not be noticed.
+    schedule: every 5 seconds
   recover_stuck_documents:
     class: RecoverStuckDocumentsJob
     schedule: every 5 minutes
