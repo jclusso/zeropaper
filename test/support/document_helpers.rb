@@ -31,11 +31,6 @@ module DocumentHelpers
     )
     openai
   end
-
-  def stored_bytes(attachment)
-    service = attachment.blob.service
-    File.binread(service.path_for(attachment.blob.key))
-  end
 end
 
 module DocumentHelpers

@@ -172,8 +172,8 @@ module Document::Processing
     end
 
     # Every save a run makes, including attaching files, waits here for the
-    # row lock, so a stale run can neither write AI results after the
-    # document went private nor put its files on the unencrypted service.
+    # row lock, so a stale run cannot write AI results after the document
+    # went private.
     def ensure_current_run
       raise Stopped unless current_run?(lock: true)
     end

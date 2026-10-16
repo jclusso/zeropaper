@@ -1,10 +1,7 @@
-# A private document never leaves the machine: Outbound refuses it, its files
-# sit on the encrypted disk service, and only local OCR, rules and embeddings
-# touch it.
+# A private document never leaves the machine: Outbound refuses it, and only
+# local OCR, rules and embeddings touch it.
 module Document::Privacy
   extend ActiveSupport::Concern
-
-  ATTACHMENTS = %i[file original_file archive_file thumbnail].freeze
 
   included do
     scope :shareable, -> { where(private: false) }
@@ -19,10 +16,7 @@ module Document::Privacy
   def privatize!(reason:, reprocess: true)
     return if private?
 
-    transaction do
-      update!(private: true, private_reason: reason)
-      move_attachments_to_current_service
-    end
+    update!(private: true, private_reason: reason)
     process_later if reprocess
   end
 
@@ -37,10 +31,7 @@ module Document::Privacy
       return false
     end
 
-    transaction do
-      update!(private: false, private_reason: nil)
-      move_attachments_to_current_service
-    end
+    update!(private: false, private_reason: nil)
     process_later
     true
   end
@@ -52,7 +43,6 @@ module Document::Privacy
     return if private?
 
     update!(private: true, private_reason: reason)
-    move_attachments_to_current_service
   end
 
   # Runs the rules that mark documents private once the text is known.
@@ -83,16 +73,5 @@ module Document::Privacy
   private
     def private_rule_before_content
       Rule.where(mark_private: true).matching_before_content(self).first
-    end
-
-    def move_attachments_to_current_service
-      ATTACHMENTS.each do |name|
-        attachment = public_send(name)
-        next unless attachment.attached?
-        next if attachment.blob.service_name == storage_service_name
-
-        blob = attachment.blob
-        attachment.attach(io: StringIO.new(blob.download), filename: blob.filename, content_type: blob.content_type)
-      end
     end
 end

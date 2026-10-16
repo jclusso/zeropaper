@@ -10,7 +10,7 @@
       <% if document.private? %>
         <p class="flex items-center gap-1.5 font-bold text-private"><%= icon(:lock, class: "size-4") %> Private</p>
         <p class="text-xs muted"><%= document.private_reason.presence || "Marked private" %>.</p>
-        <p class="text-xs muted">Never sent to an AI provider. Read and filed on this machine, and stored encrypted.</p>
+        <p class="text-xs muted">Never sent to an AI provider. Read and filed on this machine.</p>
       <% else %>
         <p class="flex items-center gap-1.5 font-bold"><%= icon(:lock_open, class: "size-4 muted") %> Not private</p>
         <% exposure = document_exposure(document) %>

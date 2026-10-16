@@ -66,8 +66,10 @@ env:
     # DOCLING_URL: http://zeropaper-docling:5001
 
 volumes:
-  # Uploaded files, encrypted private files, the ingest folder and the
-  # embedding model cache, shared by the web and job containers.
+  # Document files, the ingest folder and the embedding model cache, shared
+  # by the web and job containers. To keep document files on a NAS, mount the
+  # share on the host and map it over the files folder:
+  # - /mnt/nas/zeropaper/storage:/rails/storage/files
   - zeropaper_storage:/rails/storage
   # Backups go to /rails/storage/backups. To keep them off the server, mount
   # a NAS share on the host and map it there:
