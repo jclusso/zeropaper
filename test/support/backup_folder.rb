@@ -1,4 +1,5 @@
-# Points BACKUP_DIR at a fresh folder for each test.
+# Points BACKUP_DIR, and the scratch folder backups and restores work in, at
+# fresh folders for each test.
 module BackupFolder
   extend ActiveSupport::Concern
 
@@ -7,11 +8,14 @@ module BackupFolder
       @backup_dir = Dir.mktmpdir
       @previous_backup_dir = Rails.configuration.x.backup_dir
       Rails.configuration.x.backup_dir = @backup_dir
+      @scratch_dir = Dir.mktmpdir
+      Backup::Scratch.stubs(:root).returns(Pathname(@scratch_dir))
     end
 
     teardown do
       Rails.configuration.x.backup_dir = @previous_backup_dir
       FileUtils.remove_entry(@backup_dir)
+      FileUtils.remove_entry(@scratch_dir)
     end
   end
 
@@ -28,8 +32,7 @@ module BackupFolder
     end
 
     # Encrypts a zip into the backup folder and returns its file name.
-    def put_sealed(zip, made_at: Time.current, key: Setting.instance.backup_key_bytes)
-      name = Backup.file_name(made_at)
+    def put_sealed(zip, made_at: Time.current, key: Setting.instance.backup_key_bytes, name: Backup.file_name(made_at))
       Tempfile.create([ "backup", ".zip" ], binmode: true) do |plain|
         plain.write(zip)
         plain.flush

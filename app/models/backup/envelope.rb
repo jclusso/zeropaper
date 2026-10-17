@@ -14,6 +14,10 @@ class Backup::Envelope
   VERSION = 1
   CHUNK_SIZE = 1.megabyte
   TAG_SIZE = 16
+  NONCE_SIZE = 8
+  MAX_HEADER_SIZE = 4.kilobytes
+  # Far below the 32 bit counter in the nonce, so it never wraps.
+  MAX_CHUNKS = 2**31
 
   class Invalid < Archive::Reader::InvalidArchive; end
 
@@ -25,6 +29,10 @@ class Backup::Envelope
     new(nil).seal(plain_path, out, **options)
   end
 
+  def self.max_chunks
+    MAX_CHUNKS
+  end
+
   def initialize(path)
     @path = path
   end
@@ -32,7 +40,7 @@ class Backup::Envelope
   # Encrypts the zip at plain_path into out.
   def seal(plain_path, out, key:, made_at:, metadata:)
     use_header({ version: VERSION, made_at: made_at.iso8601, key_id: Backup::Key.id(key),
-                 nonce: Base64.strict_encode64(SecureRandom.random_bytes(8)) }.to_json.b)
+                 nonce: Base64.strict_encode64(SecureRandom.random_bytes(NONCE_SIZE)) }.to_json.b)
     out.write(MAGIC, [ @header_bytes.bytesize ].pack("N"), @header_bytes)
 
     write_chunk(out, key, 0, metadata.to_json, false)
@@ -49,12 +57,13 @@ class Backup::Envelope
   end
 
   def header
-    File.open(@path, "rb") { |io| read_header(io) } unless @header
+    open { |io| read_header(io) } unless @header
     @header
   end
 
   def made_at
-    Time.zone.parse(header["made_at"].to_s)
+    header
+    @made_at
   end
 
   def key_id
@@ -62,19 +71,25 @@ class Backup::Envelope
   end
 
   def metadata(key)
-    File.open(@path, "rb") do |io|
+    open do |io|
       read_header(io)
       JSON.parse(read_chunk(io, key, 0).first)
     end
   end
 
   # Decrypts the zip into out, or into nothing to only check every chunk.
-  def decrypt(key, out = nil)
-    File.open(@path, "rb") do |io|
+  # Stops past +limit+ bytes, since a backup made with another key may be
+  # anyone's.
+  def decrypt(key, out = nil, limit: UploadLimit.max_backup_bytes)
+    open do |io|
       read_header(io)
       read_chunk(io, key, 0)
+      size = 0
       (1..).each do |counter|
         data, final = read_chunk(io, key, counter)
+        size += data.bytesize
+        raise Invalid, "This backup is larger than the #{limit.to_fs(:human_size)} backup limit (MAX_BACKUP_GB)." if size > limit
+
         out&.write(data)
         break if final
       end
@@ -82,27 +97,51 @@ class Backup::Envelope
   end
 
   private
+    # Reads the file only through a handle that is still the file it was
+    # when checked, so one swapped for a link is not followed.
+    def open(&)
+      Backup.open_file(@path, &)
+    end
+
     def use_header(bytes)
       @header_bytes = bytes
       @header = JSON.parse(bytes)
+      @made_at = Time.iso8601(@header["made_at"]).in_time_zone
+      @nonce = Base64.strict_decode64(@header["nonce"])
     end
 
+    # The header is read before the key is checked, so it is checked for
+    # shape here: a listing or an upload refuses a damaged one. A date in
+    # the future is allowed, since another machine's clock may be ahead;
+    # pruning leaves such backups alone.
     def read_header(io)
       raise Invalid, "This is not a ZeroPaper backup." unless io.read(MAGIC.bytesize) == MAGIC
 
       length = io.read(4)&.unpack1("N")
-      raise Invalid, "This backup is damaged." unless length && length < 4.kilobytes
+      raise Invalid, "This backup is damaged." unless length && length <= MAX_HEADER_SIZE
 
-      use_header(io.read(length).to_s)
-      raise Invalid, "This backup is from a newer ZeroPaper." if @header["version"].to_i > VERSION
-    rescue JSON::ParserError
+      bytes = io.read(length).to_s
+      header = JSON.parse(bytes) if bytes.bytesize == length
+      raise Invalid, "This backup is damaged." unless valid_header?(header)
+      raise Invalid, "This backup is from a newer ZeroPaper." if header["version"] > VERSION
+
+      use_header(bytes)
+      raise Invalid, "This backup is damaged." unless @nonce.bytesize == NONCE_SIZE
+    rescue JSON::ParserError, ArgumentError
       raise Invalid, "This backup is damaged."
+    end
+
+    def valid_header?(header)
+      header.is_a?(Hash) && header["version"].is_a?(Integer) && header["version"].positive? &&
+        header["made_at"].is_a?(String) && header["key_id"].is_a?(String) && header["key_id"].match?(/\A\h{8}\z/) &&
+        header["nonce"].is_a?(String)
     end
 
     # The last chunk is the one the file ends with; a file cut short after
     # any other chunk fails because that chunk was sealed as not final.
     def read_chunk(io, key, counter)
       raise Invalid, "This backup needs the key it was made with (#{key_id})." unless Backup::Key.id(key) == key_id
+      raise Invalid, "This backup has more chunks than a backup can." if counter > self.class.max_chunks
 
       length = io.read(4)&.unpack1("N")
       raise Invalid, "This backup is cut short." unless length && length <= CHUNK_SIZE + 1.kilobyte
@@ -118,6 +157,8 @@ class Backup::Envelope
     end
 
     def write_chunk(out, key, counter, data, final)
+      raise Invalid, "The library is too large for one backup." if counter > self.class.max_chunks
+
       ciphertext, tag = crypt(:encrypt, key, counter, data, final)
       out.write([ ciphertext.bytesize ].pack("N"), ciphertext, tag)
     end
@@ -125,7 +166,7 @@ class Backup::Envelope
     def crypt(direction, key, counter, data, final, tag = nil)
       cipher = OpenSSL::Cipher.new("aes-256-gcm").public_send(direction)
       cipher.key = key
-      cipher.iv = Base64.strict_decode64(@header["nonce"]) + [ counter ].pack("N")
+      cipher.iv = @nonce + [ counter ].pack("N")
       cipher.auth_tag = tag if tag
       cipher.auth_data = @header_bytes + (final ? "\x01" : "\x00")
       result = data.empty? ? +"" : cipher.update(data)

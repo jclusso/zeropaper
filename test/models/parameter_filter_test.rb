@@ -32,12 +32,16 @@ class ParameterFilterTest < ActiveSupport::TestCase
   end
 
   test "existing filters stay and ordinary parameters are kept" do
-    filtered = @filter.filter("password" => "secret", "email_address" => "a@example.com", "page" => "2", "view" => "grid", "quality" => "high")
+    filtered = @filter.filter("password" => "secret", "email_address" => "a@example.com", "page" => "2", "view" => "grid", "quality" => "high",
+                              "key" => "zpkey-abc", "backup_key" => "zpkey-abc", "monkey" => "kept")
 
     assert_equal FILTERED, filtered["password"]
     assert_equal FILTERED, filtered["email_address"]
     assert_equal "2", filtered["page"]
     assert_equal "grid", filtered["view"]
     assert_equal "high", filtered["quality"], "q is matched exactly"
+    assert_equal FILTERED, filtered["key"]
+    assert_equal FILTERED, filtered["backup_key"]
+    assert_equal "kept", filtered["monkey"], "key is matched exactly"
   end
 end

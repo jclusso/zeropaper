@@ -7,6 +7,10 @@ Rails.application.config.filter_parameters += [
   :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc
 ]
 
+# A backup key, as the restore form sends it (`backup_key`, caught by `_key`)
+# or as a bare `key`, matched exactly like `q` below.
+Rails.application.config.filter_parameters += [ /\Akey\z/ ]
+
 # What documents say, what people search and ask for, and the details rules
 # match on stay out of the logs too. `q` is matched exactly, since a partial
 # match would hide most parameters.

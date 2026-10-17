@@ -18,10 +18,17 @@ class BackupsController < ApplicationController
 
   def show
     file = Backup.file_for(params[:id])
-    return redirect_to(backups_path, alert: "That backup is no longer in the backup folder.") unless file
+    return gone unless file
 
+    io = Backup.open_file(file)
     response.headers["Cache-Control"] = "private, no-store"
-    send_file file, filename: file.basename.to_s, type: "application/octet-stream"
+    response.headers["Content-Length"] = io.size.to_s
+    send_file_headers! filename: file.basename.to_s, type: "application/octet-stream", disposition: "attachment"
+    self.response_body = Backup::Download.new(io)
+  rescue Archive::Reader::InvalidArchive => error
+    redirect_to backups_path, alert: error.message
+  rescue Errno::ENOENT
+    gone
   end
 
   def destroy
@@ -29,4 +36,9 @@ class BackupsController < ApplicationController
     file&.delete
     redirect_to backups_path, notice: file ? "Deleted #{file.basename}." : "That backup was already gone."
   end
+
+  private
+    def gone
+      redirect_to backups_path, alert: "That backup is no longer in the backup folder."
+    end
 end

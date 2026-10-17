@@ -24,6 +24,12 @@ module UploadLimit
     max_bytes * EXPANSION
   end
 
+  # A whole backup, which holds the library and so is capped far higher, at
+  # MAX_BACKUP_GB.
+  def max_backup_bytes
+    Rails.configuration.x.max_backup_bytes
+  end
+
   # Raises Exceeded when the zip at +path+ declares more uncompressed bytes
   # than allowed: in all, or with +each_entry+ in any one entry, for export
   # archives that hold a whole library. rubyzip refuses entries that expand

@@ -32,13 +32,6 @@
       "line": 35,
       "code": "joins(\"LEFT JOIN (#{(Tagging.group(:tag_id).select(:tag_id, \"count(*) AS n\") or Document.group(foreign_key_for_documents).select(foreign_key_for_documents, \"count(*) AS n\")).to_sql}) document_counts ON document_counts.#{(\"tag_id\" or foreign_key_for_documents)} = #{table_name}.id\")",
       "note": "Interpolated values are the model table name and foreign key from code, never request input"
-    },
-    {
-      "warning_type": "File Access",
-      "fingerprint": "c73b5edfe795ab1a99b2de8fec1d3518ed363317fc23e5d3c9ca39f5d051d7cf",
-      "check_name": "SendFile",
-      "file": "app/controllers/backups_controller.rb",
-      "note": "Backup.file_for only returns a zeropaper-*.zpbackup found by listing BACKUP_DIR, never a path built from the request"
     }
   ]
 }
