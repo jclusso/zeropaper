@@ -84,7 +84,10 @@ module Document::Processing
       run_step("metadata") { extract_metadata ? extract_metadata! : :skipped }
     end
     run_step("index") { index! }
-    run_step("duplicates") { flag_possible_duplicate }
+    run_step("duplicates") do
+      record_page_hashes!
+      flag_possible_duplicate
+    end
 
     raise Stopped unless current_run?
 
