@@ -12,9 +12,22 @@ module Document::Searchable
   DUPLICATE_DISTANCE = 0.02
   # ZeroPaper reads English only for now: stemming for search, eng for OCR.
   SEARCH_CONFIG = "english".freeze
+  INDEX_WAITING_NOTE = "Waiting for the search model to download. Keyword search already works.".freeze
 
   included do
     has_neighbors :embedding
+
+    # Documents whose passages were not embedded because the search model
+    # was still downloading.
+    scope :waiting_for_index, -> { where("steps -> 'index' ->> 'status' = 'waiting'") }
+  end
+
+  class_methods do
+    # Once the model is on disk, each waiting document is indexed on its own,
+    # without reading its text or extracting details again.
+    def index_waiting_later
+      waiting_for_index.where.not(status: %w[pending processing]).find_each { |document| IndexDocumentJob.perform_later(document) }
+    end
   end
 
   # Embeds the text, then replaces the chunks, vectors and search index in
@@ -27,6 +40,25 @@ module Document::Searchable
       refresh_search_vector
     end
     "#{chunks.count} #{"passage".pluralize(chunks.count)} embedded locally"
+  end
+
+  # The keyword index needs no model, so it is built either way; passages
+  # wait for the model rather than failing the document. Returns :waiting
+  # when they wait.
+  def index_or_wait!
+    index!
+  rescue Embedder::ModelMissing
+    refresh_search_vector
+    # The download may have finished while this document was being indexed,
+    # after it looked for documents waiting on it.
+    IndexDocumentJob.perform_later(self) if Embedder.downloaded?
+    :waiting
+  end
+
+  # Indexes outside a processing run, recorded as the index step, so nothing
+  # is read or sent again.
+  def index_now!
+    run_step("index") { index_or_wait! }
   end
 
   def refresh_search_vector

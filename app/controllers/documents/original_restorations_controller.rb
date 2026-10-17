@@ -4,7 +4,7 @@ class Documents::OriginalRestorationsController < ApplicationController
     with: -> { redirect_to @document, alert: "Too many changes at once. Wait a minute and try again." }
 
   def create
-    @document.restore_original!
+    @document.restore_original!(version: params[:version])
     redirect_to @document, notice: "Original restored. Reading it again."
   rescue Document::Pages::EditRefused => error
     redirect_to @document, alert: error.message

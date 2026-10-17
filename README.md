@@ -64,9 +64,11 @@ The stack has three containers:
 | `db` | `pgvector/pgvector:pg18` | Postgres with the pgvector extension |
 | `docling` | `quay.io/docling-project/docling-serve-cpu` | Local layout-aware OCR (about 4 GB) |
 
-When the job worker starts, it downloads the embedding model (about 400 MB) from Hugging Face into `MODELS_DIR` on the storage volume, unless it is already there. With AI turned off, this is the only outbound request ZeroPaper makes, and it sends nothing about your documents. After that, embeddings are computed without any network access.
+When the job worker starts, it downloads the embedding model (about 400 MB, at a pinned revision) from Hugging Face into `MODELS_DIR` on the storage volume, unless it is already there. With AI turned off, this is the only outbound request ZeroPaper makes, and it sends nothing about your documents. Each file is checked against its pinned SHA-256, and a damaged file is fetched again. Processing never downloads it: a document that reaches indexing before the download finishes is searchable by keyword right away and gets its meaning index once the download completes, without being read again. After that, embeddings are computed without any network access.
 
 To run fully offline, seed the volume ahead of time: run `bin/rails embedder:prefetch` on a machine with network access and copy `MODELS_DIR` into the volume, or run it once in the container before you cut it off.
+
+Upgrading from a version that did not pin the model downloads it again on the first boot, into a folder named after the revision, and then removes the old copy. For an offline install, run `bin/rails embedder:prefetch` again with the new version and copy the new `MODELS_DIR/Snowflake/snowflake-arctic-embed-m-v1.5/<revision>` folder into the volume.
 
 ## Configuration
 
@@ -86,7 +88,6 @@ Settings that take effect at runtime (AI providers and keys, models, OCR, page c
 | `APP_URL` | The address people open, such as `http://nas.local:3000`, used for links in emails and printed reset links. Set it when the app is reached on a port other than 80 or 443. Without it links use the first `APP_HOST`, and without either email is off. |
 | `ASSUME_SSL` | `true` when a reverse proxy terminates TLS. |
 | `FORCE_SSL` | `true` to redirect to HTTPS and use secure cookies. Required on any host reachable from the internet. |
-| `INGEST_DIR` | The ingest folder used until Settings chooses another. Defaults to `storage/ingest` (`/rails/storage/ingest` in Docker). |
 | `MAX_UPLOAD_MB` | Largest file an upload or the ingest folder accepts. Defaults to `250`. Word and Excel files, older exports and backups made with another key may unzip to four times this for each file. |
 | `MAX_BACKUP_GB` | Largest backup ZeroPaper makes, accepts as an upload or restores, both as the file and as everything it unzips to. Defaults to `500`. |
 | `MAIL_FROM` | Sender address for email, such as `ZeroPaper <paper@example.com>`. Without it email is off: no password reset emails and no notice when a passkey is added. Mail goes to the SMTP server in `config/environments/production.rb`, which is `localhost:25` unless you change it. |

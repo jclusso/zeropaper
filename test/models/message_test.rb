@@ -20,7 +20,7 @@ class MessageTest < ActiveSupport::TestCase
 
   test "an answer whose job is still queued is left alone" do
     @answer.update_columns(updated_at: 20.minutes.ago)
-    SolidQueue::Job.create!(queue_name: "research", class_name: "ResearchJob", arguments: ResearchJob.new(@answer).serialize)
+    SolidQueue::Job.enqueue(ResearchJob.new(@answer))
 
     Message.recover_stuck
 

@@ -9,7 +9,7 @@ class Documents::PageRemovalsControllerTest < ActionDispatch::IntegrationTest
 
   test "keeping every suggested page marks them not blank and reads them" do
     assert_enqueued_with(job: ProcessDocumentJob, args: [ @document, { extract_metadata: false } ]) do
-      post document_page_removal_path(@document)
+      post document_page_removal_path(@document), params: { version: @document.checksum }
     end
 
     assert_redirected_to @document
@@ -21,11 +21,40 @@ class Documents::PageRemovalsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "removing pages still works and reports what happened" do
-    post document_page_removal_path(@document), params: { pages: [ 2 ] }
+    post document_page_removal_path(@document), params: { pages: [ 2 ], version: @document.checksum }
 
     assert_redirected_to @document
     assert_equal "Removed 1 page.", flash[:notice]
     assert_equal 2, @document.reload.page_count
+  end
+
+  test "an edit chosen against an older version of the file is refused" do
+    shown = @document.checksum
+    post document_page_removal_path(@document), params: { pages: [ 2 ], version: shown }
+    assert_equal 2, @document.reload.page_count
+
+    post document_page_removal_path(@document), params: { pages: [ 1 ], version: shown }
+
+    assert_redirected_to @document
+    assert_equal Document::Pages::STALE_EDIT, flash[:alert]
+    assert_equal 2, @document.reload.page_count
+  end
+
+  test "every page edit in the editor and the review bar sends the version it was shown" do
+    # A turned page and a kept upload bring out both Restore original buttons.
+    @document.original_file.attach(io: StringIO.new(@document.file.download), filename: "scan.pdf", content_type: "application/pdf")
+    @document.update!(page_record: @document.page_record.merge("rotated" => { "1" => 180 }))
+    edits = [ document_page_removal_path(@document), document_original_restoration_path(@document) ]
+
+    shown = { document_pages_path(@document) => 2, document_path(@document) => 2 }
+    shown.each do |page, count|
+      get page
+      forms = css_select(edits.map { |path| "form[action='#{path}']" }.join(", "))
+      assert_equal count, forms.size, page
+      forms.each do |form|
+        assert_equal @document.checksum, form.at_css("input[name=version]")&.[]("value"), "#{page}: #{form["action"]}"
+      end
+    end
   end
 
   test "the dialog offers to keep pages when none are selected" do

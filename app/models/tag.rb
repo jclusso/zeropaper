@@ -9,8 +9,19 @@ class Tag < ApplicationRecord
   validates :color, inclusion: { in: COLORS }
 
   before_validation -> { self.color = COLORS[name.to_s.sum % COLORS.size] }, on: :create, unless: :color_changed?
+  after_destroy :remove_from_rules
 
   private
+    # rules.tag_ids is a plain array with no foreign key, so a deleted tag
+    # leaves it here. A rule that only added this tag has nothing left to
+    # do, so it is turned off rather than matching documents for nothing.
+    def remove_from_rules
+      rules = Rule.where("? = ANY(tag_ids)", id)
+      rule_ids = rules.ids
+      rules.update_all([ "tag_ids = array_remove(tag_ids, ?::bigint)", id ])
+      Rule.where(id: rule_ids).without_action.update_all(enabled: false, updated_at: Time.current)
+    end
+
     def affected_document_ids
       taggings.pluck(:document_id)
     end

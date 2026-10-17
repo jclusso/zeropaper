@@ -48,6 +48,31 @@ class RuleTest < ActiveSupport::TestCase
     assert_equal [ { "field" => "filename", "operator" => "any", "value" => "tax" } ], rule.conditions
   end
 
+  test "deleting a tag removes it from the rules that add it" do
+    rule = Rule.create!(name: "Both", conditions: [ { field: "content", operator: "any", value: "tax" } ], tag_ids: [ tags(:taxes).id, tags(:utilities).id ])
+
+    tags(:taxes).destroy!
+
+    assert_equal [ tags(:utilities).id ], rule.reload.tag_ids
+    assert_empty rules(:taxes).reload.tag_ids
+    assert_equal [ tags(:utilities).id ], rules(:utilities).reload.tag_ids
+  end
+
+  test "a rule whose only action was the deleted tag is turned off, and one with more to do stays on" do
+    both = Rule.create!(name: "Both", conditions: [ { field: "content", operator: "any", value: "tax" } ], tag_ids: [ tags(:taxes).id, tags(:utilities).id ])
+    filed = Rule.create!(name: "Filed", conditions: [ { field: "content", operator: "any", value: "tax" } ], tag_ids: [ tags(:taxes).id ], mark_private: true)
+    assert rules(:taxes).enabled?
+
+    tags(:taxes).destroy!
+
+    refute rules(:taxes).reload.enabled?
+    refute rules(:taxes).action?
+    assert both.reload.enabled?
+    assert filed.reload.enabled?
+    assert rules(:utilities).reload.enabled?
+    refute_includes Rule.enabled, rules(:taxes)
+  end
+
   test "filing sets correspondent, type and tags, and respects manual edits" do
     rule = Rule.create!(name: "Chase", conditions: [ { field: "content", operator: "any", value: "chase" } ],
       correspondent: correspondents(:acme_power), document_type: document_types(:letter), tag_ids: [ tags(:taxes).id ])
