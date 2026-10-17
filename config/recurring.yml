@@ -1,9 +1,8 @@
 default: &default
   ingest_folder:
     class: IngestFolderJob
-    # Files wait 10 seconds to settle before import, so polling faster than
-    # this would not be noticed.
-    schedule: every 5 seconds
+    # Finished PDFs, images and Office files are imported on the next scan.
+    schedule: every second
   recover_stuck_documents:
     class: RecoverStuckDocumentsJob
     schedule: every 5 minutes
