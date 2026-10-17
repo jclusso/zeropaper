@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_17_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_17_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -135,6 +135,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_120000) do
     t.datetime "updated_at", null: false
     t.string "processing_run"
     t.bigint "ai_created_correspondent_id"
+    t.string "page_hashes", default: [], null: false, array: true
     t.index ["checksum"], name: "index_documents_on_checksum", unique: true
     t.index ["correspondent_id"], name: "index_documents_on_correspondent_id"
     t.index ["document_date"], name: "index_documents_on_document_date"
@@ -250,12 +251,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_120000) do
     t.boolean "ai_creates_tags", default: true, null: false
     t.boolean "backup_enabled", default: false, null: false
     t.string "backup_frequency", default: "daily", null: false
+    t.string "backup_key"
+    t.datetime "backup_key_downloaded_at"
     t.integer "backup_keep_daily", default: 7, null: false
     t.integer "backup_keep_weekly", default: 4, null: false
     t.integer "backup_keep_monthly", default: 12, null: false
     t.integer "backup_keep_yearly", default: 2, null: false
-    t.string "backup_key"
-    t.datetime "backup_key_downloaded_at"
     t.index ["extraction_provider_id"], name: "index_settings_on_extraction_provider_id"
     t.index ["research_provider_id"], name: "index_settings_on_research_provider_id"
     t.index ["vision_provider_id"], name: "index_settings_on_vision_provider_id"

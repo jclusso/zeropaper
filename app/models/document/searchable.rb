@@ -49,6 +49,32 @@ module Document::Searchable
     "#{"…" if start.positive?}#{excerpt}#{"…" if start + length < text.length}"
   end
 
+  # Blank pages are left out, so a copy whose blank backs were removed still
+  # matches the full scan.
+  def record_page_hashes!
+    hashes = pdf? && file.attached? ? with_file_copy { |path| PageHash.pdf_pages(path, skip: suggested_blank_pages) } : []
+    update_columns(page_hashes: hashes)
+  end
+
+  def flag_possible_duplicate
+    return :skipped if embedding.nil?
+
+    # Only the later of two copies is flagged, so reprocessing the original
+    # does not point it back at its copy.
+    nearest = Document.where.not(id: id).where.not(embedding: nil).where(created_at: ...created_at)
+      .nearest_neighbors(:embedding, embedding, distance: "cosine").first(DUPLICATE_CANDIDATES)
+      .find { |candidate| candidate.neighbor_distance < DUPLICATE_CANDIDATE_DISTANCE && copy_of?(candidate) }
+    if nearest
+      update_columns(duplicate_of_id: nearest.id)
+      add_review_reason!("possible_duplicate")
+      "Looks like “#{nearest.display_title}”"
+    else
+      update_columns(duplicate_of_id: nil)
+      review_resolved!("possible_duplicate")
+      "None found"
+    end
+  end
+
   private
     def rebuild_chunks
       pieces = chunk_pieces
@@ -102,30 +128,14 @@ module Document::Searchable
       norm.zero? ? sums : sums.map { |value| value / norm }
     end
 
-    def flag_possible_duplicate
-      return :skipped if embedding.nil?
-
-      # Only the later of two copies is flagged, so reprocessing the original
-      # does not point it back at its copy.
-      nearest = Document.where.not(id: id).where.not(embedding: nil).where(created_at: ...created_at)
-        .nearest_neighbors(:embedding, embedding, distance: "cosine").first(DUPLICATE_CANDIDATES)
-        .find { |candidate| candidate.neighbor_distance < DUPLICATE_CANDIDATE_DISTANCE && duplicate_text?(candidate) }
-      if nearest
-        update_columns(duplicate_of_id: nearest.id)
-        add_review_reason!("possible_duplicate")
-        "Looks like “#{nearest.display_title}”"
-      else
-        update_columns(duplicate_of_id: nil)
-        review_resolved!("possible_duplicate")
-        "None found"
-      end
-    end
-
-    def duplicate_text?(candidate)
+    # OCR can read two scans of one sheet differently enough to fail the text
+    # check, so pages that look the same with the same numbers count too.
+    def copy_of?(candidate)
       if content.blank? || candidate.content.blank?
         candidate.neighbor_distance < DUPLICATE_DISTANCE
       else
-        TextOverlap.new(content, candidate.content).duplicate?
+        overlap = TextOverlap.new(content, candidate.content)
+        overlap.duplicate? || (overlap.same_numbers? && PageHash.same_pages?(page_hashes, candidate.page_hashes))
       end
     end
 end

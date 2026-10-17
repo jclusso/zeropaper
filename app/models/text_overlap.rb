@@ -24,13 +24,19 @@ class TextOverlap
   end
 
   def duplicate?
-    return false if text_score < DUPLICATE_TEXT
+    text_score >= DUPLICATE_TEXT && (few_numbers? || same_numbers?)
+  end
 
-    few_numbers = number_sets.any? { |set| set.size < MIN_NUMBERS }
-    few_numbers || number_score >= DUPLICATE_NUMBERS
+  # Enough numbers on both sides to tell documents apart, and mostly the same.
+  def same_numbers?
+    !few_numbers? && number_score >= DUPLICATE_NUMBERS
   end
 
   private
+    def few_numbers?
+      number_sets.any? { |set| set.size < MIN_NUMBERS }
+    end
+
     def shingles(text)
       words = text.downcase.scan(/[[:alnum:]]+/)
       return words.to_set if words.size < SHINGLE_SIZE
