@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 # Gives a git worktree its own development setup, copied from the main checkout:
-# the master key, the downloaded models, the stored files and a migrated copy of
+# the development secret key, the downloaded models, the stored files and a migrated copy of
 # the development database. bin/dev and bin/setup run `bin/worktree setup`, so a
 # new worktree only needs `bin/dev`.
 #
@@ -85,7 +85,8 @@ end
 def setup(replace: false)
   return unless WORKTREE
 
-  link "config/master.key"
+  # The copied database is encrypted with keys derived from this secret.
+  link "tmp/local_secret.txt"
   link "storage/models"
   copy "storage/files", replace: replace
   copy "storage/private", replace: replace

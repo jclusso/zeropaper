@@ -199,7 +199,7 @@ bin/rails test
 
 ### Worktrees
 
-A git worktree gets its own databases, named after its folder, so worktrees never share data with each other or the main checkout. `bin/dev` sets a new worktree up on its first run: it links `config/master.key` and `storage/models` from the main checkout, copies the stored files, copies the main checkout's development database and runs this branch's migrations. Each worktree is served on its own port at `http://<folder>.localhost`, so its session cookie stays separate. `bin/dev` prints the address when it starts.
+A git worktree gets its own databases, named after its folder, so worktrees never share data with each other or the main checkout. `bin/dev` sets a new worktree up on its first run: it links `tmp/local_secret.txt` and `storage/models` from the main checkout, copies the stored files, copies the main checkout's development database and runs this branch's migrations. Each worktree is served on its own port at `http://<folder>.localhost`, so its session cookie stays separate. `bin/dev` prints the address when it starts.
 
 ```sh
 bin/worktree reset   # copy the main checkout's database and files again
