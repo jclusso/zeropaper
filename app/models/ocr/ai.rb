@@ -5,6 +5,15 @@ module Ocr
   class AI
     PAGE_MARKER = /^=== PAGE (\d+) ===\s*$/
     FENCE = /\A\s*```[\w-]*[ \t]*\n?|\n?```\s*\z/
+    # Pages take about ten seconds each to read, so a request gets three times
+    # that before it counts as stalled, never less than Outbound's default.
+    # Whole minutes keep the number of distinct timeouts, and so of cached
+    # connections, small.
+    TIMEOUT_PER_PAGE = 30.seconds
+
+    def self.timeout_for(pages)
+      ([ Outbound::REQUEST_TIMEOUT, TIMEOUT_PER_PAGE * pages ].max.to_i / 60.0).ceil.minutes
+    end
 
     # Chat models sometimes wrap their answer, or each page, in a Markdown
     # code block even when told not to.
@@ -21,11 +30,11 @@ module Ocr
       outbound = Outbound.for(@document)
       Ocr.with_selected_pages(path, pages, content_type) do |file_path, numbers|
         if @settings.provider_for(:vision).ocr_model?(@settings.model_for(:vision))
-          result = outbound.ocr(file_path)
+          result = outbound.ocr(file_path, timeout: self.class.timeout_for(numbers.size))
           next Result.new(pages: result.pages.to_h { |page| [ numbers.fetch(page.index), page.markdown.to_s ] })
         end
 
-        response = outbound.chat(:vision)
+        response = outbound.chat(:vision, timeout: self.class.timeout_for(numbers.size))
           .with_instructions(instructions)
           .ask("Transcribe all #{numbers.size} #{"page".pluralize(numbers.size)}.", with: file_path)
         Result.new(pages: split(response.content.to_s, numbers))

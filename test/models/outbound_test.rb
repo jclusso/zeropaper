@@ -82,6 +82,40 @@ class OutboundTest < ActiveSupport::TestCase
     assert_requested :post, RESPONSES, times: 2
   end
 
+  test "requests time out after two minutes unless given longer" do
+    document = ingest("public", filename: "public.txt")
+
+    assert_equal 120, Outbound.for(document).chat(:extraction).provider.connection.config.request_timeout
+    assert_equal 600, Outbound.for(document).chat(:vision, timeout: 10.minutes).provider.connection.config.request_timeout
+  end
+
+  test "a timed out request is retried and the retry is logged" do
+    document = ingest("public", filename: "public.txt")
+    stub_request(:post, RESPONSES).to_timeout.then.to_return(status: 200, body: response_body("Done."), headers: { "Content-Type" => "application/json" })
+    logged = StringIO.new
+    Rails.stubs(:logger).returns(ActiveSupport::Logger.new(logged))
+
+    response = Outbound.for(document).chat(:extraction).ask("Summarize it")
+
+    assert_equal "Done.", response.content
+    assert_requested :post, RESPONSES, times: 2
+    assert_match(/\[outbound\] extraction request retried \(attempt 2\) after the last one ran \d+\.\ds/, logged.string)
+  end
+
+  test "the next turn of a chat is not logged as a retry" do
+    document = ingest("public", filename: "public.txt")
+    stub_request(:post, RESPONSES).to_return(status: 200, body: response_body("Done."), headers: { "Content-Type" => "application/json" })
+    logged = StringIO.new
+    Rails.stubs(:logger).returns(ActiveSupport::Logger.new(logged))
+
+    chat = Outbound.for(document).chat(:extraction)
+    chat.ask("Summarize it")
+    chat.ask("Shorter")
+
+    assert_requested :post, RESPONSES, times: 2
+    refute_match "retried", logged.string
+  end
+
   test "a chat checks documents released after it was built" do
     document = ingest("public", filename: "public.txt")
     outbound = Outbound.without_documents

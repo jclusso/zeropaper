@@ -86,23 +86,25 @@ class AIProvider < ApplicationRecord
     kind == "openai_compatible" ? :openai : kind.to_sym
   end
 
-  # A RubyLLM context holding only this provider's credentials.
-  def context
+  # A RubyLLM context holding only this provider's credentials, and the
+  # request timeout when one is given.
+  def context(timeout: nil)
     RubyLLM.context do |config|
       config.public_send("#{ruby_llm_provider}_api_key=", api_key) if api_key.present? || ruby_llm_provider != :ollama
       config.public_send("#{ruby_llm_provider}_api_base=", api_base) if api_base
+      config.request_timeout = timeout.to_i if timeout
     end
   end
 
-  def chat(model:)
-    context.chat(model: model, provider: ruby_llm_provider, assume_model_exists: !registry_knows?(model))
+  def chat(model:, timeout: nil)
+    context(timeout: timeout).chat(model: model, provider: ruby_llm_provider, assume_model_exists: !registry_knows?(model))
   end
 
   # Builds the RubyLLM provider for this one call and yields it before the
   # file is sent, so Outbound can check every request it makes. Needs the
   # block, so a call that skips the check fails before anything is sent.
-  def ocr(path, model:)
-    model, provider = RubyLLM::Models.resolve(model, provider: ruby_llm_provider, assume_model_exists: !registry_knows?(model), config: context.config)
+  def ocr(path, model:, timeout: nil)
+    model, provider = RubyLLM::Models.resolve(model, provider: ruby_llm_provider, assume_model_exists: !registry_knows?(model), config: context(timeout: timeout).config)
     yield provider
     provider.ocr(path, model: model)
   end
