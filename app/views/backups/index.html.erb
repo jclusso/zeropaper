@@ -1,7 +1,5 @@
 <% content_for :title, "Backups" %>
-<% if @unfinished.any? { |backup| backup.status.in?(%w[pending processing]) } || @restores.any? { |restore| restore.status.in?(%w[pending processing]) } %>
-  <meta data-controller="refresh" data-refresh-interval-value="3000">
-<% end %>
+<%= turbo_stream_from Backup::STREAM %>
 <div class="space-y-6">
   <%= page_header "Backups", "Each backup holds the whole library, private documents included, encrypted with the backup key." %>
 
@@ -20,12 +18,12 @@
       <%= button_to "Back up now", backups_path, class: "btn-primary", form: { class: "shrink-0" } %>
     </div>
 
-    <% if @files.any? || @unfinished.any? %>
+    <% if @backups.any? || @unfinished.any? %>
       <table class="table">
         <thead><tr><th>Made</th><th class="hidden md:table-cell">Contents</th><th class="hidden sm:table-cell">Size</th><th></th></tr></thead>
         <tbody>
           <%= render partial: "backups/unfinished", collection: @unfinished, as: :backup %>
-          <%= render partial: "backups/file", collection: @files %>
+          <%= render @backups %>
         </tbody>
       </table>
     <% else %>

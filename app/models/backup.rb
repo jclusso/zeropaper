@@ -5,7 +5,11 @@
 # wherever they want them kept, such as a NAS share. Each is a zip encrypted
 # with the backup key (see Backup::Envelope and Backup::Key), so a backup and
 # that key are enough to restore after the server and its database are gone.
-# A Backup record tracks one run; the folder is the list of backups.
+#
+# A Backup record tracks a run and then the file it made, or a file uploaded
+# or found in the folder. A ready record is a file in the folder, and the
+# Backups page lists records, not the folder. Files deleted or copied in by
+# hand outside ZeroPaper are matched up by sync, which runs every hour.
 class Backup < ApplicationRecord
   include RunsAlone
 
@@ -21,20 +25,24 @@ class Backup < ApplicationRecord
   FILENAME = /\Azeropaper-\d{4}-\d{2}-\d{2}-\d{6}(-uploaded)?\.zpbackup\z/
   MADE_HERE = /\Azeropaper-(\d{4}-\d{2}-\d{2}-\d{6})\.zpbackup\z/
   ZIP_SIGNATURE = "PK\x03\x04".b.freeze
-
-  # What the folder listing shows for a backup. Without a key id the file
-  # could not be read.
-  Summary = Data.define(:made_at, :size, :key_id, :own_key, :made_by, :documents_count, :private_documents_count) do
-    def readable? = key_id.present?
-  end
+  # Open Backups pages refresh on this stream whenever a backup or restore
+  # changes.
+  STREAM = :backups
 
   belongs_to :user, optional: true
 
   validates :status, inclusion: { in: STATUSES }
 
   scope :recent, -> { order(created_at: :desc) }
+  scope :stored, -> { where(status: "ready") }
+
+  after_commit -> { self.class.broadcast_changes }
 
   class << self
+    def broadcast_changes
+      Turbo::StreamsChannel.broadcast_refresh_later_to STREAM
+    end
+
     def folder
       Pathname(Rails.configuration.x.backup_dir)
     end
@@ -48,13 +56,23 @@ class Backup < ApplicationRecord
       folder.children.select { |path| path.basename.to_s.match?(FILENAME) && !path.symlink? && path.file? && openable?(path) }.sort.reverse
     end
 
-    def file(name)
-      files.find { |path| path.basename.to_s == name.to_s }
-    end
+    # Matches the records to the folder: records whose file is gone are
+    # removed, files without a record get one, and records missing their
+    # details, such as ones from before the details were kept, are filled in.
+    def sync
+      present = files.index_by { |path| path.basename.to_s }
+      stored.where.not(filename: present.keys).destroy_all
+      known = stored.where(filename: present.keys).index_by(&:filename)
 
-    # A backup by its name without the extension, as it appears in URLs.
-    def file_for(id)
-      file("#{id}#{EXTENSION}")
+      present.each do |name, path|
+        if (backup = known[name])
+          backup.update!(details(path)) unless backup.made_at
+        else
+          create!(status: "ready", filename: name, **details(path))
+        end
+      rescue ActiveRecord::RecordNotUnique
+        # Recorded by a run or upload that finished meanwhile.
+      end
     end
 
     def file_name(time = Time.current, uploaded: false)
@@ -86,8 +104,10 @@ class Backup < ApplicationRecord
     end
 
     # Backups still running, and failures since the last one that worked.
+    # Backups are dated by when they were made, since a file recorded by sync
+    # gets its record long after.
     def unfinished
-      last_ready = where(status: "ready").maximum(:created_at)
+      last_ready = stored.where(uploaded: false).maximum(:made_at)
       runs = recent.where.not(status: "ready")
       last_ready ? runs.where(created_at: last_ready..) : runs.limit(5)
     end
@@ -99,7 +119,7 @@ class Backup < ApplicationRecord
       setting = Setting.instance
       return unless setting.backup_enabled?
 
-      last = where.not(status: "failed").maximum(:created_at)
+      last = where(uploaded: false).where.not(status: "failed").maximum(Arel.sql("COALESCE(made_at, created_at)"))
       return if last && last > (setting.backup_interval - 30.minutes).ago
 
       create!.tap do |backup|
@@ -108,22 +128,26 @@ class Backup < ApplicationRecord
       end
     end
 
-    # What a backup says about itself. Its date and key show without the key;
-    # the rest needs this ZeroPaper's key and is cached until the file
-    # changes. A file that cannot be read, whatever is wrong with it, is
-    # listed as unreadable rather than taking the page down.
-    def summary(path)
+    # What a backup file says about itself, kept on its record. Its date and
+    # key read without the key; the rest needs this ZeroPaper's key. A file
+    # that cannot be read, whatever is wrong with it, is kept without a key
+    # id and listed as unreadable.
+    def details(path)
+      name = path.basename.to_s
       stat = File.lstat(path)
       envelope = Backup::Envelope.new(path.to_s)
       key = Setting.instance.backup_key_bytes
-      own_key = envelope.key_id == Backup::Key.id(key)
-      metadata = own_key ? Rails.cache.fetch([ "backup-summary", path.to_s, stat.mtime.to_i, stat.size ]) { envelope.metadata(key) } : {}
+      metadata = envelope.key_id == Backup::Key.id(key) ? envelope.metadata(key) : {}
       metadata = {} unless metadata.is_a?(Hash)
-      Summary.new(made_at: envelope.made_at, size: stat.size, key_id: envelope.key_id, own_key: own_key, made_by: metadata["made_by"],
-                  documents_count: metadata["documents_count"], private_documents_count: metadata["private_documents_count"])
+      { made_at: envelope.made_at, size: stat.size, key_id: envelope.key_id, uploaded: !name.match?(MADE_HERE), made_by: metadata["made_by"],
+        documents_count: metadata["documents_count"], private_documents_count: metadata["private_documents_count"] }
     rescue StandardError => error
-      Rails.logger.warn("Backup #{File.basename(path)} cannot be read: #{error.class}")
-      Summary.new(made_at: stat&.mtime, size: stat&.size, key_id: nil, own_key: false, made_by: nil, documents_count: nil, private_documents_count: nil)
+      Rails.logger.warn("Backup #{name} cannot be read: #{error.class}")
+      { made_at: stat&.mtime, size: stat&.size, key_id: nil, uploaded: !name.match?(MADE_HERE), made_by: nil, documents_count: nil, private_documents_count: nil }
+    end
+
+    def own_key_id
+      Backup::Key.id(Setting.instance.backup_key_bytes)
     end
 
     # Adds an uploaded backup to the folder, named for when it was made so it
@@ -132,7 +156,7 @@ class Backup < ApplicationRecord
     # it was made with this ZeroPaper's key; the restore checks the rest. A
     # plain zip, such as an export from an older ZeroPaper, is checked and
     # encrypted with this ZeroPaper's key. A date in the future, which
-    # nothing vouches for, becomes now.
+    # nothing vouches for, becomes now. Returns the new record.
     def import(path)
       if File.size(path) > UploadLimit.max_backup_bytes
         raise Archive::Reader::TooLarge, "That file is larger than the #{UploadLimit.max_backup_bytes.to_fs(:human_size)} backup limit (MAX_BACKUP_GB)."
@@ -156,7 +180,7 @@ class Backup < ApplicationRecord
       else
         raise Archive::Reader::InvalidArchive, "That file is not a ZeroPaper backup."
       end
-      folder.join(name)
+      create!(status: "ready", filename: name, **details(folder.join(name)))
     end
 
     # Decrypts a backup into a zip in a scratch folder for the block. The
@@ -177,20 +201,15 @@ class Backup < ApplicationRecord
     # another key and ones dated in the future are left alone.
     def prune
       setting = Setting.instance
-      key_id = Backup::Key.id(setting.backup_key_bytes)
-      backups = files.filter_map do |path|
-        stamp = path.basename.to_s[MADE_HERE, 1] or next
-        made_at = Time.zone.strptime(stamp, "%Y-%m-%d-%H%M%S")
-        [ path, made_at ] if made_at <= Time.current && own_key?(path, key_id)
-      end.to_h
+      backups = stored.where(uploaded: false, key_id: own_key_id, made_at: ..Time.current).order(made_at: :desc).to_a
       return if backups.empty?
 
-      kept = Set[backups.keys.first]
+      kept = Set[backups.first]
       RETENTION.each do |period, format|
-        newest_per_period = backups.uniq { |_path, made_at| made_at.strftime(format) }
-        kept.merge(newest_per_period.first(setting.public_send("backup_keep_#{period}")).map(&:first))
+        newest_per_period = backups.uniq { |backup| backup.made_at.strftime(format) }
+        kept.merge(newest_per_period.first(setting.public_send("backup_keep_#{period}")))
       end
-      backups.each_key { |path| path.delete unless kept.include?(path) }
+      (backups - kept.to_a).each(&:remove!)
     end
 
     def seal(zip, name, made_at:, metadata:)
@@ -209,7 +228,8 @@ class Backup < ApplicationRecord
       end
 
       def new_file_name(made_at)
-        if [ file_name(made_at), file_name(made_at, uploaded: true) ].any? { |name| folder.join(name).exist? }
+        names = [ file_name(made_at), file_name(made_at, uploaded: true) ]
+        if names.any? { |name| folder.join(name).exist? } || stored.exists?(filename: names)
           raise Archive::Reader::InvalidArchive, "The backup from #{made_at.to_fs(:long)} is already in the folder."
         end
 
@@ -223,12 +243,6 @@ class Backup < ApplicationRecord
         time <= Time.current ? time : Time.current
       rescue ArgumentError
         Time.current
-      end
-
-      def own_key?(path, key_id)
-        Backup::Envelope.new(path.to_s).key_id == key_id
-      rescue Archive::Reader::InvalidArchive, SystemCallError
-        false
       end
 
       # Writes under a hidden name, reads it back to check every chunk when
@@ -257,6 +271,22 @@ class Backup < ApplicationRecord
     BackupJob.perform_later(self)
   end
 
+  # The file, while it is still a regular file in the folder.
+  def path
+    path = self.class.folder.join(filename) if filename&.match?(FILENAME)
+    path if path&.file? && !path.symlink?
+  end
+
+  def readable? = key_id.present?
+
+  def own_key? = readable? && key_id == self.class.own_key_id
+
+  # Deletes the file and forgets it.
+  def remove!
+    path&.delete
+    destroy!
+  end
+
   # Writes the zip to a scratch folder, checks it the way a restore reads
   # it, then encrypts it into the backup folder. The plain zip never reaches
   # the backup folder. A backup runs once, however often its job does.
@@ -273,7 +303,7 @@ class Backup < ApplicationRecord
         reader.verify!
         manifest = reader.manifest
         self.class.seal(zip, name, made_at: created_at, metadata: manifest.slice("made_by", "documents_count", "private_documents_count"))
-        update!(status: "ready", filename: name, documents_count: manifest["documents_count"])
+        update!(status: "ready", filename: name, **self.class.details(self.class.folder.join(name)).merge(made_at: created_at))
       end
     end
   rescue ActiveRecord::Encryption::Errors::Decryption

@@ -88,7 +88,7 @@ class ArchiveTest < ActiveSupport::TestCase
     Tag.destroy_all
 
     # Seal the zip again with one file changed, so every CRC and tag is right.
-    path = Backup.file(backup.filename)
+    path = backup.path
     entries = Backup.open_zip(path, Setting.instance.backup_key_bytes) do |zip|
       Zip::File.open(zip) { |archive| archive.entries.select(&:file?).to_h { |entry| [ entry.name, entry.get_input_stream.read ] } }
     end
@@ -296,7 +296,7 @@ class ArchiveTest < ActiveSupport::TestCase
     name = put_sealed(zip)
 
     error = assert_raises(Archive::Reader::InvalidArchive) do
-      Backup.open_zip(Backup.file(name), Setting.instance.backup_key_bytes) { |path| Archive::Reader.new(path).verify! }
+      Backup.open_zip(Pathname(@backup_dir).join(name), Setting.instance.backup_key_bytes) { |path| Archive::Reader.new(path).verify! }
     end
     assert_equal "documents/2/archive.pdf is damaged.", error.message
 
@@ -343,6 +343,12 @@ class ArchiveTest < ActiveSupport::TestCase
         "documents/1/content.txt" => data,
         "documents/1/file/#{filename}" => data
       }
+    end
+
+    # Restores find backups by their records, so files put in the folder here
+    # are recorded as the hourly sync would.
+    def put_sealed(...)
+      super.tap { Backup.sync }
     end
 
     def restore!(name)
