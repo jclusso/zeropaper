@@ -1,3 +1,5 @@
 <p class="mt-1 text-sm muted">Email is not set up on this server, so a reset link cannot be sent. Ask an admin to make one for you by running this on the server:</p>
 <pre class="mt-4 overflow-x-auto rounded-lg border border-border bg-muted px-3 py-2 font-mono text-xs whitespace-pre-wrap break-all"><code>bin/rails users:reset_password EMAIL=you@example.com</code></pre>
-<p class="mt-3 text-sm muted">With Docker, run it inside the app container: <code class="font-mono text-xs">docker compose exec app bin/rails users:reset_password EMAIL=you@example.com</code>. It prints a link that works once and expires like an emailed one.</p>
+<p class="mt-3 text-sm muted">With Docker, run it inside the app container:</p>
+<pre class="mt-4 overflow-x-auto rounded-lg border border-border bg-muted px-3 py-2 font-mono text-xs whitespace-pre-wrap break-all"><code>docker compose exec app bin/rails users:reset_password EMAIL=you@example.com</code></pre>
+<p class="mt-3 text-sm muted">It prints a link that works once and expires like an emailed one.</p>

@@ -19,12 +19,11 @@
       <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username webauthn", value: params[:email_address], placeholder: "you@example.com", class: "input" %>
     </div>
     <div>
-      <div class="flex items-center justify-between">
-        <%= form.label :password, class: "label" %>
-        <%= link_to "Forgot password?", new_password_path, class: "text-xs link mb-1.5" %>
-      </div>
+      <%= form.label :password, class: "label" %>
       <%= form.password_field :password, required: true, autocomplete: "current-password", maxlength: 72, placeholder: "your password", class: "input" %>
     </div>
     <%= form.submit "Sign in", class: "btn-primary w-full" %>
   <% end %>
+
+  <p class="mt-4 text-center text-sm"><%= link_to "Forgot password?", new_password_path, class: "link" %></p>
 </div>
