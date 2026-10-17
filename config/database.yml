@@ -1,3 +1,7 @@
+# A git worktree gets its own databases, named after its folder. bin/worktree
+# copies the main checkout's development database into it.
+<% worktree = Rails.root.join(".git").file? ? "_#{Rails.root.basename.to_s.gsub(/\W/, "_")[0, 30]}" : "" %>
+
 default: &default
   adapter: postgresql
   encoding: unicode
@@ -6,11 +10,11 @@ default: &default
 
 development:
   <<: *default
-  database: zeropaper_development
+  database: zeropaper_development<%= worktree %>
 
 test:
   <<: *default
-  database: zeropaper_test
+  database: zeropaper_test<%= worktree %>
 
 production:
   <<: *default
