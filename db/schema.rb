@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_17_160000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_17_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -67,6 +67,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_160000) do
     t.string "made_by"
     t.integer "private_documents_count"
     t.boolean "uploaded", default: false, null: false
+    t.datetime "missing_at"
     t.index ["filename"], name: "index_backups_on_filename", unique: true, where: "((status)::text = 'ready'::text)"
     t.index ["user_id"], name: "index_backups_on_user_id"
   end

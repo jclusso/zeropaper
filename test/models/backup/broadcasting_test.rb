@@ -13,17 +13,15 @@ class Backup::BroadcastingTest < ActiveSupport::TestCase
     assert_equal "ready", backup.status, backup.error
   end
 
-  test "uploading, syncing and removing backups refreshes open Backups pages" do
-    assert refreshes { upload_file(build_zip) { |path| Backup.import(path) } }
+  test "uploading, losing and removing backups refreshes open Backups pages" do
+    backup = nil
+    assert refreshes { backup = upload_file(build_zip) { |path| Backup.import(path) } }
 
-    name = put_sealed(build_zip, made_at: 1.day.ago)
-    assert refreshes { Backup.sync }
-    refute refreshes { Backup.sync }
+    File.delete(backup.path)
+    assert refreshes { backup.find_file }
+    refute refreshes { backup.find_file }
 
-    File.delete(File.join(@backup_dir, name))
-    assert refreshes { Backup.sync }
-
-    assert refreshes { Backup.stored.sole.remove! }
+    assert refreshes { backup.remove! }
   end
 
   test "a restore refreshes open Backups pages" do

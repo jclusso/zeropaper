@@ -44,7 +44,7 @@ class BackupTest < ActiveSupport::TestCase
     (0...60).each { |days| put_sealed(zip, made_at: today - days.days) }
     %w[2025-06-01 2024-03-01 2023-01-01].each { |day| put_sealed(zip, made_at: Time.zone.parse("#{day} 03:00:00")) }
     put_backup("mine", "notes.zpbackup")
-    Backup.sync
+    Backup.record_existing_files
 
     Backup.prune
 
@@ -60,29 +60,86 @@ class BackupTest < ActiveSupport::TestCase
   test "the newest backup is kept even when nothing else is" do
     Setting.instance.update!(backup_keep_daily: 0, backup_keep_weekly: 0, backup_keep_monthly: 0, backup_keep_yearly: 0)
     %w[2026-01-01 2026-01-02].each { |day| put_sealed(build_zip, made_at: Time.zone.parse("#{day} 03:00:00")) }
-    Backup.sync
+    Backup.record_existing_files
 
     Backup.prune
 
     assert_equal [ "zeropaper-2026-01-02-030000.zpbackup" ], Backup.files.map { |path| path.basename.to_s }
   end
 
-  test "sync records files added by hand, forgets files deleted by hand and fills in missing details" do
-    added = put_sealed(build_zip, made_at: Time.zone.parse("2026-01-01 03:00:00"))
-    deleted = put_sealed(build_zip, made_at: Time.zone.parse("2026-01-02 03:00:00"))
-    Backup.sync
-    assert_equal [ added, deleted ].sort, Backup.stored.pluck(:filename).sort
+  test "existing files are recorded once, with their details, and records are never removed" do
+    name = put_sealed(build_zip, made_at: Time.zone.parse("2026-01-01 03:00:00"))
 
-    File.delete(File.join(@backup_dir, deleted))
-    Backup.stored.find_by!(filename: added).update_columns(made_at: nil, size: nil)
-    Backup.sync
+    assert_equal 1, Backup.record_existing_files
+    assert_equal 0, Backup.record_existing_files
 
     backup = Backup.stored.sole
-    assert_equal added, backup.filename
+    assert_equal name, backup.filename
     assert_equal Time.zone.parse("2026-01-01 03:00:00"), backup.made_at
-    assert_equal File.size(File.join(@backup_dir, added)), backup.size
+    assert_equal File.size(File.join(@backup_dir, name)), backup.size
     refute backup.uploaded
     assert backup.own_key?
+
+    File.delete(File.join(@backup_dir, name))
+    Backup.record_existing_files
+    assert_equal [ backup ], Backup.stored.to_a
+  end
+
+  test "a file gone from the folder marks its backup missing until it is back" do
+    name = put_sealed(build_zip)
+    Backup.record_existing_files
+    backup = Backup.stored.sole
+    bytes = File.binread(File.join(@backup_dir, name))
+    File.delete(File.join(@backup_dir, name))
+
+    assert_nil backup.find_file
+    assert backup.missing?
+
+    File.binwrite(File.join(@backup_dir, name), bytes)
+    assert backup.find_file
+    refute backup.missing?
+  end
+
+  test "nothing is marked missing, pruned, removed or recorded while the folder cannot be reached" do
+    Setting.instance.update!(backup_keep_daily: 0, backup_keep_weekly: 0, backup_keep_monthly: 0, backup_keep_yearly: 0)
+    %w[2026-01-01 2026-01-02].each { |day| put_sealed(build_zip, made_at: Time.zone.parse("#{day} 03:00:00")) }
+    Backup.record_existing_files
+    unmounted
+
+    Backup.prune
+    assert_nil Backup.stored.first.find_file
+    assert_raises(Backup::Unreachable) { Backup.stored.first.remove! }
+    assert_raises(Backup::Unreachable) { Backup.record_existing_files }
+
+    assert_equal 2, Backup.stored.count
+    assert_empty Backup.stored.where.not(missing_at: nil)
+  ensure
+    mounted
+  end
+
+  test "pruning leaves missing backups alone" do
+    Setting.instance.update!(backup_keep_daily: 0, backup_keep_weekly: 0, backup_keep_monthly: 0, backup_keep_yearly: 0)
+    names = %w[2026-01-01 2026-01-02 2026-01-03].map { |day| put_sealed(build_zip, made_at: Time.zone.parse("#{day} 03:00:00")) }
+    Backup.record_existing_files
+    File.delete(File.join(@backup_dir, names.first))
+
+    Backup.prune
+
+    assert_equal [ names.first, names.last ], Backup.stored.order(:made_at).pluck(:filename)
+    assert Backup.stored.find_by!(filename: names.first).missing?
+    assert_equal [ names.last ], Dir.children(@backup_dir)
+  end
+
+  test "a backup says when its folder cannot be reached" do
+    unmounted
+    backup = Backup.create!
+
+    backup.process!
+
+    assert_equal "failed", backup.status
+    assert_equal "The backup folder #{@backup_dir} cannot be reached. Check that the share it is on is mounted.", backup.error
+  ensure
+    mounted
   end
 
   test "removing a backup deletes its file and its record" do
@@ -118,7 +175,7 @@ class BackupTest < ActiveSupport::TestCase
     future = put_backup("x", "zeropaper-2099-01-01-030000.zpbackup")
     old = put_sealed(zip, made_at: Time.zone.parse("2026-10-14 03:00:00"))
     newest = put_sealed(zip, made_at: Time.zone.parse("2026-10-15 03:00:00"))
-    Backup.sync
+    Backup.record_existing_files
 
     Backup.prune
 
@@ -132,7 +189,7 @@ class BackupTest < ActiveSupport::TestCase
     File.symlink(target, File.join(@backup_dir, "zeropaper-2026-01-01-030000.zpbackup"))
     Setting.instance.update!(backup_keep_daily: 1, backup_keep_weekly: 0, backup_keep_monthly: 0, backup_keep_yearly: 0)
     put_sealed(build_zip, made_at: Time.zone.parse("2026-01-02 03:00:00"))
-    Backup.sync
+    Backup.record_existing_files
 
     Backup.prune
 
@@ -225,7 +282,7 @@ class BackupTest < ActiveSupport::TestCase
   test "the schedule backs up when the last backup is older than the interval and prunes" do
     Setting.instance.update!(backup_enabled: true, backup_frequency: "daily", backup_keep_daily: 1, backup_keep_weekly: 0, backup_keep_monthly: 0, backup_keep_yearly: 0)
     put_sealed(build_zip, made_at: Time.zone.parse("2026-01-01 03:00:00"))
-    Backup.sync
+    Backup.record_existing_files
 
     first = Backup.run_scheduled
     assert_equal "ready", first.status, first.error
@@ -346,7 +403,7 @@ class BackupTest < ActiveSupport::TestCase
       bytes = Backup::Envelope::MAGIC + [ header.bytesize ].pack("N") + header
       path = Pathname(File.join(@backup_dir, put_backup(bytes, "zeropaper-2026-01-01-030000.zpbackup")))
 
-      Backup.sync
+      Backup.record_existing_files
       refute Backup.stored.sole.readable?, header
       assert_raises(Archive::Reader::InvalidArchive, header) { upload_file(bytes) { |upload| Backup.import(upload) } }
       Backup.stored.sole.remove!
@@ -358,7 +415,7 @@ class BackupTest < ActiveSupport::TestCase
     path = Pathname(@backup_dir).join(put_sealed(build_zip))
     Backup::Envelope.any_instance.stubs(:metadata).raises(TypeError, "no implicit conversion")
 
-    Backup.sync
+    Backup.record_existing_files
 
     backup = Backup.stored.sole
     refute backup.readable?

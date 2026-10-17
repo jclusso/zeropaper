@@ -136,11 +136,11 @@ class ArchiveTest < ActiveSupport::TestCase
     assert_nil restore.reload.key
   end
 
-  test "only backups in the folder can be restored" do
+  test "only listed backups can be restored" do
     restore = Restore.new(user: users(:one), filename: "zeropaper-2026-01-01-030000.zpbackup")
 
     refute restore.save
-    assert_includes restore.errors[:filename], "is not a backup in the backup folder"
+    assert_includes restore.errors[:filename], "is not a listed backup"
   end
 
   test "an older export's private correspondent comes back as a rule" do
@@ -346,9 +346,9 @@ class ArchiveTest < ActiveSupport::TestCase
     end
 
     # Restores find backups by their records, so files put in the folder here
-    # are recorded as the hourly sync would.
+    # are recorded.
     def put_sealed(...)
-      super.tap { Backup.sync }
+      super.tap { Backup.record_existing_files }
     end
 
     def restore!(name)

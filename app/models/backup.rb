@@ -6,12 +6,16 @@
 # with the backup key (see Backup::Envelope and Backup::Key), so a backup and
 # that key are enough to restore after the server and its database are gone.
 #
-# A Backup record tracks a run and then the file it made, or a file uploaded
-# or found in the folder. A ready record is a file in the folder, and the
-# Backups page lists records, not the folder. Files deleted or copied in by
-# hand outside ZeroPaper are matched up by sync, which runs every hour.
+# A Backup record tracks a run and then the file it made, or an uploaded
+# file. The records are the list of backups: only ZeroPaper adds or removes
+# them, and the folder is never read to decide what exists. A file gone from
+# a folder that can be reached marks its backup missing instead of removing
+# it, and nothing is pruned or deleted while the folder cannot be reached,
+# such as when the share it is on is not mounted.
 class Backup < ApplicationRecord
   include RunsAlone
+
+  class Unreachable < StandardError; end
 
   STATUSES = %w[pending processing ready failed].freeze
   FREQUENCIES = { "daily" => 1.day, "weekly" => 1.week }.freeze
@@ -56,22 +60,24 @@ class Backup < ApplicationRecord
       folder.children.select { |path| path.basename.to_s.match?(FILENAME) && !path.symlink? && path.file? && openable?(path) }.sort.reverse
     end
 
-    # Matches the records to the folder: records whose file is gone are
-    # removed, files without a record get one, and records missing their
-    # details, such as ones from before the details were kept, are filled in.
-    def sync
-      present = files.index_by { |path| path.basename.to_s }
-      stored.where.not(filename: present.keys).destroy_all
-      known = stored.where(filename: present.keys).index_by(&:filename)
+    def reachable?
+      folder.directory? && folder.readable?
+    end
 
-      present.each do |name, path|
-        if (backup = known[name])
-          backup.update!(details(path)) unless backup.made_at
-        else
-          create!(status: "ready", filename: name, **details(path))
-        end
-      rescue ActiveRecord::RecordNotUnique
-        # Recorded by a run or upload that finished meanwhile.
+    def unreachable_message
+      "The backup folder #{folder} cannot be reached. Check that the share it is on is mounted."
+    end
+
+    # Adds records for backup files in the folder that have none, such as
+    # ones from before backups were recorded. Run by hand with
+    # bin/rails backups:record_existing_files; it never removes a record.
+    # Returns how many were added.
+    def record_existing_files
+      raise Unreachable, unreachable_message unless reachable?
+
+      known = stored.pluck(:filename).to_set
+      files.reject { |path| known.include?(path.basename.to_s) }.count do |path|
+        create!(status: "ready", filename: path.basename.to_s, **details(path))
       end
     end
 
@@ -104,8 +110,8 @@ class Backup < ApplicationRecord
     end
 
     # Backups still running, and failures since the last one that worked.
-    # Backups are dated by when they were made, since a file recorded by sync
-    # gets its record long after.
+    # Backups are dated by when they were made, since a file recorded from
+    # the folder gets its record long after.
     def unfinished
       last_ready = stored.where(uploaded: false).maximum(:made_at)
       runs = recent.where.not(status: "ready")
@@ -198,10 +204,13 @@ class Backup < ApplicationRecord
     # years that have one, as many of each as the schedule says, plus the
     # newest backup of all. The rest are removed. Only backups made here with
     # this key are pruned or take a place: uploaded ones, ones made with
-    # another key and ones dated in the future are left alone.
+    # another key, ones dated in the future and missing ones are left alone.
+    # Nothing is pruned while the folder cannot be reached.
     def prune
+      return unless reachable?
+
       setting = Setting.instance
-      backups = stored.where(uploaded: false, key_id: own_key_id, made_at: ..Time.current).order(made_at: :desc).to_a
+      backups = stored.where(uploaded: false, key_id: own_key_id, made_at: ..Time.current, missing_at: nil).order(made_at: :desc).to_a
       return if backups.empty?
 
       kept = Set[backups.first]
@@ -209,7 +218,7 @@ class Backup < ApplicationRecord
         newest_per_period = backups.uniq { |backup| backup.made_at.strftime(format) }
         kept.merge(newest_per_period.first(setting.public_send("backup_keep_#{period}")))
       end
-      (backups - kept.to_a).each(&:remove!)
+      (backups - kept.to_a).each { |backup| backup.remove! if backup.find_file }
     end
 
     def seal(zip, name, made_at:, metadata:)
@@ -251,7 +260,11 @@ class Backup < ApplicationRecord
       # be a symlink, so a link left in a shared folder cannot make ZeroPaper
       # write somewhere else; renaming over a link replaces the link.
       def write_new(name, key:)
-        FileUtils.mkdir_p(folder)
+        begin
+          FileUtils.mkdir_p(folder)
+        rescue Errno::EEXIST
+          raise unreachable_message
+        end
         raise "The backup folder #{folder} is not writable by ZeroPaper." unless folder.writable?
 
         partial = folder.join(".#{name}.partial")
@@ -277,12 +290,30 @@ class Backup < ApplicationRecord
     path if path&.file? && !path.symlink?
   end
 
+  # The file, or nil. A file gone from a folder that can be reached marks
+  # the backup missing, and one that is back clears it. While the folder
+  # cannot be reached nothing is marked.
+  def find_file
+    path.tap do |found|
+      if found
+        update!(missing_at: nil) if missing?
+      elsif self.class.reachable? && !missing?
+        update!(missing_at: Time.current)
+      end
+    end
+  end
+
   def readable? = key_id.present?
+
+  def missing? = missing_at.present?
 
   def own_key? = readable? && key_id == self.class.own_key_id
 
-  # Deletes the file and forgets it.
+  # Deletes the file and forgets it. A backup is not forgotten while its
+  # folder cannot be reached, since its file would be left behind unlisted.
   def remove!
+    raise Unreachable, self.class.unreachable_message if filename && !self.class.reachable?
+
     path&.delete
     destroy!
   end

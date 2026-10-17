@@ -70,9 +70,25 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[role=tooltip]", text: "The backup folder is not writable by ZeroPaper."
   end
 
+  test "a failed backup can be deleted, but a running one cannot" do
+    failed = Backup.create!(user: users(:one), status: "failed", error: "NAS offline")
+    running = Backup.create!(user: users(:one), status: "processing")
+
+    get backups_path
+    assert_select "form[action='#{backup_path(failed)}'] button[aria-label='Delete failed backup']"
+    assert_select "form[action='#{backup_path(running)}']", count: 0
+
+    delete backup_path(failed)
+    assert_redirected_to backups_path
+    refute Backup.exists?(failed.id)
+
+    delete backup_path(running)
+    assert Backup.exists?(running.id)
+  end
+
   test "restores a backup from the folder" do
     name = put_sealed(build_zip)
-    Backup.sync
+    Backup.record_existing_files
 
     post backup_restoration_path(Backup.stored.sole)
 
@@ -94,7 +110,7 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
   test "a backup made with another key asks for it" do
     other = Backup::Key.generate
     put_sealed(build_zip, key: Backup::Key.parse(other))
-    Backup.sync
+    Backup.record_existing_files
     id = Backup.stored.sole.id
 
     get backups_path
@@ -111,7 +127,7 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
   test "a pasted backup key never reaches the log" do
     other = Backup::Key.generate
     put_sealed(build_zip, key: Backup::Key.parse(other))
-    Backup.sync
+    Backup.record_existing_files
     id = Backup.stored.sole.id
     log = StringIO.new
     previous = ActionController::Base.logger
@@ -135,7 +151,7 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
       put_backup(Backup::Envelope::MAGIC + [ header.bytesize ].pack("N") + header, "zeropaper-2026-01-0#{index + 1}-000000.zpbackup")
     end
     put_sealed(build_zip, made_at: 1.day.ago)
-    Backup.sync
+    Backup.record_existing_files
 
     get backups_path
 
@@ -190,7 +206,7 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
       zip.put_next_entry("documents/1/file/bomb.txt")
       zip.write("0" * 5.megabytes)
     end.string, key: Backup::Key.parse(other))
-    Backup.sync
+    Backup.record_existing_files
     Zlib.expects(:crc32).never
 
     perform_enqueued_jobs { post backup_restoration_path(Backup.stored.sole), params: { backup_key: other } }
@@ -215,15 +231,39 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
     assert_match "attachment", response.headers["Content-Disposition"]
   end
 
-  test "a backup deleted after it was listed is not served" do
+  test "a backup whose file is gone is marked missing, not served, and can still be deleted" do
     name = put_sealed(build_zip)
-    Backup.sync
+    Backup.record_existing_files
+    backup = Backup.stored.sole
     File.delete(File.join(@backup_dir, name))
 
-    get backup_path(Backup.stored.sole)
-
+    get backup_path(backup)
     assert_redirected_to backups_path
-    assert_equal "That backup is no longer in the backup folder.", flash[:alert]
+    assert_equal "#{name} is missing from the backup folder.", flash[:alert]
+
+    get backups_path
+    assert_select "td span.text-danger", text: "File missing"
+    assert_select "form[action='#{backup_restoration_path(backup)}']", count: 0
+
+    delete backup_path(backup)
+    refute Backup.exists?(backup.id)
+  end
+
+  test "while the folder cannot be reached a backup is not served or deleted" do
+    put_sealed(build_zip)
+    Backup.record_existing_files
+    backup = Backup.stored.sole
+    unmounted
+
+    get backup_path(backup)
+    assert_equal Backup.unreachable_message, flash[:alert]
+
+    delete backup_path(backup)
+    assert_equal Backup.unreachable_message, flash[:alert]
+    assert Backup.exists?(backup.id)
+    refute backup.reload.missing?
+  ensure
+    mounted
   end
 
   test "a name outside the folder listing is not restored or served" do

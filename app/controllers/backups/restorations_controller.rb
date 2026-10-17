@@ -3,7 +3,7 @@ class Backups::RestorationsController < ApplicationController
 
   def create
     backup = Backup.stored.find_by(id: params[:backup_id])
-    return redirect_to(backups_path, alert: "That backup is no longer in the backup folder.") unless backup
+    return redirect_to(backups_path, alert: "That backup is no longer listed.") unless backup
 
     restore = Restore.new(user: Current.user, filename: backup.filename, key: params[:backup_key].presence)
     if restore.save

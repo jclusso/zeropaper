@@ -4,7 +4,10 @@
   <td class="hidden sm:table-cell"></td>
   <td class="text-right">
     <% if backup.status == "failed" %>
-      <%= render layout: "shared/tooltip", locals: { text: backup.error.presence || "The backup failed.", tone: "danger" } do %><span class="badge-red cursor-help">Failed</span><% end %>
+      <div class="flex items-center justify-end gap-2">
+        <%= render layout: "shared/tooltip", locals: { text: backup.error.presence || "The backup failed.", tone: "danger" } do %><span class="badge-red cursor-help">Failed</span><% end %>
+        <%= button_to backup_path(backup), method: :delete, class: "btn-icon-danger", "aria-label": "Delete failed backup" do %><%= icon(:trash, class: "size-4") %><% end %>
+      </div>
     <% else %>
       <span class="badge-accent">Backing up</span>
     <% end %>

@@ -1,7 +1,7 @@
 # Backups are listed from their records instead of the folder, so each record
 # keeps what the folder listing used to read from the file. Records are made
-# for the files already in the folder; if the folder cannot be read now, the
-# hourly sync makes them later.
+# for the files already in the folder; if the folder cannot be read now, run
+# bin/rails backups:record_existing_files once it can.
 class KeepBackupDetails < ActiveRecord::Migration[8.1]
   def up
     change_table :backups, bulk: true do |t|
@@ -16,9 +16,9 @@ class KeepBackupDetails < ActiveRecord::Migration[8.1]
 
     Backup.reset_column_information
     begin
-      Backup.sync
+      Backup.record_existing_files
     rescue StandardError => error
-      say "Backups will be listed after the next hourly sync: #{error.message}"
+      say "Run bin/rails backups:record_existing_files once the backup folder can be read: #{error.message}"
     end
   end
 
