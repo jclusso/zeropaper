@@ -97,7 +97,8 @@ module DocumentsHelper
 
     if (pages = rotated_pages(document)).any?
       restore = button_to("Restore original", document_original_restoration_path(document), params: { version: document.checksum }, class: "btn-danger btn-sm",
-        form: { data: { turbo_confirm: "Restore the file as it was uploaded? This also undoes any page removals, and the document is read again." } })
+        form: { data: { turbo_confirm: "Restore the file as it was uploaded? This also undoes any page removals, and the document is read again.",
+                        turbo_confirm_title: "Restore Original?", turbo_confirm_button: "Restore" } })
       items << ReviewItem.new(key: "rotated", icon: :rotate, tone: "text-strong-accent",
         message: "#{pages.size == 1 ? "Page" : "Pages"} #{pages.to_sentence} #{pages.size == 1 ? "was" : "were"} turned upright.",
         actions: (restore if document.original_file.attached?))

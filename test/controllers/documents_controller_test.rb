@@ -77,6 +77,23 @@ class DocumentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "el-dialog dialog#pages-dialog turbo-frame[id=?][src=?]", dom_id(document, :pages), document_pages_path(document)
   end
 
+  test "a PDF trimmed to one page keeps the pages dialog so its upload can be restored" do
+    document = ingest(text_pdf("Page one has words", "Page two has words"), filename: "two.pdf")
+    document.update!(page_count: 2, status: "ready")
+    document.remove_pages!([ 2 ])
+    document.update!(status: "ready")
+
+    get document_path(document)
+    assert_select "button[command=show-modal][commandfor=pages-dialog]"
+    assert_select "dialog#pages-dialog"
+
+    single = ingest(text_pdf("Only page"), filename: "one.pdf")
+    single.update!(page_count: 1, status: "ready")
+
+    get document_path(single)
+    assert_select "button[commandfor=pages-dialog]", count: 0
+  end
+
   test "pages turned upright are announced in current page numbers" do
     document = ingest(text_pdf("One", "Two", "Three"), filename: "turned.pdf")
     document.update!(page_count: 2, status: "ready", page_record: { "map" => [ 1, 3 ], "rotated" => { "3" => 180 } })

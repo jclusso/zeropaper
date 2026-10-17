@@ -20,6 +20,18 @@ class DocumentPageTest < ActionDispatch::IntegrationTest
     assert_select "dd", text: "Tesseract (local) + embedded text", count: 0
   end
 
+  test "the PDF viewer keeps one id and names the file and pages it shows, so a refresh can tell when to replace it" do
+    document = ingest(text_pdf("One", "Two", "Three"), filename: "three.pdf")
+    document.update!(page_count: 3, status: "ready", page_record: { "map" => [ 1, 2, 3 ], "blank" => [ 2 ] })
+
+    get document_path(document)
+
+    assert_select "##{dom_id(document, :pdf_viewer)}[data-pdf-viewer-version=?]", "#{document.file.blob.id}-3-2" do |viewers|
+      refute viewers.first.key?("data-turbo-permanent")
+      assert_match "turbo:before-morph-element->pdf-viewer#refresh", viewers.first["data-action"]
+    end
+  end
+
   test "AI text is shown as Markdown and engine text keeps its lines" do
     document = ready_document
     document.update_columns(content: "# Invoice\n\n| Item | Price |\n|---|---|\n| Oil | $89 |\f<script>alert(1)</script>", text_source: "OpenAI · gpt-5.6-luna")

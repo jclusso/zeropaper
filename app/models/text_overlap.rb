@@ -23,13 +23,24 @@ class TextOverlap
     @number_score ||= jaccard(*number_sets)
   end
 
+  # Numbers in both texts, and numbers in either.
+  def number_counts
+    a, b = number_sets
+    [ (a & b).size, (a | b).size ]
+  end
+
   def duplicate?
     text_score >= DUPLICATE_TEXT && (few_numbers? || same_numbers?)
   end
 
   # Enough numbers on both sides to tell documents apart, and mostly the same.
   def same_numbers?
-    !few_numbers? && number_score >= DUPLICATE_NUMBERS
+    numbers? && number_score >= DUPLICATE_NUMBERS
+  end
+
+  # Whether both texts have enough numbers for number_score to say anything.
+  def numbers?
+    !few_numbers?
   end
 
   private

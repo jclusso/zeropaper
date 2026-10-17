@@ -27,4 +27,10 @@ export default class extends Controller {
     this.submitTarget.disabled = (count === 0 && !keeping) || count >= total
     this.submitTarget.title = count >= total ? "A document needs at least one page." : ""
   }
+
+  // An edit that went through refreshes the document behind the dialog,
+  // which a refresh leaves open, so it closes to show the result.
+  close({ detail: { success } }) {
+    if (success) this.element.closest("dialog")?.close()
+  }
 }

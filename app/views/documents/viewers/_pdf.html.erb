@@ -1,14 +1,21 @@
-<% pdf = document.viewable_pdf %>
-<div id="pdf-viewer-<%= pdf.blob.id %>" data-turbo-permanent class="@container absolute inset-0 flex flex-col"
-  data-controller="pdf-viewer" data-action="reading-mode:go-to@window->pdf-viewer#showPage"
-  data-pdf-viewer-url-value="<%= document_file_path(document, variant: "viewable", v: pdf.blob.id) %>"
+<%# A comparison can show the upload (source: :upload), removed pages included, or only some pages of the file (pages). %>
+<% upload = local_assigns[:source] == :upload %>
+<% pdf = upload ? document.original_file : document.viewable_pdf %>
+<% all_pages = upload ? local_assigns[:pages] : (1..document.page_count.to_i).to_a %>
+<% pages = local_assigns[:pages] || all_pages %>
+<% some_pages = pages != all_pages %>
+<%# Refreshes keep this viewer while its version is the same; see pdf-viewer#refresh. %>
+<div id="<%= dom_id(document, :pdf_viewer) %>" class="@container absolute inset-0 flex flex-col"
+  data-controller="pdf-viewer" data-action="reading-mode:go-to@window->pdf-viewer#showPage turbo:before-morph-element->pdf-viewer#refresh"
+  data-pdf-viewer-version="<%= [ pdf.blob.id, document.page_count.to_i, *document.suggested_blank_pages, ("only-#{pages.join(".")}" if some_pages) ].compact.join("-") %>"
+  data-pdf-viewer-url-value="<%= document_file_path(document, variant: upload ? "original" : "viewable", v: pdf.blob.id, pages: (pages.join(",") if some_pages)) %>"
   data-pdf-viewer-worker-src-value="<%= asset_path("pdf.worker.js") %>">
 
   <div class="flex flex-wrap items-center gap-1 border-b border-border bg-background/95 px-2 py-1.5 text-sm backdrop-blur">
     <button type="button" class="btn-icon" data-action="pdf-viewer#previousPage" title="Previous page (k)" aria-label="Previous page"><%= icon(:chevron_up, class: "size-4") %></button>
     <form class="flex items-center gap-1" data-action="submit->pdf-viewer#goToTypedPage">
       <input type="text" inputmode="numeric" value="1" class="input h-8 w-12 px-1.5 text-center tabular-nums" data-pdf-viewer-target="pageNumber" aria-label="Page number">
-      <span class="muted">/ <span data-pdf-viewer-target="pageCount"><%= document.page_count || "…" %></span></span>
+      <span class="muted">/ <span data-pdf-viewer-target="pageCount"><%= some_pages || upload ? pages.size : (document.page_count || "…") %></span></span>
     </form>
     <button type="button" class="btn-icon" data-action="pdf-viewer#nextPage" title="Next page (j)" aria-label="Next page"><%= icon(:chevron_down, class: "size-4") %></button>
 
@@ -44,15 +51,19 @@
   </div>
 
   <div class="flex min-h-0 flex-1">
-    <% if document.page_count.to_i > 1 %>
+    <% if pages.size > 1 %>
       <nav class="hidden w-28 shrink-0 space-y-3 overflow-y-auto border-r border-border bg-background/80 p-3 md:block md:group-data-[view=side]/view:hidden" aria-label="Pages">
-        <% (1..document.page_count).each do |page| %>
-          <button type="button" class="group block w-full text-center" data-pdf-viewer-target="thumb" data-action="pdf-viewer#goTo" data-pdf-viewer-page-param="<%= page %>" <%= "aria-current=true" if page == 1 %>>
+        <% pages.each.with_index(1) do |page, position| %>
+          <button type="button" class="group block w-full text-center" data-pdf-viewer-target="thumb" data-action="pdf-viewer#goTo" data-pdf-viewer-page-param="<%= position %>" <%= "aria-current=true" if position == 1 %>>
             <span class="block overflow-hidden rounded-xs border border-border bg-white ring-2 ring-transparent transition group-hover:border-foreground/30 group-aria-[current]:border-strong-accent group-aria-[current]:ring-strong-accent/60">
-              <%= image_tag document_page_path(document, page, size: "thumb", v: pdf.blob.id), alt: "Page #{page}", loading: "lazy", width: 240, height: 310, class: "h-auto w-full" %>
+              <%= image_tag document_page_path(document, page, size: "thumb", source: ("original" if upload), v: pdf.blob.id), alt: "Page #{page}", loading: "lazy", width: 240, height: 310, class: "h-auto w-full" %>
             </span>
             <span class="mt-1 block text-xs tabular-nums muted group-aria-[current]:font-bold group-aria-[current]:text-strong-accent">
-              <%= page %><%= " · blank" if document.blank_page?(page) %>
+              <% if upload %>
+                <%= page %><%= " · removed" unless document.current_page_number(page) %>
+              <% else %>
+                <%= page %><%= " · blank" if document.blank_page?(page) %>
+              <% end %>
             </span>
           </button>
         <% end %>

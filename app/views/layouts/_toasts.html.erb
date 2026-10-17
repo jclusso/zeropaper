@@ -1,3 +1,4 @@
-<%# The stack toasts move into. Permanent, so a toast survives the page refreshes that follow it. %>
-<div id="toasts" data-turbo-permanent aria-live="polite"
-  class="pointer-events-none fixed inset-x-0 top-0 z-[60] flex flex-col items-center gap-2 p-3 sm:inset-x-auto sm:top-auto sm:right-0 sm:bottom-0 sm:w-96 sm:items-end sm:p-5"></div>
+<%# The stack toasts move into. Permanent, so a toast survives the page refreshes that follow it.
+    A manual popover, so it shows above a dialog left open, such as the one a refused edit was made from. %>
+<div id="toasts" data-turbo-permanent aria-live="polite" popover="manual"
+  class="pointer-events-none fixed inset-x-0 top-0 bottom-auto z-[60] m-0 h-auto w-full flex-col items-center gap-2 overflow-visible border-0 bg-transparent p-3 text-foreground open:flex sm:inset-x-auto sm:top-auto sm:right-0 sm:bottom-0 sm:left-auto sm:w-96 sm:items-end sm:p-5"></div>

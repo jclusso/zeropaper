@@ -33,6 +33,22 @@ class PageHashTest < ActiveSupport::TestCase
     refute PageHash.same_pages?([], [ front ])
   end
 
+  test "pairs pages in order, leaving gaps for pages only one document has" do
+    a, b, c = %w[a b c].map { |letter| letter * 64 }
+    d = "0" * 64
+
+    assert_equal [ [ 1, 1 ], [ nil, 2 ], [ 2, 3 ] ], PageHash.pair([ a, c ], [ a, b, c ])
+    assert_equal [ [ 1, 1 ], [ 2, nil ], [ 3, 2 ] ], PageHash.pair([ a, b, c ], [ a, c ])
+    assert_equal [ [ 1, nil ], [ nil, 1 ] ], PageHash.pair([ a ], [ d ])
+    assert_equal [ [ nil, 1 ] ], PageHash.pair([], [ a ])
+  end
+
+  test "a block can rule out pairs the hashes allow" do
+    a, c = "a" * 64, "c" * 64
+
+    assert_equal [ [ 1, nil ], [ nil, 1 ], [ 2, 2 ] ], PageHash.pair([ a, c ], [ a, c ]) { |i, j| !(i.zero? && j.zero?) }
+  end
+
   private
     # Scanner dust: a scattering of dark specks on an otherwise identical page.
     def speckled(canvas)

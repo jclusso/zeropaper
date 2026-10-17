@@ -72,6 +72,23 @@ class ArchiveTest < ActiveSupport::TestCase
     assert_equal 2, restore.skipped_count
   end
 
+  test "two documents with the same file both come back, and both are skipped once here" do
+    copy = ingest("Another statement", filename: "copy.txt")
+    process(copy)
+    copy.file.attach(io: StringIO.new(BILL_TEXT), filename: "copy.txt", content_type: "text/plain")
+    copy.update!(checksum: @document.checksum, title: "Statement copy")
+    name = back_up_and_clear
+
+    restore = restore!(name)
+
+    assert_equal 3, restore.restored_count
+    assert_equal [ "March statement", "Statement copy" ], Document.where(checksum: @document.checksum).order(:id).map(&:title)
+
+    restore = restore!(name)
+    assert_equal 0, restore.restored_count
+    assert_equal 3, restore.skipped_count
+  end
+
   test "a zip that is not a backup fails cleanly" do
     name = put_sealed(Zip::OutputStream.write_buffer { |stream| stream.put_next_entry("hello.txt"); stream.write("hi") }.string)
     restore = Restore.create!(user: users(:one), filename: name)

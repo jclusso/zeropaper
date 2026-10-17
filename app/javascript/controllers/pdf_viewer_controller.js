@@ -149,6 +149,19 @@ export default class extends Controller {
     return Array.from({ length: this.viewer.pagesCount }, (_, index) => this.viewer.getPageView(index).div)
   }
 
+  // A page refresh keeps the loaded PDF, its page and zoom while the file,
+  // page count and blank pages are the same, and otherwise swaps in the new
+  // viewer. data-turbo-permanent cannot do this: a refresh never removes a
+  // permanent element, so a changed one would pile up on the old.
+  refresh(event) {
+    const { newElement } = event.detail
+    // Without a new element the viewer is being removed, which goes ahead.
+    if (event.target !== this.element || !newElement) return
+
+    event.preventDefault()
+    if (newElement.dataset.pdfViewerVersion !== this.element.dataset.pdfViewerVersion) this.element.replaceWith(newElement.cloneNode(true))
+  }
+
   // reading-mode:go-to from a page heading in the text.
   showPage({ detail: { page } }) {
     if (this.viewer) this.viewer.currentPageNumber = page

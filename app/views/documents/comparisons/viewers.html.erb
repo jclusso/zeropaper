@@ -1,5 +1,10 @@
 <%= turbo_frame_tag dom_id(@document, :comparison_viewers), class: "flex min-h-0 flex-1 flex-col" do %>
-  <div class="grid min-h-0 flex-1 grid-rows-2 divide-y divide-border md:grid-cols-2 md:grid-rows-1 md:divide-x md:divide-y-0">
+  <% comparison = document_comparison(@document, @other) %>
+  <% pdfs = [ @document, @other ].all? { document_viewer_kind(it) == :pdf } %>
+  <% show_blank = params[:blank] == "show" %>
+
+  <div class="grid min-h-0 flex-1 grid-rows-2 divide-y divide-border md:grid-cols-2 md:grid-rows-1 md:divide-x md:divide-y-0"
+    data-pdf-compare-target="pages" data-pages="<%= comparison.viewer_pages(show_blank: show_blank).to_json if pdfs %>">
     <% { @document => "This document", @other => comparison_heading(@document, @other) }.each do |document, heading| %>
       <section class="flex min-h-0 min-w-0 flex-col" data-comparison-viewer="<%= document.id %>">
         <div class="flex items-baseline gap-2 border-b border-border bg-card-header px-4 py-2">
@@ -7,7 +12,12 @@
           <%= link_to document.display_title, document, class: "truncate text-sm font-bold hover:underline", data: { turbo_frame: "_top" } %>
         </div>
         <div class="bg-grid relative min-h-0 flex-1">
-          <%= render "documents/viewers/#{document_viewer_kind(document)}", document: document %>
+          <% if pdfs %>
+            <% source, pages = comparison.preview(document, show_blank: show_blank) %>
+            <%= render "documents/viewers/pdf", document: document, source: source, pages: pages %>
+          <% else %>
+            <%= render "documents/viewers/#{document_viewer_kind(document)}", document: document %>
+          <% end %>
         </div>
       </section>
     <% end %>

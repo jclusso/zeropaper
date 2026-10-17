@@ -46,6 +46,7 @@ module Archive
         manifest = read_manifest(zip)
         restore_taxonomy(manifest)
 
+        @checksums_seen = Hash.new(0)
         folders(zip).each do |folder|
           yield restore_document(zip, read_record(zip, folder))
         end
@@ -184,10 +185,13 @@ module Archive
 
       # A document already in the library (same checksum) is skipped, but a
       # private copy in the backup makes it private, so the instruction is
-      # not lost with the copy.
+      # not lost with the copy. Documents can share a file, so the second
+      # with a checksum in the backup matches the second in the library.
       def restore_document(zip, record)
         details = record.details
-        if (existing = Document.find_by(checksum: record.checksum))
+        match = @checksums_seen[record.checksum]
+        @checksums_seen[record.checksum] += 1
+        if (existing = Document.where(checksum: record.checksum).order(:id).offset(match).first)
           return resume_restore(existing, details) if existing.source == "restore" && existing.status != "ready"
 
           existing.privatize!(reason: private_reason(details)) if details["private"]

@@ -250,10 +250,6 @@ module Document::Processing
 
         data = File.binread(output)
         checksum = Digest::SHA256.hexdigest(data)
-        if Document.where.not(id: id).exists?(checksum: checksum)
-          return "Pages need turning, but another document already has the turned file"
-        end
-
         original_file.attach(io: File.open(path), filename: file.filename, content_type: file.content_type) unless original_file.attached?
         file.attach(io: StringIO.new(data), filename: file.filename, content_type: file.content_type)
         FileUtils.cp(output, path)

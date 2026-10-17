@@ -16,6 +16,7 @@ export default class extends Controller {
   place(attempt = 0) {
     const stack = document.getElementById("toasts")
     if (stack && this.element.parentElement === stack) {
+      this.raise(stack)
       requestAnimationFrame(() => this.element.removeAttribute("data-closed"))
       this.timer = setTimeout(() => this.dismiss(), this.delayValue)
     } else if (stack && stack.isConnected) {
@@ -23,6 +24,14 @@ export default class extends Controller {
     } else if (attempt < 30) {
       requestAnimationFrame(() => this.place(attempt + 1))
     }
+  }
+
+  // The stack is a popover, shown again for each toast so it sits above any
+  // dialog opened since. Moving it between pages hides it.
+  raise(stack) {
+    if (!stack.showPopover) return
+    if (stack.matches(":popover-open")) stack.hidePopover()
+    stack.showPopover()
   }
 
   disconnect() {

@@ -1,5 +1,6 @@
 <% suggested = document.suggested_blank_pages %>
-<div class="flex max-h-[85dvh] flex-col" data-controller="page-selection" data-page-selection-suggested-value="<%= suggested.size %>">
+<div class="flex max-h-[85dvh] flex-col" data-controller="page-selection" data-page-selection-suggested-value="<%= suggested.size %>"
+  data-action="turbo:submit-end->page-selection#close">
   <div class="flex items-start gap-4 border-b border-border px-5 py-4 sm:px-6">
     <div class="min-w-0 flex-1">
       <h2 id="pages-dialog-title" class="section-title">Review Pages</h2>
@@ -44,7 +45,8 @@
     <div class="flex flex-wrap items-center gap-3 border-t border-border bg-card-header px-5 py-3 sm:px-6">
       <% if document.original_file.attached? %>
         <%= button_to "Restore original", document_original_restoration_path(document), params: { version: document.checksum }, class: "btn-danger btn-sm", form_class: "mr-auto",
-              form: { data: { turbo_frame: "_top", turbo_confirm: "Restore the upload as it was, with all its pages?" } } %>
+              form: { data: { turbo_frame: "_top", turbo_confirm: "Restore the upload as it was, with all its pages? Pages you removed come back.",
+                              turbo_confirm_title: "Restore Original?", turbo_confirm_button: "Restore" } } %>
       <% else %>
         <span class="mr-auto"></span>
       <% end %>

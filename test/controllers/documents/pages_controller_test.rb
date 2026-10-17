@@ -15,8 +15,18 @@ class Documents::PagesControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[name='pages[]'][checked]", count: 1
     assert_select "input[name='pages[]'][value='2'][checked]"
     assert_select "form#page-removal-form[data-turbo-frame=_top]"
+    assert_select "[data-controller=page-selection][data-action~='turbo:submit-end->page-selection#close']"
     assert_select "button[type=submit][form=page-removal-form].btn-danger-solid"
     assert_select "button.btn-primary", count: 0
+  end
+
+  test "restoring the original asks to restore, not delete" do
+    @document.remove_pages!([ 2 ])
+    @document.update!(status: "ready")
+
+    get document_pages_path(@document), headers: { "Turbo-Frame" => dom_id(@document, :pages) }
+
+    assert_select "form[action=?][data-turbo-confirm-title='Restore Original?'][data-turbo-confirm-button=Restore] button", document_original_restoration_path(@document), text: "Restore original"
   end
 
   test "opened directly it renders inside the page layout" do

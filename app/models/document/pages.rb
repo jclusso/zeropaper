@@ -59,6 +59,49 @@ module Document::Pages
     end
   end
 
+  # Hashes of every page of source (the file, or the upload pages were
+  # removed from), blank or not, for pairing its pages with another
+  # document's. page_hashes leaves blank pages out.
+  def page_fingerprints(source = file)
+    return [] unless pdf? && source.attached?
+
+    SealedCache.fetch([ "page-hashes", source.blob.key ], expires_in: 1.week) do
+      source.open { |copy| PageHash.pdf_pages(copy.path) }.join(" ")
+    end.split
+  end
+
+  # Whether the Pages dialog has something to offer: pages to remove, or an
+  # upload to restore after pages were removed down to one.
+  def reviewable_pages?
+    pdf? && (page_count.to_i > 1 || original_file.attached?)
+  end
+
+  # The checksum of the file as uploaded, before pages were removed or
+  # turned upright.
+  def upload_checksum
+    return checksum unless original_file.attached?
+
+    SealedCache.fetch([ "checksum", original_file.blob.key ], expires_in: 1.week) do
+      original_file.blob.open { |copy| Digest::SHA256.file(copy.path).hexdigest }
+    end
+  end
+
+  # The viewable PDF with only pages (current numbering), so a comparison
+  # can leave out pages that would put the two documents out of line.
+  def viewable_pdf_with(pages)
+    pdf = viewable_pdf
+    data = SealedCache.fetch([ "viewable-pages", pdf.blob.key, pages.join(",") ], expires_in: 1.day) do
+      pdf.open do |copy|
+        Dir.mktmpdir do |dir|
+          output = File.join(dir, "pages.pdf")
+          Pdf.only_pages(copy.path, pages, output)
+          Base64.strict_encode64(File.binread(output))
+        end
+      end
+    end
+    Base64.strict_decode64(data)
+  end
+
   def editable_pages?
     pdf? && file.attached? && !status.in?(%w[pending processing])
   end
@@ -110,8 +153,7 @@ module Document::Pages
     raise EditRefused, STALE_EDIT unless version == checksum
 
     blob = original_file.blob
-    original_checksum = blob.open { |copy| Digest::SHA256.file(copy.path).hexdigest }
-    ensure_checksum_free!(original_checksum)
+    original_checksum, original_pages = blob.open { |copy| [ Digest::SHA256.file(copy.path).hexdigest, Pdf.page_count(copy.path) ] }
 
     swap_in(nil, version) do
       raise EditRefused, STALE_EDIT unless original_file.blob == blob
@@ -119,7 +161,7 @@ module Document::Pages
       self.file = blob
       self.original_file = nil
       self.archive_file = nil
-      update!(checksum: original_checksum, page_record: {}, page_count: nil)
+      update!(checksum: original_checksum, page_record: {}, page_count: original_pages)
     end
     process_later(extract_metadata: false)
   end
@@ -135,7 +177,6 @@ module Document::Pages
           output = File.join(dir, "trimmed.pdf")
           Pdf.without_pages(path, pages, output)
           checksum = Digest::SHA256.file(output).hexdigest
-          ensure_checksum_free!(checksum)
           archive = trimmed_archive(pages, dir)
           image = Pdf.render_page(output, 1, edge: 640, format: :jpeg) if pages.include?(1)
 
@@ -214,11 +255,5 @@ module Document::Pages
       return content unless texts.size == page_count
 
       texts.reject.with_index(1) { |_text, page| pages.include?(page) }.join(Document::PAGE_BREAK)
-    end
-
-    def ensure_checksum_free!(checksum)
-      return unless Document.where.not(id: id).exists?(checksum: checksum)
-
-      raise EditRefused, "Another document already has exactly these pages."
     end
 end
