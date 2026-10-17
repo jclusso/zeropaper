@@ -6,6 +6,7 @@ class Ingest::FolderTest < ActiveSupport::TestCase
     @folder = Ingest::Folder.new(@root)
     @folder.prepare
     Ingest::Folder::UNQUARANTINED.clear
+    Ingest::Folder::FAILED.clear
   end
 
   teardown { FileUtils.rm_rf(@root) }
@@ -61,6 +62,37 @@ class Ingest::FolderTest < ActiveSupport::TestCase
     assert @root.join("fresh.txt").exist?
   end
 
+  test "a finished PDF is imported as soon as it is written" do
+    @root.join("scan.pdf").binwrite(text_pdf("Statement"))
+
+    assert_difference -> { Document.count } do
+      @folder.scan
+    end
+    refute @root.join("scan.pdf").exist?
+  end
+
+  test "a PDF a scanner has paused writing is left alone" do
+    pdf = text_pdf("Statement")
+    settled_file("scan.pdf", pdf.byteslice(0, pdf.bytesize / 2))
+
+    assert_no_difference -> { Document.count } do
+      @folder.scan
+    end
+    assert @root.join("scan.pdf").exist?
+  end
+
+  test "a PDF still unfinished after ten minutes moves aside" do
+    pdf = text_pdf("Statement")
+    settled_file("scan.pdf", pdf.byteslice(0, pdf.bytesize / 2), age: 11.minutes)
+    logged = capture_log
+
+    assert_no_difference -> { Document.count } do
+      @folder.scan
+    end
+    assert @root.join(".unsupported/scan.pdf").exist?
+    assert_match "#{Ingest::Folder.log_id("scan.pdf")}: Incomplete, moved to .unsupported", logged.string
+  end
+
   test "unsupported files move aside and duplicates are removed" do
     settled_file("archive.exe", "MZ binary")
     settled_file("statement.txt", BILL_TEXT)
@@ -107,6 +139,21 @@ class Ingest::FolderTest < ActiveSupport::TestCase
     assert_match "[ingest] #{Ingest::Folder.log_id("private/biopsy-jane.txt")}: RuntimeError", logged.string
     refute_match "biopsy", logged.string
     assert @root.join("private/biopsy-jane.txt").exist?
+  end
+
+  test "a file that keeps failing is retried but logged once for each error" do
+    settled_file("statement.txt", BILL_TEXT)
+    id = Ingest::Folder.log_id("statement.txt")
+    logged = capture_log
+
+    Document.stubs(:ingest!).raises(ActiveRecord::ConnectionNotEstablished)
+    3.times { @folder.scan }
+    Document.stubs(:ingest!).raises(Errno::EACCES)
+    @folder.scan
+
+    assert_equal 1, logged.string.scan("#{id}: ActiveRecord::ConnectionNotEstablished").size
+    assert_equal 1, logged.string.scan("#{id}: Errno::EACCES").size
+    assert @root.join("statement.txt").exist?
   end
 
   test "a folder swapped for a symlink after the check is not read or deleted" do
@@ -266,10 +313,10 @@ class Ingest::FolderTest < ActiveSupport::TestCase
       StringIO.new.tap { |logged| Rails.stubs(:logger).returns(ActiveSupport::Logger.new(logged)) }
     end
 
-    def settled_file(relative, content)
+    def settled_file(relative, content, age: 1.minute)
       path = @root.join(relative)
       FileUtils.mkdir_p(path.dirname)
-      path.write(content)
-      File.utime(1.minute.ago.to_time, 1.minute.ago.to_time, path)
+      path.binwrite(content)
+      File.utime(age.ago.to_time, age.ago.to_time, path)
     end
 end

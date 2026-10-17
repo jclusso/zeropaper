@@ -3,6 +3,11 @@
 # provider. Ingested files are removed; files ZeroPaper cannot read are moved
 # to .unsupported/ so they are not retried forever.
 #
+# A file is imported once Ingest::Completeness says it has been written to the
+# end, or, for formats it cannot judge, once it has been left alone for
+# SETTLE_TIME. One that still looks unfinished after GIVE_UP_TIME is moved to
+# .unsupported/ as well.
+#
 # Symlinks, and anything under a symlinked folder, are skipped and left in
 # place, so the folder cannot be used to import (or delete) files from the
 # rest of the machine. The opened file is checked against the path again, and
@@ -14,15 +19,23 @@ module Ingest
   class Folder
     PRIVATE_DIR = "private".freeze
     UNSUPPORTED_DIR = ".unsupported".freeze
-    # Files changed more recently than this may still be being written.
+    # Files of a format with no end marker that changed more recently than
+    # this may still be being written.
     SETTLE_TIME = 10.seconds
+    # A scanner pausing between pages stops writing for seconds, not minutes.
+    GIVE_UP_TIME = 10.minutes
 
+    class Incomplete < StandardError; end
     class Moved < StandardError; end
     class Unsafe < StandardError; end
 
     # Files left in place because .unsupported could not be used, so each one
     # is logged once per process instead of on every scan.
     UNQUARANTINED = Concurrent::Set.new
+    # Files that failed to import with an unexpected error, by error class.
+    # They stay in place and are retried on every scan, which runs every
+    # second, so each failure is logged once per process.
+    FAILED = Concurrent::Set.new
 
     attr_reader :root
 
@@ -51,7 +64,7 @@ module Ingest
           next if relative.split("/").any? { |segment| segment.start_with?(".") }
 
           path = root.join(relative)
-          path if path.file? && path.mtime < SETTLE_TIME.ago
+          path if path.file?
         end
       end
 
@@ -71,6 +84,8 @@ module Ingest
           File.open(path, File::RDONLY | File::NOFOLLOW | File::BINARY) do |io|
             stat = io.stat
             ensure_unmoved(path, stat)
+            return unless ready?(io, stat)
+
             Document.ingest!(
               io: io,
               filename: path.basename.to_s,
@@ -86,13 +101,25 @@ module Ingest
         path.delete
       rescue Moved
         Rails.logger.warn("[ingest] #{id}: skipped, its folder changed while it was read")
-      rescue Document::UnsupportedType, Document::TooLarge => error
+      rescue Document::UnsupportedType, Document::TooLarge, Incomplete => error
         quarantine(path, relative, stat, id, error)
       rescue Errno::ENOENT
         # Already gone. An SMB share keeps listing a deleted file for a while.
       rescue StandardError => error
         # The message can quote what was read, so only the class is logged.
-        Rails.logger.error("[ingest] #{id}: #{error.class}")
+        Rails.logger.error("[ingest] #{id}: #{error.class}") if FAILED.add?("#{id} #{error.class}")
+      end
+
+      # Raises Incomplete for a file that has looked unfinished for too long.
+      def ready?(io, stat)
+        case Completeness.of(io)
+        when :complete then true
+        when :incomplete
+          raise Incomplete if stat.mtime < GIVE_UP_TIME.ago
+          false
+        else
+          stat.mtime < SETTLE_TIME.ago
+        end
       end
 
       # Moves a file that cannot be imported into .unsupported/, keeping its
