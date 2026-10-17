@@ -136,4 +136,27 @@ class RulesControllerTest < ActionDispatch::IntegrationTest
     patch rule_path(rule), params: { rule: { enabled: "0" } }
     refute rule.reload.enabled?
   end
+
+  test "saving a mark-private rule says existing documents are being marked private" do
+    post rules_path, params: { rule: { name: "Medical", match_mode: "all", mark_private: "1",
+      conditions: { "0" => { field: "content", operator: "any", value: "diagnosis" } } } }
+
+    assert_redirected_to rules_path
+    assert_equal "Rule added. Matching documents already in the library are being marked private.", flash[:notice]
+    assert_enqueued_with(job: PrivatizeRuleMatchesJob, args: [ Rule.order(:id).last ])
+
+    patch rule_path(Rule.order(:id).last), params: { rule: { name: "Health" } }
+    assert_equal "Rule saved.", flash[:notice]
+  end
+
+  test "saving a mark-private rule does not read the library during the request" do
+    document_with_text("Diagnosis: seasonal allergies")
+    Rule.any_instance.expects(:matches?).never
+
+    post rules_path, params: { rule: { name: "Medical", match_mode: "all", mark_private: "1",
+      conditions: { "0" => { field: "content", operator: "any", value: "diagnosis" } } } }
+
+    assert_redirected_to rules_path
+    assert_equal 1, Document.shareable.count
+  end
 end

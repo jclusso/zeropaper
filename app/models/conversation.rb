@@ -31,13 +31,46 @@ class Conversation < ApplicationRecord
     messages.exists?(status: "streaming")
   end
 
+  # The earlier messages a new answer is given, and every document they
+  # carry.
+  History = Data.define(:messages, :document_ids)
+
   # Completed messages before the given one that may go back to the model,
   # newest `limit` at most. A turn (a question and its answers) is left out
-  # when an answer used a document that is private now; it stays on the page.
+  # when an answer carries a document that is private or deleted now, or
+  # documents that are not known; it stays on the page.
   def shareable_history(before:, limit:)
-    earlier = messages.completed.where("id < ?", before.id).last(limit)
-    private_ids = Document.private_only.where(id: earlier.flat_map(&:shared_document_ids)).pluck(:id).to_set
+    earlier = messages.completed.where("id < ?", before.id).to_a
+    sources = sources_by_message(earlier)
+    recent = earlier.last(limit)
+    available = Document.shareable.where(id: recent.flat_map { |message| sources[message].to_a }).pluck(:id).to_set
 
-    earlier.slice_before(&:user?).reject { |turn| turn.any? { |message| message.shared_document_ids.any? { |id| private_ids.include?(id) } } }.flatten
+    kept = recent.slice_before(&:user?).select { |turn| turn.all? { |message| sources[message]&.all? { |id| available.include?(id) } } }.flatten
+    History.new(messages: kept, document_ids: kept.flat_map { |message| sources[message] }.uniq)
   end
+
+  private
+    # The documents behind each message, or nil when they are not known.
+    # Answers now record all of them: what their tools returned and what the
+    # history they were given carried. Older answers only recorded what
+    # their own tools returned, so each is taken to carry every document the
+    # conversation used before it as well. An answer from before even that
+    # was recorded, which knows at most what it cited, is unknown, and so is
+    # every older answer after it: it may have read documents it never
+    # recorded.
+    def sources_by_message(messages)
+      seen = Set.new
+      unknown = false
+      messages.to_h do |message|
+        own = message.shared_document_ids
+        unknown ||= !message.user? && !message.provenance_complete? && message.used_document_ids.empty?
+        sources =
+          if message.user? then []
+          elsif message.provenance_complete? then own
+          elsif !unknown then (seen | own).to_a
+          end
+        seen.merge(own).merge(sources.to_a)
+        [ message, sources ]
+      end
+    end
 end

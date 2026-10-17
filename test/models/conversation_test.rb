@@ -30,4 +30,59 @@ class ConversationTest < ActiveSupport::TestCase
     assert_equal [ 2 ], answer.private_match_ids
     refute conversation.busy?
   end
+
+  test "an older answer without full provenance carries every document used before it" do
+    conversation = users(:one).conversations.create!(title: "Old")
+    clinic = document_with_text("Clinic letter")
+    water = document_with_text("Water bill")
+    turns = [
+      conversation.messages.create!(role: "user", content: "Clinic?"),
+      conversation.messages.create!(role: "assistant", content: "Cardiology [##{clinic.id}].", cited_document_ids: [ clinic.id ], used_document_ids: [ clinic.id ]),
+      conversation.messages.create!(role: "user", content: "Water?"),
+      conversation.messages.create!(role: "assistant", content: "$41.20.", used_document_ids: [ water.id ])
+    ]
+    latest = conversation.messages.create!(role: "user", content: "Anything else?")
+
+    history = conversation.shareable_history(before: latest, limit: 20)
+    assert_equal turns, history.messages
+    assert_equal [ clinic.id, water.id ].sort, history.document_ids.sort
+
+    clinic.update!(private: true)
+    assert_empty conversation.shareable_history(before: latest, limit: 20).messages, "the water answer may lean on the clinic answer"
+  end
+
+  test "an answer from before used documents were recorded is left out, whatever it cited" do
+    conversation = users(:one).conversations.create!(title: "Old")
+    clinic = document_with_text("Clinic letter")
+    water = document_with_text("Water bill")
+    conversation.messages.create!(role: "user", content: "Clinic?")
+    conversation.messages.create!(role: "assistant", content: "Cardiology [##{clinic.id}].", cited_document_ids: [ clinic.id ])
+    conversation.messages.create!(role: "user", content: "Water?")
+    conversation.messages.create!(role: "assistant", content: "$41.20.", used_document_ids: [ water.id ])
+    latest = conversation.messages.create!(role: "user", content: "Anything else?")
+
+    history = conversation.shareable_history(before: latest, limit: 20)
+
+    assert_empty history.messages, "the clinic answer may have read documents it did not cite"
+    assert_empty history.document_ids
+  end
+
+  test "an older answer that recorded no documents is left out, with the older answers after it" do
+    conversation = users(:one).conversations.create!(title: "Old")
+    water = document_with_text("Water bill")
+    conversation.messages.create!(role: "user", content: "What did the clinic say?")
+    conversation.messages.create!(role: "assistant", content: "It referred you to cardiology.")
+    conversation.messages.create!(role: "user", content: "And the water bill?")
+    conversation.messages.create!(role: "assistant", content: "$41.20.", used_document_ids: [ water.id ])
+    recent = [
+      conversation.messages.create!(role: "user", content: "Thanks"),
+      conversation.messages.create!(role: "assistant", content: "You're welcome.", provenance_complete: true)
+    ]
+    latest = conversation.messages.create!(role: "user", content: "Anything else?")
+
+    history = conversation.shareable_history(before: latest, limit: 20)
+
+    assert_equal recent, history.messages
+    assert_empty history.document_ids
+  end
 end

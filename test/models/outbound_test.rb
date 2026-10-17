@@ -2,6 +2,7 @@ require "test_helper"
 
 class OutboundTest < ActiveSupport::TestCase
   RESPONSES = "https://api.openai.com/v1/responses".freeze
+  MISTRAL_OCR = "https://api.mistral.ai/v1/ocr".freeze
 
   setup { configure_openai }
 
@@ -102,6 +103,39 @@ class OutboundTest < ActiveSupport::TestCase
     assert_no_external_requests
   end
 
+  test "an OCR request checks privacy again before each retry" do
+    use_mistral_ocr
+    document = ingest("public", filename: "public.txt")
+    stub_request(:post, MISTRAL_OCR).to_return do
+      Document.where(id: document.id).update_all(private: true)
+      overloaded
+    end
+
+    assert_raises(Outbound::PrivateDocumentError) { Outbound.for(document).ocr(fixture_file("../files/.keep").to_s) }
+    assert_requested :post, MISTRAL_OCR, times: 1
+  end
+
+  test "an OCR request retries as usual while its document stays shareable" do
+    use_mistral_ocr
+    document = ingest("public", filename: "public.txt")
+    page = { pages: [ { index: 0, markdown: "Scanned text" } ], model: "mistral-ocr-latest", usage_info: { pages_processed: 1 } }
+    stub_request(:post, MISTRAL_OCR).to_return(overloaded, { status: 200, body: page.to_json, headers: { "Content-Type" => "application/json" } })
+
+    result = Outbound.for(document).ocr(fixture_file("../files/.keep").to_s)
+
+    assert_equal "Scanned text", result.markdown
+    assert_requested :post, MISTRAL_OCR, times: 2
+  end
+
+  test "OCR is refused when its requests cannot be checked" do
+    use_mistral_ocr
+    document = ingest("public", filename: "public.txt")
+    AIProvider.any_instance.stubs(:ocr).yields(stub(connection: Object.new))
+
+    assert_raises(Outbound::Error) { Outbound.for(document).ocr(fixture_file("../files/.keep").to_s) }
+    assert_no_external_requests
+  end
+
   test "building a chat needs the task assigned" do
     Setting.instance.update!(ai_enabled: false)
 
@@ -110,6 +144,11 @@ class OutboundTest < ActiveSupport::TestCase
   end
 
   private
+    def use_mistral_ocr
+      mistral = AIProvider.create!(kind: "mistral", api_key: TestKeys::MISTRAL)
+      Setting.instance.update!(vision_provider: mistral, vision_model: "mistral-ocr-latest")
+    end
+
     def overloaded
       { status: 503, body: { error: { message: "Overloaded", type: "server_error" } }.to_json, headers: { "Content-Type" => "application/json" } }
     end
@@ -121,4 +160,24 @@ class OutboundTest < ActiveSupport::TestCase
         usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 }
       }.to_json
     end
+end
+
+# Jobs run with the query cache on. Privacy changed by another process, on
+# its own connection, must still stop the next request.
+class OutboundQueryCacheTest < ActiveSupport::TestCase
+  self.use_transactional_tests = false
+
+  test "authorization reads privacy past the query cache" do
+    document = document_with_text("public")
+    outbound = Outbound.for(document)
+
+    ActiveRecord::Base.cache do
+      outbound.authorize!
+      Thread.new { Document.where(id: document.id).update_all(private: true) }.join
+
+      assert_raises(Outbound::PrivateDocumentError) { outbound.authorize! }
+    end
+  ensure
+    Document.where(id: document.id).delete_all if document
+  end
 end

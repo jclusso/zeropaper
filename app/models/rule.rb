@@ -38,13 +38,18 @@ class Rule < ApplicationRecord
   scope :enabled, -> { where(enabled: true) }
   scope :ordered, -> { order(:position, :id) }
 
+  # A new or changed mark-private rule also runs over the documents already
+  # in the library, locally, so they do not stay shareable.
+  after_save_commit :privatize_existing_later, if: :privatizes_existing_documents?
+
   def self.matching(document, text: nil)
     enabled.ordered.select { |rule| rule.matches?(document, text: text) }
   end
 
-  # Rules that can decide before the text is read.
+  # Rules that can decide before the text is read: those without text
+  # conditions, and "any" rules whose filename or source conditions match.
   def self.matching_before_content(document)
-    enabled.ordered.reject(&:needs_content?).select { |rule| rule.matches?(document) }
+    enabled.ordered.select { |rule| rule.matches_before_content?(document) }
   end
 
   # Marks documents that mention the correspondent private and files them
@@ -81,6 +86,30 @@ class Rule < ApplicationRecord
     match_mode == "any" ? results.any? : results.all?
   end
 
+  # Whether the filename and source alone decide that the rule matches.
+  def matches_before_content?(document)
+    return matches?(document) unless needs_content?
+
+    match_mode == "any" && conditions.any? { |condition| condition["field"] != "content" && condition_met?(condition, document, nil) }
+  end
+
+  # Marks the shareable documents the rule matches from what is already
+  # stored (their text, filename and source) private, in one pass over the
+  # library. A processed document keeps its text, details and search index,
+  # which were all made or stored here, so it is not read again; one still
+  # in the pipeline is queued again, since the run in progress stops once it
+  # sees the change.
+  def privatize_existing!
+    return unless enabled? && mark_private?
+
+    Document.shareable.select(:id, :original_filename, :source, :content).find_each do |candidate|
+      next unless matches?(candidate)
+
+      document = Document.find_by(id: candidate.id)
+      document&.privatize!(reason: private_reason, reprocess: document.processing?)
+    end
+  end
+
   # Applies the filing actions. Privacy is handled separately by the
   # pipeline, because it has to happen before anything else.
   def apply_filing(document, overwrite:)
@@ -93,7 +122,16 @@ class Rule < ApplicationRecord
     "Matched rule “#{name}”"
   end
 
+  # Whether the last save queued a run over the existing documents.
+  def privatizes_existing_documents?
+    enabled? && mark_private? && saved_changes.keys.intersect?(%w[conditions match_mode enabled mark_private])
+  end
+
   private
+    def privatize_existing_later
+      PrivatizeRuleMatchesJob.perform_later(self)
+    end
+
     def condition_met?(condition, document, text)
       value = condition["value"]
       subject =

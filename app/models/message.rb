@@ -64,8 +64,9 @@ class Message < ApplicationRecord
     Document.shareable.where(id: cited_document_ids).index_by(&:id)
   end
 
-  # Every document the answer handed to the model. Answers from before this
-  # was recorded only know the ones they cited.
+  # Every document the answer handed to the model, through its tools or the
+  # earlier turns it was given. Answers from before this was recorded only
+  # know the ones they cited; see Conversation#shareable_history.
   def shared_document_ids
     (used_document_ids + cited_document_ids.map(&:to_i)).uniq
   end
@@ -91,7 +92,7 @@ class Message < ApplicationRecord
 
   def finish!(content:, cited_document_ids:, private_match_ids:, used_document_ids: cited_document_ids)
     update!(status: "complete", content: content, cited_document_ids: cited_document_ids, used_document_ids: used_document_ids,
-      private_match_ids: private_match_ids)
+      private_match_ids: private_match_ids, provenance_complete: true)
     broadcast_now
   end
 

@@ -98,8 +98,13 @@ class AIProvider < ApplicationRecord
     context.chat(model: model, provider: ruby_llm_provider, assume_model_exists: !registry_knows?(model))
   end
 
+  # Builds the RubyLLM provider for this one call and yields it before the
+  # file is sent, so Outbound can check every request it makes. Needs the
+  # block, so a call that skips the check fails before anything is sent.
   def ocr(path, model:)
-    context.ocr(path, model: model, provider: ruby_llm_provider, assume_model_exists: !registry_knows?(model))
+    model, provider = RubyLLM::Models.resolve(model, provider: ruby_llm_provider, assume_model_exists: !registry_knows?(model), config: context.config)
+    yield provider
+    provider.ocr(path, model: model)
   end
 
   # Confirms the key and address work by listing models, which costs nothing.

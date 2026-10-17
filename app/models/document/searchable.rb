@@ -17,9 +17,15 @@ module Document::Searchable
     has_neighbors :embedding
   end
 
+  # Embeds the text, then replaces the chunks, vectors and search index in
+  # one transaction, only while the processing run is still current.
   def index!
-    rebuild_chunks
-    refresh_search_vector
+    pieces = chunk_pieces
+    vectors = Embedder.embed_documents(pieces.map { |piece| piece[:content] })
+    apply_for_current_run do
+      replace_chunks(pieces, vectors)
+      refresh_search_vector
+    end
     "#{chunks.count} #{"passage".pluralize(chunks.count)} embedded locally"
   end
 
@@ -53,7 +59,7 @@ module Document::Searchable
   # matches the full scan.
   def record_page_hashes!
     hashes = pdf? && file.attached? ? with_file_copy { |path| PageHash.pdf_pages(path, skip: suggested_blank_pages) } : []
-    update_columns(page_hashes: hashes)
+    apply_for_current_run { update_columns(page_hashes: hashes) }
   end
 
   def flag_possible_duplicate
@@ -64,31 +70,29 @@ module Document::Searchable
     nearest = Document.where.not(id: id).where.not(embedding: nil).where(created_at: ...created_at)
       .nearest_neighbors(:embedding, embedding, distance: "cosine").first(DUPLICATE_CANDIDATES)
       .find { |candidate| candidate.neighbor_distance < DUPLICATE_CANDIDATE_DISTANCE && copy_of?(candidate) }
-    if nearest
-      update_columns(duplicate_of_id: nearest.id)
-      add_review_reason!("possible_duplicate")
-      "Looks like “#{nearest.display_title}”"
-    else
-      update_columns(duplicate_of_id: nil)
-      review_resolved!("possible_duplicate")
-      "None found"
+    apply_for_current_run do
+      if nearest
+        update_columns(duplicate_of_id: nearest.id)
+        add_review_reason!("possible_duplicate")
+        "Looks like “#{nearest.display_title}”"
+      else
+        update_columns(duplicate_of_id: nil)
+        review_resolved!("possible_duplicate")
+        "None found"
+      end
     end
   end
 
   private
-    def rebuild_chunks
-      pieces = chunk_pieces
-      vectors = Embedder.embed_documents(pieces.map { |piece| piece[:content] })
+    def replace_chunks(pieces, vectors)
       language = self.class.connection.quote(Document::SEARCH_CONFIG)
 
-      transaction do
-        chunks.delete_all
-        pieces.each_with_index do |piece, index|
-          chunk = chunks.create!(position: index, page_number: piece[:page], content: piece[:content], embedding: vectors[index])
-          Chunk.where(id: chunk.id).update_all([ "search_vector = to_tsvector(#{language}::regconfig, ?)", piece[:content] ])
-        end
-        update_columns(embedding: mean_vector(vectors))
+      chunks.delete_all
+      pieces.each_with_index do |piece, index|
+        chunk = chunks.create!(position: index, page_number: piece[:page], content: piece[:content], embedding: vectors[index])
+        Chunk.where(id: chunk.id).update_all([ "search_vector = to_tsvector(#{language}::regconfig, ?)", piece[:content] ])
       end
+      update_columns(embedding: mean_vector(vectors))
     end
 
     def chunk_pieces

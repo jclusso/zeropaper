@@ -93,6 +93,48 @@ class Metadata::AITest < ActiveSupport::TestCase
     assert_not_requested(:post, "https://api.openai.com/v1/responses") { |request| request.body.include?("Discreet Therapy") }
   end
 
+  test "documents whose titles are offered as examples are checked again before each attempt" do
+    example = document_with_text("Harbor Water account 77-31", title: "Harbor Water Bill", metadata_source: "ai")
+    document = ingest(BILL_TEXT, filename: "bill.txt")
+    stub_request(:post, "https://api.openai.com/v1/responses").to_return do
+      Document.where(id: example.id).update_all(private: true)
+      { status: 503, body: { error: { message: "Overloaded", type: "server_error" } }.to_json, headers: { "Content-Type" => "application/json" } }
+    end
+
+    error = assert_raises(Outbound::PrivateDocumentError) { Metadata::AI.new(document).apply }
+
+    assert_match example.id.to_s, error.message
+    assert_requested(:post, "https://api.openai.com/v1/responses", times: 1) { |request| request.body.include?("Harbor Water Bill") }
+  end
+
+  test "an example title turning private files the document with local rules" do
+    example = document_with_text("Harbor Water account 77-31", title: "Harbor Water Bill", metadata_source: "ai")
+    document = ingest(BILL_TEXT, filename: "bill.txt")
+    stub_request(:post, "https://api.openai.com/v1/responses").to_return do
+      Document.where(id: example.id).update_all(private: true)
+      { status: 503, body: { error: { message: "Overloaded", type: "server_error" } }.to_json, headers: { "Content-Type" => "application/json" } }
+    end
+
+    process(document)
+
+    assert_equal "ready", document.status
+    assert_equal "rules", document.metadata_source
+    assert_includes document.review_reasons, "ai_failed"
+    assert_equal correspondents(:acme_power), document.correspondent
+    refute_match example.id.to_s, document.step_state("metadata")["detail"]
+  end
+
+  test "tags the AI invents are created in name order" do
+    configure_openai(ai_creates_tags: true)
+    document = ingest(BILL_TEXT, filename: "bill.txt")
+    details = { title: "Bill", document_date: nil, correspondent: nil, document_type: nil, tags: %w[Zinc apple Mango], summary: "", confidence: 0.9 }
+    stub_request(:post, "https://api.openai.com/v1/responses").to_return(status: 200, body: response_body(details.to_json), headers: { "Content-Type" => "application/json" })
+
+    Metadata::AI.new(document).apply
+
+    assert_equal %w[apple Mango Zinc], Tag.where(name: %w[Zinc apple Mango]).order(:id).pluck(:name)
+  end
+
   test "manually edited details are kept" do
     document = ingest(BILL_TEXT, filename: "bill.txt")
     document.update!(title: "My power bill", metadata_source: "manual")
@@ -112,4 +154,13 @@ class Metadata::AITest < ActiveSupport::TestCase
     assert_includes document.review_reasons, "ai_failed"
     assert_equal correspondents(:acme_power), document.correspondent
   end
+
+  private
+    def response_body(text)
+      {
+        id: "resp_1", object: "response", status: "completed", model: "gpt-5.6-luna",
+        output: [ { type: "message", id: "msg_1", status: "completed", role: "assistant", content: [ { type: "output_text", text: text, annotations: [] } ] } ],
+        usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 }
+      }.to_json
+    end
 end

@@ -1,5 +1,7 @@
 # Counts documents, optionally filtered and grouped. Only non-private
-# documents are counted, so the model's numbers never reveal private ones.
+# documents are counted, so the model's numbers never reveal private ones,
+# and the counted documents are registered with the research, so each later
+# request checks them again and the answer records them.
 class Research::CountDocuments < Research::Tool
   GROUPS = %w[none correspondent document_type tag year month].freeze
 
@@ -13,6 +15,7 @@ class Research::CountDocuments < Research::Tool
 
   def execute(group_by: "none", date_from: nil, date_to: nil, correspondent: nil, document_type: nil, tag: nil)
     scope = Document.ready.shareable.filter_by(filters(date_from:, date_to:, correspondent:, document_type:, tag:))
+    research.shareable(scope.select(:id, :private).to_a)
 
     counts =
       case group_by

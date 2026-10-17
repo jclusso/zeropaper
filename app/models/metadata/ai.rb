@@ -1,6 +1,8 @@
 # Asks the extraction model for a document's details. Goes through Outbound,
 # so it refuses private documents, and offers the model only taxonomy names
-# that are already used by non-private documents.
+# that are already used by non-private documents. The answer is applied in
+# one transaction, and only while the processing run is still current, so a
+# late answer writes no details, tags or new taxonomy.
 module Metadata
   class AI
     MAX_CHARACTERS = 24_000
@@ -27,31 +29,39 @@ module Metadata
     end
 
     def apply
-      response = Outbound.for(@document)
+      @outbound = Outbound.for(@document)
+      response = @outbound
         .chat(:extraction)
         .with_instructions(instructions)
         .with_schema(SCHEMA)
         .ask(prompt)
-      details = response.parsed
-
-      assign(:document_date, parse_date(details["document_date"]))
-      assign(:title, DocumentTitle.clean(details["title"], date: @document.document_date))
-      assign_correspondent(details["correspondent"])
-      assign(:document_type, existing_or_new(DocumentType, details["document_type"], create: @settings.ai_creates_types?))
-      if @overwrite || @document.tags.empty?
-        names = Array(details["tags"]).first(5)
-        names = names.filter_map { |name| Tag.named(name)&.name } unless @settings.ai_creates_tags?
-        @document.tags = names.uniq(&:downcase).filter_map { |name| existing_or_new(Tag, name, create: true) }
-      end
-      Metadata::Rules.file(@document, text: text, overwrite: @overwrite)
-      @document.summary = details["summary"].to_s.strip.presence
-      @document.confidence = details["confidence"].to_f.clamp(0, 1)
-      @document.ai_model = response.model || @settings.model_for(:extraction)
-      @document.metadata_source = "ai" if @overwrite
-      @document.save!
+      @document.apply_for_current_run { apply_details(response) }
     end
 
     private
+      def apply_details(response)
+        details = response.parsed
+
+        assign(:document_date, parse_date(details["document_date"]))
+        assign(:title, DocumentTitle.clean(details["title"], date: @document.document_date))
+        assign_correspondent(details["correspondent"])
+        assign(:document_type, existing_or_new(DocumentType, details["document_type"], create: @settings.ai_creates_types?))
+        if @overwrite || @document.tags.empty?
+          names = Array(details["tags"]).first(5)
+          names = names.filter_map { |name| Tag.named(name)&.name } unless @settings.ai_creates_tags?
+          # Sorted, so two runs creating the same new names wait on each
+          # other in one order and cannot deadlock.
+          names = names.uniq(&:downcase).sort_by { |name| name.to_s.squish.downcase }
+          @document.tags = names.filter_map { |name| existing_or_new(Tag, name, create: true) }
+        end
+        Metadata::Rules.file(@document, text: text, overwrite: @overwrite)
+        @document.summary = details["summary"].to_s.strip.presence
+        @document.confidence = details["confidence"].to_f.clamp(0, 1)
+        @document.ai_model = response.model || @settings.model_for(:extraction)
+        @document.metadata_source = "ai" if @overwrite
+        @document.save!
+      end
+
       def instructions
         <<~TEXT
           You file documents for a personal archive. Read the document and return its details.
@@ -100,9 +110,12 @@ module Metadata
       end
 
       # Recent titles of non-private documents, as a naming style to follow.
+      # Their documents join the request, so each attempt checks them too.
       def example_titles
-        Document.shareable.where(metadata_source: %w[ai manual]).where.not(id: @document.id).where.not(title: nil)
-          .order(updated_at: :desc).limit(40).pluck(:title).uniq.join("; ").presence || "(none yet)"
+        examples = Document.shareable.where(metadata_source: %w[ai manual]).where.not(id: @document.id).where.not(title: nil)
+          .order(updated_at: :desc).limit(40).select(:id, :private, :title).to_a
+        @outbound.release!(examples)
+        examples.map(&:title).uniq.join("; ").presence || "(none yet)"
       end
 
       def names(model)
