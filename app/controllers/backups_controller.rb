@@ -17,8 +17,11 @@ class BackupsController < ApplicationController
   end
 
   def show
-    file = Backup.stored.find_by(id: params[:id])&.path
-    return gone unless file
+    backup = Backup.stored.find_by(id: params[:id])
+    return gone unless backup
+
+    file = backup.find_file
+    return redirect_to(backups_path, alert: Backup.reachable? ? "#{backup.filename} is missing from the backup folder." : Backup.unreachable_message) unless file
 
     io = Backup.open_file(file)
     response.headers["Cache-Control"] = "private, no-store"
@@ -32,13 +35,15 @@ class BackupsController < ApplicationController
   end
 
   def destroy
-    backup = Backup.stored.find_by(id: params[:id])
+    backup = Backup.where(status: %w[ready failed]).find_by(id: params[:id])
     backup&.remove!
-    redirect_to backups_path, notice: backup ? "Deleted #{backup.filename}." : "That backup was already gone."
+    redirect_to backups_path, notice: backup ? "Deleted #{backup.filename || "the failed backup"}." : "That backup was already gone."
+  rescue Backup::Unreachable => error
+    redirect_to backups_path, alert: error.message
   end
 
   private
     def gone
-      redirect_to backups_path, alert: "That backup is no longer in the backup folder."
+      redirect_to backups_path, alert: "That backup is no longer listed."
     end
 end

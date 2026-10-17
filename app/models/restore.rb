@@ -29,7 +29,7 @@ class Restore < ApplicationRecord
   def process!
     run_alone do
       update!(status: "processing", error: nil)
-      path = backup_file or raise "#{filename} is no longer in the backup folder."
+      path = backup_file or raise(Backup.reachable? ? "#{filename} is missing from the backup folder." : Backup.unreachable_message)
 
       Backup.open_zip(path, key_bytes) do |zip|
         reader = Archive::Reader.new(zip, restored_by: user, own_key: key_bytes == Setting.instance.backup_key_bytes)
@@ -47,7 +47,7 @@ class Restore < ApplicationRecord
 
   private
     def backup_file
-      Backup.stored.find_by(filename: filename)&.path
+      Backup.stored.find_by(filename: filename)&.find_file
     end
 
     def key_bytes
@@ -56,8 +56,10 @@ class Restore < ApplicationRecord
 
     def backup_can_be_opened
       path = backup_file
-      if path.nil?
-        errors.add(:filename, "is not a backup in the backup folder")
+      if !Backup.stored.exists?(filename: filename)
+        errors.add(:filename, "is not a listed backup")
+      elsif path.nil?
+        errors.add(:base, Backup.reachable? ? "#{filename} is missing from the backup folder." : Backup.unreachable_message)
       elsif key.present? && Backup::Key.parse(key).nil?
         errors.add(:key, "is not a ZeroPaper backup key")
       elsif Backup::Envelope.new(path.to_s).key_id != Backup::Key.id(key_bytes)

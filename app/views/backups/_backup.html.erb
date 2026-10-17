@@ -5,7 +5,9 @@
     <span class="block font-mono text-xs muted"><%= name %></span>
   </td>
   <td class="hidden muted md:table-cell">
-    <% if !backup.readable? %>
+    <% if backup.missing? %>
+      <span class="text-danger">File missing</span>
+    <% elsif !backup.readable? %>
       <span class="text-danger">Cannot be read</span>
     <% elsif !backup.own_key? %>
       Made with key <code><%= backup.key_id %></code>
@@ -16,7 +18,8 @@
   <td class="hidden tabular-nums muted sm:table-cell"><%= number_to_human_size(backup.size) %></td>
   <td>
     <div class="flex items-start justify-end gap-2">
-      <% if !backup.readable? || backup.own_key? %>
+      <% if backup.missing? %>
+      <% elsif !backup.readable? || backup.own_key? %>
         <%= button_to "Restore", backup_restoration_path(backup), class: "btn-secondary btn-sm",
               form: { data: { turbo_confirm: "Restore #{name}? Documents already in the library are skipped." } } %>
       <% else %>

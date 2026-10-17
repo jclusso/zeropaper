@@ -43,6 +43,18 @@ module BackupFolder
       name
     end
 
+    # Stands in for a share that is not mounted: the folder's path is there
+    # but is not a folder.
+    def unmounted
+      FileUtils.remove_entry(@backup_dir)
+      File.write(@backup_dir, "")
+    end
+
+    def mounted
+      File.delete(@backup_dir) if File.file?(@backup_dir)
+      FileUtils.mkdir_p(@backup_dir)
+    end
+
     def put_backup(data, name = Backup.file_name)
       File.binwrite(File.join(@backup_dir, name), data)
       name
