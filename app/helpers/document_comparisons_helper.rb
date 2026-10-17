@@ -74,6 +74,10 @@ module DocumentComparisonsHelper
       end
   end
 
+  def comparison_heading(document, other)
+    document.duplicate_of == other ? "Possible original" : "Other document"
+  end
+
   # Tells two documents with the same title apart in a confirmation.
   def comparison_identity(document)
     [ (pluralize(document.page_count, "page") if document.page_count), "added #{document.created_at.to_fs(:long)}" ].compact.join(", ")

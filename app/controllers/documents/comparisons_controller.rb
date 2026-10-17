@@ -6,6 +6,11 @@ class Documents::ComparisonsController < ApplicationController
   def show
     @other = params[:other].present? ? Document.find_by(id: params[:other]) : @document.duplicate_of
 
-    redirect_to @document, notice: "This document is not flagged as a duplicate." if @other.nil? || @other == @document
+    if @other.nil? || @other == @document
+      redirect_to @document, notice: "This document is not flagged as a duplicate."
+    elsif turbo_frame_request?
+      # Both documents' viewers, loaded into the side-by-side dialog when it opens.
+      render :viewers
+    end
   end
 end

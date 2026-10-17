@@ -78,11 +78,11 @@ export default class extends Controller {
 
   // Toolbar
 
-  zoomIn() { this.viewer?.increaseScale() }
-  zoomOut() { this.viewer?.decreaseScale() }
+  zoomIn() { this.command("stepZoom", 1) }
+  zoomOut() { this.command("stepZoom", -1) }
 
   setScale() {
-    if (this.viewer) this.viewer.currentScaleValue = this.scaleSelectTarget.value
+    this.command("applyScale", this.scaleSelectTarget.value)
     this.rememberScale(this.scaleSelectTarget.value)
   }
 
@@ -98,6 +98,55 @@ export default class extends Controller {
 
   goTo({ params: { page } }) {
     if (this.viewer) this.viewer.currentPageNumber = page
+  }
+
+  // Zoom, which a pdf-compare controller repeats in the other viewers when
+  // they are linked. Paging needs no relay: it scrolls, and scrolling is linked.
+  command(name, value) {
+    if (!this.viewer) return
+    this[name](value)
+    this.compare?.follow(this, name, value)
+  }
+
+  stepZoom(direction) {
+    if (direction > 0) this.viewer.increaseScale()
+    else this.viewer.decreaseScale()
+  }
+
+  applyScale(value) { this.viewer.currentScaleValue = value }
+
+  // Linked scrolling
+
+  scrolled() {
+    if (this.followingScroll) this.followingScroll = false
+    else this.compare?.scrolled(this)
+  }
+
+  // Where the view is as a page and how far down it, so documents whose
+  // pages differ in size still line up page for page.
+  scrollPosition() {
+    const container = this.containerTarget
+    const page = this.pageDivs().findLastIndex((div) => div.offsetTop <= container.scrollTop)
+    const div = this.pageDivs()[Math.max(page, 0)]
+    return {
+      page: Math.max(page, 0),
+      offset: (container.scrollTop - div.offsetTop) / div.offsetHeight,
+      left: container.scrollLeft / Math.max(container.scrollWidth - container.clientWidth, 1)
+    }
+  }
+
+  scrollToPosition({ page, offset, left }) {
+    const container = this.containerTarget
+    const div = this.pageDivs()[Math.min(page, this.viewer.pagesCount - 1)]
+    const before = [ container.scrollTop, container.scrollLeft ]
+    container.scrollTop = div.offsetTop + offset * div.offsetHeight
+    container.scrollLeft = left * Math.max(container.scrollWidth - container.clientWidth, 1)
+    // The scroll event this causes is ours, so it should not be sent back.
+    this.followingScroll = container.scrollTop !== before[0] || container.scrollLeft !== before[1]
+  }
+
+  pageDivs() {
+    return Array.from({ length: this.viewer.pagesCount }, (_, index) => this.viewer.getPageView(index).div)
   }
 
   // reading-mode:go-to from a page heading in the text.
@@ -157,9 +206,11 @@ export default class extends Controller {
   }
 
   // Keyboard: j/k or arrows for pages, + and - to zoom, 0 to fit width,
-  // / or Ctrl+F to find, f for fullscreen.
+  // / or Ctrl+F to find, f for fullscreen. In a comparison only one viewer
+  // takes the keys and the others follow it.
   keydown(event) {
-    if (!this.viewer || !this.element.isConnected) return
+    if (!this.viewer || !this.element.checkVisibility()) return
+    if (this.compare && this.compare.keyViewer() !== this) return
     const typing = event.target.closest("input, textarea, select, [contenteditable]")
     // The find field is hidden when the viewer is narrow; the browser's own find takes over.
     const findShown = this.findInputTarget.offsetParent !== null
@@ -172,7 +223,7 @@ export default class extends Controller {
     const actions = {
       j: () => this.nextPage(), ArrowRight: () => this.nextPage(), k: () => this.previousPage(), ArrowLeft: () => this.previousPage(),
       "+": () => this.zoomIn(), "=": () => this.zoomIn(), "-": () => this.zoomOut(),
-      "0": () => { this.viewer.currentScaleValue = "page-width" }, "/": () => findShown && this.findInputTarget.focus(), f: () => this.fullscreen()
+      "0": () => this.command("applyScale", "page-width"), "/": () => findShown && this.findInputTarget.focus(), f: () => this.fullscreen()
     }
     if (actions[event.key]) {
       event.preventDefault()
