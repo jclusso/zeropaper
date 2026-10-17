@@ -1,0 +1,129 @@
+#!/usr/bin/env ruby
+# Gives a git worktree its own development setup, copied from the main checkout:
+# the master key, the downloaded models, the stored files and a migrated copy of
+# the development database. bin/dev and bin/setup run `bin/worktree setup`, so a
+# new worktree only needs `bin/dev`.
+#
+#   bin/worktree setup   Copy whatever is missing. Safe to run again.
+#   bin/worktree reset   Copy the main checkout's database and files again.
+#   bin/worktree drop    Drop this worktree's databases, before removing it.
+#   bin/worktree port    Print the port bin/dev uses here.
+#   bin/worktree url     Print the address bin/dev serves here.
+require "fileutils"
+require "socket"
+require "zlib"
+
+APP_ROOT = File.expand_path("..", __dir__)
+
+# config/database.yml derives the same suffix, so keep the two in step.
+NAME = File.basename(APP_ROOT).gsub(/\W/, "_")[0, 30]
+WORKTREE = File.file?(File.join(APP_ROOT, ".git"))
+
+def system!(*args)
+  system(*args, exception: true)
+end
+
+def main_checkout
+  @main_checkout ||= File.dirname(`git -C #{APP_ROOT} rev-parse --path-format=absolute --git-common-dir`.strip)
+end
+
+def databases
+  `psql -d postgres -Atc "select datname from pg_database"`.split
+end
+
+def worktree_databases
+  databases.grep(/\Azeropaper_(development|test)_#{NAME}(_\d+)?\z/)
+end
+
+def development_database
+  "zeropaper_development_#{NAME}"
+end
+
+# Shared and read-only in practice, so a link saves copying them.
+def link(path)
+  source, target = File.join(main_checkout, path), File.join(APP_ROOT, path)
+  return if File.exist?(target) || File.symlink?(target) || !File.exist?(source)
+
+  puts "Linking #{path}"
+  FileUtils.mkdir_p(File.dirname(target))
+  File.symlink(source, target)
+end
+
+# The worktree changes these, so each gets its own copy. On APFS the copy shares
+# blocks with the original until either side writes.
+def copy(path, replace: false)
+  source, target = File.join(main_checkout, path), File.join(APP_ROOT, path)
+  return unless File.exist?(source)
+
+  FileUtils.mkdir_p(target)
+  copied = Dir.children(target).reject { it == ".keep" }
+  return if copied.any? && !replace
+
+  puts "Copying #{path}"
+  FileUtils.rm_rf(copied.map { File.join(target, it) })
+  system("cp", "-cR", "#{source}/.", target, err: File::NULL) || system!("cp", "-R", "#{source}/.", target)
+end
+
+def copy_database(replace: false)
+  return unless databases.include?("zeropaper_development")
+
+  if databases.include?(development_database)
+    return unless replace
+
+    system!("dropdb", "--force", development_database)
+  end
+
+  puts "Copying zeropaper_development to #{development_database}"
+  system!("createdb", development_database)
+  system!("set -o pipefail; pg_dump --format=custom zeropaper_development | pg_restore --no-owner --no-acl --dbname=#{development_database}")
+rescue
+  # A half copy would be kept by the next run, so start over instead.
+  system("dropdb", "--if-exists", "--force", development_database)
+  raise
+end
+
+def setup(replace: false)
+  return unless WORKTREE
+
+  link "config/master.key"
+  link "storage/models"
+  copy "storage/files", replace: replace
+  copy "storage/private", replace: replace
+  copy "tmp/storage", replace: replace
+  copy_database(replace: replace)
+
+  Dir.chdir(APP_ROOT) { system!("bin/rails db:prepare") }
+end
+
+def port
+  return ENV.fetch("PORT", 3000).to_i unless WORKTREE
+
+  port = 3001 + Zlib.crc32(NAME) % 999
+  port += 1 until port_free?(port)
+  port
+end
+
+def port_free?(port)
+  TCPServer.new("127.0.0.1", port).close
+  true
+rescue Errno::EADDRINUSE
+  false
+end
+
+# Browsers keep cookies per host, not per port, so each worktree gets its own
+# host name to keep its session apart from the others.
+def url
+  host = WORKTREE ? "#{NAME.tr("_", "-").downcase}.localhost" : "localhost"
+  "http://#{host}:#{ENV.fetch("PORT") { port }}"
+end
+
+case ARGV.first
+when "setup" then setup
+when "reset" then setup(replace: true)
+when "drop"
+  abort "Only a worktree's databases can be dropped." unless WORKTREE
+  worktree_databases.each { system!("dropdb", "--force", it) }
+when "port" then puts port
+when "url" then puts url
+else abort "Usage: bin/worktree setup|reset|drop|port|url"
+end
