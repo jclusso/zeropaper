@@ -13,19 +13,19 @@
       <ol class="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <% (1..document.page_count).each do |page| %>
           <li>
-            <%= link_to document_path(document, anchor: "page=#{page}"), class: "group block", title: "Open page #{page}" do %>
+            <button type="button" class="group block w-full cursor-zoom-in" command="show-modal" commandfor="comparison-dialog" title="Compare side by side">
               <span class="block overflow-hidden rounded-sm border border-border bg-white transition group-hover:border-foreground/40">
                 <%= image_tag document_page_path(document, page, size: "thumb", source: "file", v: document.file.blob.id), alt: "Page #{page}", loading: "lazy", width: 240, height: 310, class: "h-auto w-full" %>
               </span>
               <span class="mt-1 block text-center text-xs muted">Page <%= page %></span>
-            <% end %>
+            </button>
           </li>
         <% end %>
       </ol>
     <% elsif document.thumbnail.attached? %>
-      <%= link_to document, class: "block" do %>
+      <button type="button" class="block w-full cursor-zoom-in" command="show-modal" commandfor="comparison-dialog" title="Compare side by side">
         <%= image_tag document_thumbnail_path(document, v: document.thumbnail.blob.id), alt: "", loading: "lazy", class: "mx-auto max-h-[28rem] w-auto rounded-sm border border-border" %>
-      <% end %>
+      </button>
     <% else %>
       <p class="whitespace-pre-wrap text-xs leading-relaxed"><%= document.content.to_s.tr(Document::PAGE_BREAK, "\n").truncate(2_000) %></p>
     <% end %>

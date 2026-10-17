@@ -69,6 +69,41 @@ class Documents::ComparisonsControllerTest < ActionDispatch::IntegrationTest
     refute_includes @copy.review_reasons, "possible_duplicate"
   end
 
+  test "clicking a page opens both documents side by side in a dialog" do
+    pdf = ingest(text_pdf("One", "Two"), filename: "statement.pdf")
+    process(pdf)
+
+    get document_comparison_path(@copy, other: pdf.id)
+
+    assert_select "[data-comparison-column=#{pdf.id}] button[command=show-modal][commandfor=comparison-dialog]", count: 2
+    assert_select "dialog#comparison-dialog turbo-frame[id=?][loading=lazy][src=?]", dom_id(@copy, :comparison_viewers), document_comparison_path(@copy, other: pdf.id)
+    assert_select "[data-pdf-compare-target=link]", count: 0
+  end
+
+  test "two PDFs can be paged and zoomed together" do
+    first, second = [ "One", "Two" ].map { |text| process(ingest(text_pdf(text), filename: "#{text}.pdf")) }
+
+    get document_comparison_path(first, other: second.id)
+
+    assert_select "#comparison-dialog [data-controller=pdf-compare] button[data-pdf-compare-target=link][aria-pressed=true]", text: /Move together/
+    assert_select "#comparison-dialog kbd", text: "j"
+  end
+
+  test "the dialog's frame loads each document's viewer" do
+    pdf = ingest(text_pdf("One", "Two"), filename: "statement.pdf")
+    process(pdf)
+
+    get document_comparison_path(@copy, other: pdf.id), headers: { "Turbo-Frame" => dom_id(@copy, :comparison_viewers) }
+
+    assert_response :success
+    assert_select "turbo-frame[id=?]", dom_id(@copy, :comparison_viewers) do
+      assert_select "[data-comparison-viewer=#{@copy.id}]", text: /This document/
+      assert_select "[data-comparison-viewer=#{pdf.id}] [data-controller=pdf-viewer]"
+      assert_select "[data-comparison-viewer=#{pdf.id}] a[href=?][data-turbo-frame=_top]", document_path(pdf)
+    end
+    assert_select "#comparison-summary", count: 0
+  end
+
   test "any two documents can be compared" do
     other = document_with_text("Something else entirely", title: "Dentist letter")
 

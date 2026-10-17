@@ -1,4 +1,5 @@
 <% content_for :title, "Compare Documents" %>
+<% content_for :head do %><%= stylesheet_link_tag "pdf_viewer", "data-turbo-track": "reload" if [ @document, @other ].any? { document_viewer_kind(it) == :pdf } %><% end %>
 <% comparison = document_comparison(@document, @other) %>
 
 <div class="mx-auto max-w-6xl space-y-6">
@@ -24,7 +25,7 @@
 
   <div class="grid gap-4 md:grid-cols-2">
     <%= render "documents/comparisons/column", document: @document, other: @other, heading: "This document" %>
-    <%= render "documents/comparisons/column", document: @other, other: @document, heading: @document.duplicate_of == @other ? "Possible original" : "Other document" %>
+    <%= render "documents/comparisons/column", document: @other, other: @document, heading: comparison_heading(@document, @other) %>
   </div>
 
   <section class="card overflow-x-auto">
@@ -33,7 +34,7 @@
         <tr>
           <th class="w-40 px-4 py-2.5 font-semibold"><span class="sr-only">Detail</span></th>
           <th class="px-4 py-2.5 font-semibold">This document</th>
-          <th class="px-4 py-2.5 font-semibold"><%= @document.duplicate_of == @other ? "Possible original" : "Other document" %></th>
+          <th class="px-4 py-2.5 font-semibold"><%= comparison_heading(@document, @other) %></th>
         </tr>
       </thead>
       <tbody class="divide-y divide-border">
@@ -56,3 +57,5 @@
     <% end %>
   </section>
 </div>
+
+<%= render "documents/comparisons/dialog", document: @document, other: @other %>

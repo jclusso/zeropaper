@@ -1,0 +1,28 @@
+<el-dialog>
+  <dialog id="comparison-dialog" aria-labelledby="comparison-dialog-title" class="fixed inset-0 size-auto max-h-none max-w-none overflow-hidden bg-transparent backdrop:bg-transparent">
+    <el-dialog-backdrop class="fixed inset-0 bg-black/60 backdrop-blur-[2px] transition-opacity data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in"></el-dialog-backdrop>
+    <div tabindex="0" class="flex h-full p-2 focus:outline-none sm:p-4">
+      <el-dialog-panel class="card flex w-full flex-col overflow-hidden bg-card text-left transition-all data-closed:scale-95 data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in"
+        data-controller="pdf-compare" data-pdf-compare-pdf-viewer-outlet="#comparison-dialog [data-controller~=pdf-viewer]">
+        <div class="flex items-center gap-4 border-b border-border px-4 py-2.5">
+          <h2 id="comparison-dialog-title" class="section-title min-w-0 flex-1">Compare Side by Side</h2>
+          <% if [ document, other ].all? { document_viewer_kind(it) == :pdf } %>
+            <p class="hidden items-center gap-1.5 text-xs muted lg:flex">
+              <% { "j k" => "page", "+ −" => "zoom", "0" => "fit width" }.each do |keys, label| %>
+                <span class="flex items-center gap-1"><% keys.split.each do |key| %><kbd class="rounded-xs border border-border bg-subtle px-1.5 font-mono text-[11px] text-foreground"><%= key %></kbd><% end %> <%= label %></span>
+              <% end %>
+            </p>
+            <button type="button" class="btn-secondary btn-sm aria-pressed:border-strong-accent aria-pressed:text-strong-accent" aria-pressed="true"
+              data-pdf-compare-target="link" data-action="pdf-compare#toggle" title="Scroll, page and zoom both documents together. Turn off to move one on its own.">
+              <%= icon(:link, class: "size-4") %> Move together
+            </button>
+          <% end %>
+          <button type="button" class="btn-icon" command="close" commandfor="comparison-dialog" aria-label="Close"><%= icon(:x, class: "size-4") %></button>
+        </div>
+        <%= turbo_frame_tag dom_id(document, :comparison_viewers), src: document_comparison_path(document, other: other.id), loading: :lazy, class: "flex min-h-0 flex-1 flex-col" do %>
+          <p class="flex flex-1 items-center justify-center gap-2 text-sm muted"><%= icon(:refresh, class: "size-4 animate-spin") %> Loading documents…</p>
+        <% end %>
+      </el-dialog-panel>
+    </div>
+  </dialog>
+</el-dialog>
