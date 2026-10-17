@@ -21,6 +21,16 @@ class Document::TextReadingTest < ActiveSupport::TestCase
     assert document.archive_file.attached?
   end
 
+  test "logs how long the text step and each read took" do
+    logged = StringIO.new
+    Rails.stubs(:logger).returns(ActiveSupport::Logger.new(logged))
+    document = process(ingest(scan_with_ocr_layer, filename: "scan_0003.pdf"))
+
+    assert_equal "tesseract", document.text_source
+    assert_match(/\[process\] document #{document.id}: tesseract read of 1 page took \d+\.\ds/, logged.string)
+    assert_match(/\[process\] document #{document.id}: text step took \d+\.\ds/, logged.string)
+  end
+
   test "a mixed PDF reads only its scanned pages" do
     mixed = combine(text_pdf("Cover letter from Acme Power about the March statement and amount due"), scanned_text_pdf("PAYROLL SUMMARY\nEmployee salary report\n"))
     document = process(ingest(mixed, filename: "mixed.pdf"))

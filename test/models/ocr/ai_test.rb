@@ -1,6 +1,13 @@
 require "test_helper"
 
 class Ocr::AITest < ActiveSupport::TestCase
+  test "a read gets more time the more pages it carries, in whole minutes" do
+    assert_equal 2.minutes, Ocr::AI.timeout_for(1)
+    assert_equal 2.minutes, Ocr::AI.timeout_for(4)
+    assert_equal 3.minutes, Ocr::AI.timeout_for(5)
+    assert_equal 15.minutes, Ocr::AI.timeout_for(30)
+  end
+
   test "a code block around the whole answer is removed" do
     assert_equal "CUSTOMER #: 53710\nSt. James, NY", Ocr::AI.unfence("```text\nCUSTOMER #: 53710\nSt. James, NY\n```\n")
   end

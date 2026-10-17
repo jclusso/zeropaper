@@ -170,7 +170,7 @@ module Document::Processing
       raise Stopped unless current_run?
 
       record_step(name, "running")
-      detail = yield
+      detail = timed("#{name} step") { yield }
       case detail
       when :skipped then record_step(name, "skipped")
       when :waiting then record_step(name, "waiting", Document::INDEX_WAITING_NOTE)
@@ -417,7 +417,7 @@ module Document::Processing
       return unless settings.ai_reads_scans_for?(self)
       raise Stopped unless current_run?
 
-      result = Ocr::AI.new(settings, self).call(path, pages: pages, content_type: content_type)
+      result = timed("AI read of #{pages.size} #{"page".pluralize(pages.size)}") { Ocr::AI.new(settings, self).call(path, pages: pages, content_type: content_type) }
       self.text_source = Outbound.model_label(:vision)
       result.pages
     rescue Stopped, Outbound::PrivateDocumentError
@@ -452,12 +452,23 @@ module Document::Processing
       key = [ engine, pages, mode ]
       return @ocr_runs[key] if @ocr_runs.key?(key)
 
-      @ocr_runs[key] =
+      @ocr_runs[key] = timed("#{engine} read of #{pages.size} #{"page".pluralize(pages.size)}") do
         if engine == "tesseract"
           Ocr::Tesseract.new(settings).call(path, pages: pages, content_type: content_type, mode: mode)
         else
           Ocr.engine(engine, settings).call(path, pages: pages, content_type: content_type)
         end
+      end
+    end
+
+    # Logs how long the block ran, whether it finished or raised, so a slow
+    # document shows which part was slow. Reads and AI requests run at the
+    # same time in a step, so each logs on its own.
+    def timed(label)
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      yield
+    ensure
+      Rails.logger.info("[process] document #{id}: #{label} took #{(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).round(1)}s") if started
     end
 
     def extract_metadata!
