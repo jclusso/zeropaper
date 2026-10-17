@@ -15,6 +15,26 @@ class UserTest < ActiveSupport::TestCase
     assert user.valid?
   end
 
+  test "a new password removes every passkey" do
+    user = users(:two)
+    user.passkeys.create!(external_id: "abc", public_key: "key", name: "Borrowed laptop")
+    other = users(:one).passkeys.create!(external_id: "def", public_key: "key", name: "MacBook")
+
+    user.update!(password: "a new password")
+
+    assert_empty user.passkeys.reload
+    assert Passkey.exists?(other.id)
+  end
+
+  test "other changes keep the passkeys" do
+    user = users(:two)
+    user.passkeys.create!(external_id: "abc", public_key: "key", name: "MacBook")
+
+    user.update!(name: "Bea Renamed")
+
+    assert_equal 1, user.passkeys.count
+  end
+
   test "deleting a user keeps their backups and restores without them" do
     user = users(:two)
     backup = Backup.create!(user: user)

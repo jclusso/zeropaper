@@ -8,6 +8,8 @@ class PasswordsController < ApplicationController
   end
 
   def create
+    return redirect_to new_password_path unless ApplicationMailer.deliverable?
+
     if user = User.find_by(email_address: params[:email_address])
       PasswordsMailer.reset(user).deliver_later
     end

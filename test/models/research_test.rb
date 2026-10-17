@@ -100,6 +100,18 @@ class ResearchTest < ActiveSupport::TestCase
     assert_no_external_requests
   end
 
+  test "a failure is logged by class and message id, never by its message" do
+    Outbound.any_instance.stubs(:chat).raises(RuntimeError, "provider said: Biopsy results for Jane")
+    logged = StringIO.new
+    Rails.stubs(:logger).returns(ActiveSupport::Logger.new(logged))
+
+    @research.run
+
+    assert_equal "failed", @message.reload.status
+    assert_match "[research] message #{@message.id}: RuntimeError", logged.string
+    refute_match "Biopsy", logged.string
+  end
+
   # A model that asks for count_documents +calls_per_turn+ times a turn, and
   # answers after +answer_after+ turns or once tools are switched off. Tools,
   # callbacks and the loop are RubyLLM's own; only the provider is scripted.

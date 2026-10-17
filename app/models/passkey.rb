@@ -4,6 +4,8 @@ class Passkey < ApplicationRecord
   validates :external_id, :public_key, presence: true
   validates :name, presence: true
 
+  after_create_commit :notify_owner
+
   def self.register(user:, credential:, challenge:, relying_party:, name:)
     webauthn_credential = relying_party.verify_registration(credential, challenge, user_verification: true)
 
@@ -33,4 +35,11 @@ class Passkey < ApplicationRecord
     )
     update!(sign_count: webauthn_credential.sign_count, last_used_at: Time.current)
   end
+
+  private
+    # A passkey signs in without the password, so the owner hears about a new
+    # one when mail is set up.
+    def notify_owner
+      PasskeysMailer.added(user, name).deliver_later if ApplicationMailer.deliverable?
+    end
 end

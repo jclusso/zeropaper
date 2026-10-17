@@ -83,13 +83,25 @@ Settings that take effect at runtime (AI providers and keys, models, OCR, page c
 | `BACKUP_DIR` | The backup folder. Defaults to `/rails/storage/backups`; with Docker, mount that path instead of changing it. |
 | `PORT` | Host port for the app. Defaults to `3000`. |
 | `APP_HOST` | Host name the app is served under. When set, other hosts are refused. |
+| `APP_URL` | The address people open, such as `http://nas.local:3000`, used for links in emails and printed reset links. Set it when the app is reached on a port other than 80 or 443. Without it links use the first `APP_HOST`, and without either email is off. |
 | `ASSUME_SSL` | `true` when a reverse proxy terminates TLS. |
 | `FORCE_SSL` | `true` to redirect to HTTPS and use secure cookies. Required on any host reachable from the internet. |
 | `INGEST_DIR` | The ingest folder used until Settings chooses another. Defaults to `storage/ingest` (`/rails/storage/ingest` in Docker). |
 | `MAX_UPLOAD_MB` | Largest file an upload or the ingest folder accepts. Defaults to `250`. Word and Excel files, older exports and backups made with another key may unzip to four times this for each file. |
 | `MAX_BACKUP_GB` | Largest backup ZeroPaper makes, accepts as an upload or restores, both as the file and as everything it unzips to. Defaults to `500`. |
+| `MAIL_FROM` | Sender address for email, such as `ZeroPaper <paper@example.com>`. Without it email is off: no password reset emails and no notice when a passkey is added. Mail goes to the SMTP server in `config/environments/production.rb`, which is `localhost:25` unless you change it. |
 
-Passkeys need the app to be reached over HTTPS (or on `localhost`) under a stable host name.
+Passkeys need the app to be reached over HTTPS (or on `localhost`) under a stable host name. Adding one asks for the current password, and when outgoing mail is set up the owner gets an email about it. Changing or resetting a password removes the account's passkeys, since one added by whoever knew the old password would otherwise still sign in.
+
+When email is off, the Forgot Password page says so instead of sending a link. An admin can make a reset link on the server:
+
+```sh
+docker compose exec app bin/rails users:reset_password EMAIL=someone@example.com
+```
+
+With Kamal, run `bin/kamal app exec "bin/rails users:reset_password EMAIL=someone@example.com"`. The task prints a link that works once and expires after 15 minutes, like an emailed one, and changes nothing by itself. It prints the full link when `APP_URL` or `APP_HOST` is set and otherwise the path to open on the app's address. Choosing the new password signs the account out everywhere and removes its passkeys.
+
+A reset link, emailed or printed, is valid for 15 minutes. Its token is part of the path, so it appears in the request log (the `Started GET "/passwords/.../edit"` line) until it is used or expires.
 
 ZeroPaper reads and searches English only for now.
 
@@ -108,7 +120,15 @@ Text that is already in the file (PDFs with a text layer, Word, spreadsheets, pl
 
 ### Ingest folder
 
-Files placed in `./ingest` are imported within a minute and then removed from the folder. Files in `./ingest/private` are imported as private. Duplicates of documents already in the library are removed without importing. Watching can be switched off under Settings › Ingest Folder. To use another folder, such as a scanner's network share, change the left side of the `./ingest` mount in `docker-compose.yml`. Symlinks, and files in symlinked folders, are skipped and left where they are. Files larger than `MAX_UPLOAD_MB` are moved to `.unsupported/`.
+Files placed in `./ingest` are imported within a minute and then removed from the folder. Files in `./ingest/private` are imported as private. Duplicates of documents already in the library are removed without importing. Watching can be switched off under Settings › Ingest Folder. To use another folder, such as a scanner's network share, change the left side of the `./ingest` mount in `docker-compose.yml`. Symlinks, and files in symlinked folders, are skipped and left where they are. Files larger than `MAX_UPLOAD_MB` are moved to `.unsupported/`; if `.unsupported`, or a folder inside it, is a symlink, they are left where they are instead.
+
+Filenames can say what a document is about, so the log names ingest files by a 12-character id instead of their path. To see which file an id stands for, list the ids of the files still in the folder:
+
+```sh
+docker compose exec app bin/rails runner 'Dir.glob("**/*", File::FNM_DOTMATCH, base: Setting.instance.ingest_path).each { |path| puts "#{Ingest::Folder.log_id(path)}  #{path}" }'
+```
+
+The ids are keyed with `SECRET_KEY_BASE`, so they cannot be matched against guessed filenames, and they change if it does.
 
 ### Deploying with Kamal
 

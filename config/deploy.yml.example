@@ -50,12 +50,18 @@ env:
     - DATABASE_URL
   clear:
     APP_HOST: zeropaper.example.com
+    # The address people open, for links in emails and printed reset links.
+    # Needed when it is not APP_HOST on the default port.
+    # APP_URL: https://zeropaper.example.com
     # Set to true when the proxy (or one in front of it) terminates TLS.
     # Passkeys only work over HTTPS.
     ASSUME_SSL: false
     # Set to true on any internet facing host: redirects to HTTPS, sends
     # Strict-Transport-Security and keeps the session cookie off plain HTTP.
     FORCE_SSL: false
+    # Sender address for email. Password reset emails and new passkey
+    # notices are off until this is set.
+    # MAIL_FROM: "ZeroPaper <paper@example.com>"
     TZ: UTC
     PROCESSING_THREADS: 6
     INGEST_DIR: /rails/storage/ingest

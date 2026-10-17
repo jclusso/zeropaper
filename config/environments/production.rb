@@ -55,8 +55,10 @@ Rails.application.configure do
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.
   # config.action_mailer.raise_delivery_errors = false
 
-  # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST", "localhost") }
+  # Links in emails and printed reset links point at APP_URL, or at the first
+  # APP_HOST when APP_URL is unset. Without either, mail counts as off.
+  config.action_mailer.default_url_options = AppUrl.url_options(ssl: config.force_ssl || config.assume_ssl)
+  Rails.application.routes.default_url_options = config.action_mailer.default_url_options
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
   # config.action_mailer.smtp_settings = {
@@ -79,8 +81,8 @@ Rails.application.configure do
 
   # When APP_HOST is set, refuse requests for any other host. The container
   # health check calls /up on localhost, so it is exempt.
-  if ENV["APP_HOST"].present?
-    config.hosts = ENV["APP_HOST"].split(",").map(&:strip)
+  if AppUrl.hosts.any?
+    config.hosts = AppUrl.hosts
     config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
   end
 end
