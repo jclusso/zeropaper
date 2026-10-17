@@ -10,11 +10,23 @@ class SettingIngestTest < ActiveSupport::TestCase
   end
 
   test "the folder is not scanned when watching is off" do
-    Setting.instance.update!(ingest_enabled: false)
-    Ingest::Folder.any_instance.expects(:scan).never
+    Dir.mktmpdir do |dir|
+      file = Pathname(dir).join("statement.txt")
+      file.write(BILL_TEXT)
+      File.utime(1.minute.ago.to_time, 1.minute.ago.to_time, file)
+      Rails.configuration.x.stubs(:ingest_dir).returns(dir)
 
-    IngestFolderJob.perform_now
+      Setting.instance.update!(ingest_enabled: false)
+      assert_no_difference -> { Document.count } do
+        IngestFolderJob.perform_now
+      end
+      assert file.exist?
 
-    refute Setting.instance.ingest_enabled?
+      Setting.instance.update!(ingest_enabled: true)
+      assert_difference -> { Document.count } do
+        IngestFolderJob.perform_now
+      end
+      refute file.exist?
+    end
   end
 end

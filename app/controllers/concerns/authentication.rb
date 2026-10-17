@@ -54,5 +54,7 @@ module Authentication
     def terminate_session
       Current.session.destroy
       cookies.delete(:session_id)
+      session.delete(:passkey_registration_challenge)
+      session.delete(:passkey_authentication_challenge)
     end
 end

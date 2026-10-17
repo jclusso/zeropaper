@@ -5,6 +5,7 @@ class Ingest::FolderTest < ActiveSupport::TestCase
     @root = Pathname(Dir.mktmpdir)
     @folder = Ingest::Folder.new(@root)
     @folder.prepare
+    Ingest::Folder::UNQUARANTINED.clear
   end
 
   teardown { FileUtils.rm_rf(@root) }
@@ -73,7 +74,7 @@ class Ingest::FolderTest < ActiveSupport::TestCase
     refute @root.join("again.txt").exist?
   end
 
-  test "symlinks are skipped, logged by relative path and kept, even when they point inside the folder" do
+  test "symlinks are skipped, logged by an opaque id and kept, even when they point inside the folder" do
     settled_file("elsewhere/statement.txt", BILL_TEXT)
     @root.join("linked.txt").make_symlink(@root.join("elsewhere/statement.txt"))
     logged = StringIO.new
@@ -84,7 +85,109 @@ class Ingest::FolderTest < ActiveSupport::TestCase
     assert_equal 1, Document.where(source: "folder").count
     assert_equal "elsewhere/statement.txt", Document.last.source_detail
     assert @root.join("linked.txt").symlink?
-    assert_match "[ingest] linked.txt: skipped, symlinks are not imported", logged.string
+    assert_match "[ingest] #{Ingest::Folder.log_id("linked.txt")}: skipped, symlinks are not imported", logged.string
+    refute_match "linked", logged.string
+  end
+
+  test "log ids are short, stable and do not contain the filename" do
+    id = Ingest::Folder.log_id("private/biopsy.pdf")
+
+    assert_match(/\A\h{12}\z/, id)
+    assert_equal id, Ingest::Folder.log_id("private/biopsy.pdf")
+    refute_equal id, Ingest::Folder.log_id("private/biopsy2.pdf")
+  end
+
+  test "failures are logged without the filename" do
+    settled_file("private/biopsy-jane.txt", BILL_TEXT)
+    Document.stubs(:ingest!).raises(RuntimeError, "biopsy-jane")
+    logged = capture_log
+
+    @folder.scan
+
+    assert_match "[ingest] #{Ingest::Folder.log_id("private/biopsy-jane.txt")}: RuntimeError", logged.string
+    refute_match "biopsy", logged.string
+    assert @root.join("private/biopsy-jane.txt").exist?
+  end
+
+  test "a folder swapped for a symlink after the check is not read or deleted" do
+    Dir.mktmpdir do |outside|
+      secret = Pathname(outside).join("statement.txt")
+      secret.write(BILL_TEXT)
+      @root.join("share").make_symlink(outside)
+      @folder.stubs(:symlinked?).returns(false)
+      logged = capture_log
+
+      assert_no_difference -> { Document.count } do
+        @folder.send(:ingest, @root.join("share/statement.txt"))
+      end
+
+      assert secret.exist?
+      assert_match "#{Ingest::Folder.log_id("share/statement.txt")}: skipped, its folder changed", logged.string
+    end
+  end
+
+  test "a folder swapped for a symlink while the file is read is not deleted through" do
+    Dir.mktmpdir do |outside|
+      secret = Pathname(outside).join("statement.txt")
+      secret.write("someone else's file")
+      settled_file("share/statement.txt", BILL_TEXT)
+      swap = -> {
+        @root.join("share").rename(@root.join("moved"))
+        @root.join("share").make_symlink(outside)
+      }
+      Document.stubs(:ingest!).with { |**| swap.call || true }.returns(nil)
+
+      @folder.scan
+
+      assert secret.exist?
+      assert @root.join("moved/statement.txt").exist?
+    end
+  end
+
+  test "a duplicate is not deleted through a folder swapped for a symlink" do
+    Dir.mktmpdir do |outside|
+      secret = Pathname(outside).join("statement.txt")
+      secret.write("someone else's file")
+      settled_file("share/statement.txt", BILL_TEXT)
+      Document.stubs(:ingest!).with { |**|
+        @root.join("share").rename(@root.join("moved"))
+        @root.join("share").make_symlink(outside)
+      }.raises(Document::Duplicate.new(Document.new(original_filename: "statement.txt")))
+
+      @folder.scan
+
+      assert secret.exist?
+      assert @root.join("moved/statement.txt").exist?
+    end
+  end
+
+  test "rejected files stay in place when .unsupported is a symlink out of the folder" do
+    Dir.mktmpdir do |outside|
+      @root.join(".unsupported").make_symlink(outside)
+      settled_file("letters/archive.exe", "MZ binary")
+      logged = capture_log
+
+      2.times { @folder.scan }
+
+      assert @root.join("letters/archive.exe").exist?
+      assert_empty Dir.children(outside)
+      id = Ingest::Folder.log_id("letters/archive.exe")
+      assert_equal 1, logged.string.scan("#{id}: UnsupportedType, left in place").size
+      refute_match "archive", logged.string
+    end
+  end
+
+  test "rejected files are not moved through a symlinked folder inside .unsupported" do
+    Dir.mktmpdir do |outside|
+      @root.join(".unsupported").mkpath
+      @root.join(".unsupported/letters").make_symlink(outside)
+      settled_file("letters/archive.exe", "MZ binary")
+
+      @folder.scan
+
+      assert @root.join("letters/archive.exe").exist?
+      assert_empty Dir.children(outside)
+    end
   end
 
   test "a symlink to a file outside the folder is not read or deleted" do
@@ -159,6 +262,10 @@ class Ingest::FolderTest < ActiveSupport::TestCase
   end
 
   private
+    def capture_log
+      StringIO.new.tap { |logged| Rails.stubs(:logger).returns(ActiveSupport::Logger.new(logged)) }
+    end
+
     def settled_file(relative, content)
       path = @root.join(relative)
       FileUtils.mkdir_p(path.dirname)

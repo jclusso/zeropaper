@@ -1,6 +1,8 @@
 require "test_helper"
 
 class SessionTest < ActiveSupport::TestCase
+  include CableDisconnects
+
   setup { @session = users(:one).sessions.create! }
 
   test "a new session starts active" do
@@ -14,6 +16,39 @@ class SessionTest < ActiveSupport::TestCase
     end
 
     refute Session.exists?(@session.id)
+    assert_equal 1, cable_disconnects(@session)
+  end
+
+  test "ending a session closes its open connections and no others" do
+    other = users(:one).sessions.create!
+
+    @session.destroy
+
+    assert_equal 1, cable_disconnects(@session)
+    assert_equal 0, cable_disconnects(other)
+  end
+
+  test "idle sessions are ended even if nobody comes back to them" do
+    active = users(:two).sessions.create!
+
+    travel Session::IDLE_TIMEOUT + 1.minute do
+      active.update_column(:last_active_at, Time.current)
+      ExpireSessionsJob.perform_now
+    end
+
+    refute Session.exists?(@session.id)
+    assert Session.exists?(active.id)
+    assert_equal 1, cable_disconnects(@session)
+    assert_equal 0, cable_disconnects(active)
+  end
+
+  test "deleting a user closes their sessions' connections" do
+    user = User.create!(name: "Temp", email_address: "temp@example.com", password: "password")
+    session = user.sessions.create!
+
+    User.find(user.id).destroy
+
+    assert_equal 1, cable_disconnects(session)
   end
 
   test "activity is recorded at most once an hour" do
