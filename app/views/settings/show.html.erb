@@ -95,7 +95,7 @@
           </div>
         <% end %>
 
-        <%= render layout: "settings/section", locals: { id: "folder", title: "Ingest Folder", description: "Files dropped in the folder are added within a minute and then removed from it." } do %>
+        <%= render layout: "settings/section", locals: { id: "folder", title: "Ingest Folder", description: "Files dropped in the folder are added once they finish copying and then removed from it." } do %>
           <div class="space-y-5" data-controller="gate">
             <%= render "settings/toggle", form: form, field: :ingest_enabled, title: "Watch a folder", data: { gate_target: "toggle", action: "gate#update" } %>
             <fieldset class="min-w-0 space-y-4 transition-opacity <%= "opacity-50" unless @setting.ingest_enabled? %>" data-gate-target="gated" <%= "disabled" unless @setting.ingest_enabled? %>>
