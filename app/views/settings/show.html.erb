@@ -84,7 +84,7 @@
             <fieldset class="min-w-0 border-l border-border pl-4" data-reveal-target="content" <%= "hidden disabled" unless @setting.blank_page_detection? %>>
               <%= render "settings/ai_gated", ai_enabled: @setting.ai_enabled?, inline_hint: true do %>
                 <%= render "settings/toggle", form: form, field: :blank_page_ai_check, title: "Check unclear pages with AI",
-                      description: "Pages the local check cannot settle are sent to the OCR model. Spends tokens. Skipped while a privacy rule still has to read a document's text.",
+                      description: "When the local check can't tell whether a page is blank, the page is sent to the AI model used for OCR to decide. Private documents are never sent, and the check is turned off while any rule that marks documents private has a Document text condition.",
                       aside: render("settings/ai_hint", ai_enabled: @setting.ai_enabled?) %>
               <% end %>
             </fieldset>
