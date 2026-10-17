@@ -19,12 +19,12 @@ class BackupTest < ActiveSupport::TestCase
     assert Backup::Envelope.backup?(path)
     refute_includes path.binread, "Amount due"
 
-    summary = Backup.summary(path)
-    assert summary.own_key
-    assert_equal 2, summary.documents_count
-    assert_equal 1, summary.private_documents_count
-    assert_equal "Schedule", summary.made_by
-    assert_equal backup.created_at.to_i, summary.made_at.to_i
+    assert backup.own_key?
+    refute backup.uploaded
+    assert_equal path.size, backup.size
+    assert_equal 1, backup.private_documents_count
+    assert_equal "Schedule", backup.made_by
+    assert_equal backup.created_at.to_i, backup.made_at.to_i
   end
 
   test "the key is made once and kept" do
@@ -44,6 +44,7 @@ class BackupTest < ActiveSupport::TestCase
     (0...60).each { |days| put_sealed(zip, made_at: today - days.days) }
     %w[2025-06-01 2024-03-01 2023-01-01].each { |day| put_sealed(zip, made_at: Time.zone.parse("#{day} 03:00:00")) }
     put_backup("mine", "notes.zpbackup")
+    Backup.sync
 
     Backup.prune
 
@@ -52,16 +53,46 @@ class BackupTest < ActiveSupport::TestCase
       2026-10-16 2026-10-15 2026-10-14 2026-10-13 2026-10-12 2026-10-11 2026-10-10
       2026-10-04 2026-09-30 2026-09-27 2026-08-31 2025-06-01 2024-03-01 2023-01-01
     ], kept
+    assert_equal Backup.files.map { |path| path.basename.to_s }, Backup.stored.order(made_at: :desc).pluck(:filename)
     assert File.exist?(File.join(@backup_dir, "notes.zpbackup"))
   end
 
   test "the newest backup is kept even when nothing else is" do
     Setting.instance.update!(backup_keep_daily: 0, backup_keep_weekly: 0, backup_keep_monthly: 0, backup_keep_yearly: 0)
     %w[2026-01-01 2026-01-02].each { |day| put_sealed(build_zip, made_at: Time.zone.parse("#{day} 03:00:00")) }
+    Backup.sync
 
     Backup.prune
 
     assert_equal [ "zeropaper-2026-01-02-030000.zpbackup" ], Backup.files.map { |path| path.basename.to_s }
+  end
+
+  test "sync records files added by hand, forgets files deleted by hand and fills in missing details" do
+    added = put_sealed(build_zip, made_at: Time.zone.parse("2026-01-01 03:00:00"))
+    deleted = put_sealed(build_zip, made_at: Time.zone.parse("2026-01-02 03:00:00"))
+    Backup.sync
+    assert_equal [ added, deleted ].sort, Backup.stored.pluck(:filename).sort
+
+    File.delete(File.join(@backup_dir, deleted))
+    Backup.stored.find_by!(filename: added).update_columns(made_at: nil, size: nil)
+    Backup.sync
+
+    backup = Backup.stored.sole
+    assert_equal added, backup.filename
+    assert_equal Time.zone.parse("2026-01-01 03:00:00"), backup.made_at
+    assert_equal File.size(File.join(@backup_dir, added)), backup.size
+    refute backup.uploaded
+    assert backup.own_key?
+  end
+
+  test "removing a backup deletes its file and its record" do
+    backup = Backup.create!
+    backup.process!
+
+    backup.remove!
+
+    assert_empty Dir.children(@backup_dir)
+    refute Backup.exists?(backup.id)
   end
 
   test "a deleted backup an SMB share still lists is left out" do
@@ -87,6 +118,7 @@ class BackupTest < ActiveSupport::TestCase
     future = put_backup("x", "zeropaper-2099-01-01-030000.zpbackup")
     old = put_sealed(zip, made_at: Time.zone.parse("2026-10-14 03:00:00"))
     newest = put_sealed(zip, made_at: Time.zone.parse("2026-10-15 03:00:00"))
+    Backup.sync
 
     Backup.prune
 
@@ -100,10 +132,12 @@ class BackupTest < ActiveSupport::TestCase
     File.symlink(target, File.join(@backup_dir, "zeropaper-2026-01-01-030000.zpbackup"))
     Setting.instance.update!(backup_keep_daily: 1, backup_keep_weekly: 0, backup_keep_monthly: 0, backup_keep_yearly: 0)
     put_sealed(build_zip, made_at: Time.zone.parse("2026-01-02 03:00:00"))
+    Backup.sync
 
     Backup.prune
 
     assert_equal [ "zeropaper-2026-01-02-030000.zpbackup" ], Backup.files.map { |path| path.basename.to_s }
+    assert_equal [ "zeropaper-2026-01-02-030000.zpbackup" ], Backup.stored.pluck(:filename)
     assert File.symlink?(File.join(@backup_dir, "zeropaper-2026-01-01-030000.zpbackup"))
     assert_equal "keep me", File.read(target)
   end
@@ -124,9 +158,12 @@ class BackupTest < ActiveSupport::TestCase
     made_at = Time.zone.parse("2025-03-01 09:30:00")
     zip = build_zip(manifest: { format: Archive::FORMAT, version: 1, exported_at: made_at.iso8601 })
 
-    path = upload_file(zip) { |upload| Backup.import(upload) }
+    backup = upload_file(zip) { |upload| Backup.import(upload) }
+    path = backup.path
 
-    assert_equal "zeropaper-2025-03-01-093000-uploaded.zpbackup", path.basename.to_s
+    assert_equal "zeropaper-2025-03-01-093000-uploaded.zpbackup", backup.filename
+    assert backup.uploaded
+    assert_equal made_at, backup.made_at
     assert Backup::Envelope.backup?(path)
     Backup.open_zip(path, Setting.instance.backup_key_bytes) { |plain| assert_equal zip, File.binread(plain) }
   end
@@ -148,12 +185,11 @@ class BackupTest < ActiveSupport::TestCase
     sealed = File.binread(File.join(@backup_dir, name))
     File.delete(File.join(@backup_dir, name))
 
-    path = upload_file(sealed) { |upload| Backup.import(upload) }
+    backup = upload_file(sealed) { |upload| Backup.import(upload) }
 
-    assert_equal sealed, path.binread
-    summary = Backup.summary(path)
-    refute summary.own_key
-    assert_equal Backup::Key.id(other), summary.key_id
+    assert_equal sealed, backup.path.binread
+    refute backup.own_key?
+    assert_equal Backup::Key.id(other), backup.key_id
   end
 
   test "uploads that are not sound backups are refused and leave nothing behind" do
@@ -189,13 +225,14 @@ class BackupTest < ActiveSupport::TestCase
   test "the schedule backs up when the last backup is older than the interval and prunes" do
     Setting.instance.update!(backup_enabled: true, backup_frequency: "daily", backup_keep_daily: 1, backup_keep_weekly: 0, backup_keep_monthly: 0, backup_keep_yearly: 0)
     put_sealed(build_zip, made_at: Time.zone.parse("2026-01-01 03:00:00"))
+    Backup.sync
 
     first = Backup.run_scheduled
     assert_equal "ready", first.status, first.error
     assert_equal [ first.filename ], Backup.files.map { |path| path.basename.to_s }
     assert_nil Backup.run_scheduled
 
-    first.update!(created_at: 23.hours.ago - 31.minutes)
+    first.update!(made_at: 23.hours.ago - 31.minutes)
     assert_difference -> { Backup.count } do
       Backup.run_scheduled
     end
@@ -278,7 +315,7 @@ class BackupTest < ActiveSupport::TestCase
 
   test "a backup swapped for a link or another file after it was listed is not read" do
     name = put_sealed(build_zip)
-    path = Backup.file(name)
+    path = Pathname(@backup_dir).join(name)
     target = File.join(@backup_dir, "secret.txt")
     File.write(target, "keep me")
     regular = File.lstat(target)
@@ -309,22 +346,24 @@ class BackupTest < ActiveSupport::TestCase
       bytes = Backup::Envelope::MAGIC + [ header.bytesize ].pack("N") + header
       path = Pathname(File.join(@backup_dir, put_backup(bytes, "zeropaper-2026-01-01-030000.zpbackup")))
 
-      refute Backup.summary(path).readable?, header
+      Backup.sync
+      refute Backup.stored.sole.readable?, header
       assert_raises(Archive::Reader::InvalidArchive, header) { upload_file(bytes) { |upload| Backup.import(upload) } }
-      path.delete
+      Backup.stored.sole.remove!
     end
     assert_empty Dir.children(@backup_dir)
   end
 
   test "a backup that fails to read for any other reason is listed as unreadable" do
-    path = Backup.file(put_sealed(build_zip))
+    path = Pathname(@backup_dir).join(put_sealed(build_zip))
     Backup::Envelope.any_instance.stubs(:metadata).raises(TypeError, "no implicit conversion")
 
-    summary = Backup.summary(path)
+    Backup.sync
 
-    refute summary.readable?
-    assert_equal path.size, summary.size
-    assert_equal path.mtime.to_i, summary.made_at.to_i
+    backup = Backup.stored.sole
+    refute backup.readable?
+    assert_equal path.size, backup.size
+    assert_equal path.mtime.to_i, backup.made_at.to_i
   end
 
   test "an upload dated in the future is named for now" do
@@ -335,9 +374,9 @@ class BackupTest < ActiveSupport::TestCase
       StringIO.new.binmode.tap { |out| Backup::Envelope.seal(plain.path, out, key: Backup::Key.parse(Backup::Key.generate), made_at: 1.year.from_now, metadata: {}) }.string
     end
 
-    path = upload_file(sealed) { |upload| Backup.import(upload) }
+    backup = upload_file(sealed) { |upload| Backup.import(upload) }
 
-    assert_equal "zeropaper-2026-10-16-120000-uploaded.zpbackup", path.basename.to_s
+    assert_equal "zeropaper-2026-10-16-120000-uploaded.zpbackup", backup.filename
   end
 
   test "an upload made with this key has its chunks checked and is left to the restore to read" do
@@ -346,15 +385,14 @@ class BackupTest < ActiveSupport::TestCase
     File.delete(File.join(@backup_dir, name))
     Archive::Reader.expects(:new).never
 
-    path = upload_file(sealed) { |upload| Backup.import(upload) }
+    backup = upload_file(sealed) { |upload| Backup.import(upload) }
 
-    assert path.basename.to_s.end_with?("-uploaded.zpbackup")
-    summary = Backup.summary(path)
-    assert summary.readable?
-    assert summary.own_key
+    assert backup.filename.end_with?("-uploaded.zpbackup")
+    assert backup.readable?
+    assert backup.own_key?
 
     damaged = sealed.dup.tap { |bytes| bytes[-20] = (bytes[-20].ord ^ 1).chr }
-    path.delete
+    backup.remove!
     assert_raises(Archive::Reader::InvalidArchive) { upload_file(damaged) { |upload| Backup.import(upload) } }
     assert_empty Dir.children(@backup_dir)
   end
@@ -362,12 +400,12 @@ class BackupTest < ActiveSupport::TestCase
   test "an older export dated in the future or unreadably is named for now" do
     travel_to Time.zone.parse("2026-10-16 12:00:00")
 
-    path = upload_file(build_zip(manifest: { format: Archive::FORMAT, version: 1, exported_at: "2099-01-01T00:00:00Z" })) { |upload| Backup.import(upload) }
-    assert_equal "zeropaper-2026-10-16-120000-uploaded.zpbackup", path.basename.to_s
-    path.delete
+    backup = upload_file(build_zip(manifest: { format: Archive::FORMAT, version: 1, exported_at: "2099-01-01T00:00:00Z" })) { |upload| Backup.import(upload) }
+    assert_equal "zeropaper-2026-10-16-120000-uploaded.zpbackup", backup.filename
+    backup.remove!
 
-    path = upload_file(build_zip(manifest: { format: Archive::FORMAT, version: 1, exported_at: "2026-99-99" })) { |upload| Backup.import(upload) }
-    assert_equal "zeropaper-2026-10-16-120000-uploaded.zpbackup", path.basename.to_s
+    backup = upload_file(build_zip(manifest: { format: Archive::FORMAT, version: 1, exported_at: "2026-99-99" })) { |upload| Backup.import(upload) }
+    assert_equal "zeropaper-2026-10-16-120000-uploaded.zpbackup", backup.filename
   end
 
   test "uploads are checked against the size limits before anything is read from them" do

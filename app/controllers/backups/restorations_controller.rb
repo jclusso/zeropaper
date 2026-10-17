@@ -2,7 +2,10 @@ class Backups::RestorationsController < ApplicationController
   require_admin
 
   def create
-    restore = Restore.new(user: Current.user, filename: "#{params[:backup_id]}#{Backup::EXTENSION}", key: params[:backup_key].presence)
+    backup = Backup.stored.find_by(id: params[:backup_id])
+    return redirect_to(backups_path, alert: "That backup is no longer in the backup folder.") unless backup
+
+    restore = Restore.new(user: Current.user, filename: backup.filename, key: params[:backup_key].presence)
     if restore.save
       restore.process_later
       redirect_to backups_path(anchor: "restores"), notice: "Restoring #{restore.filename}."

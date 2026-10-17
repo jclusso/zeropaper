@@ -30,20 +30,20 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
     backup = Backup.last
     assert_equal users(:one), backup.user
     assert_equal "ready", backup.status, backup.error
-    id = backup.filename.delete_suffix(Backup::EXTENSION)
 
     get backups_path
     assert_select "td", text: /#{backup.filename}/
     assert_select "td", text: /0 documents · #{users(:one).name}/
-    assert_select "form[action='#{backup_restoration_path(id)}'] input[name=backup_key]", count: 0
+    assert_select "form[action='#{backup_restoration_path(backup)}'] input[name=backup_key]", count: 0
 
-    get backup_path(id)
+    get backup_path(backup)
     assert_response :success
     assert_equal Backup::Envelope::MAGIC, response.body.byteslice(0, 8)
 
-    delete backup_path(id)
+    delete backup_path(backup)
     assert_redirected_to backups_path
     assert_empty Backup.files
+    assert_empty Backup.stored
   end
 
   test "asks to download the key until it is, and the key file restores" do
@@ -72,8 +72,9 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
 
   test "restores a backup from the folder" do
     name = put_sealed(build_zip)
+    Backup.sync
 
-    post backup_restoration_path(name.delete_suffix(Backup::EXTENSION))
+    post backup_restoration_path(Backup.stored.sole)
 
     assert_redirected_to backups_path(anchor: "restores")
     assert_equal name, Restore.last.filename
@@ -92,8 +93,9 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
 
   test "a backup made with another key asks for it" do
     other = Backup::Key.generate
-    name = put_sealed(build_zip, key: Backup::Key.parse(other))
-    id = name.delete_suffix(Backup::EXTENSION)
+    put_sealed(build_zip, key: Backup::Key.parse(other))
+    Backup.sync
+    id = Backup.stored.sole.id
 
     get backups_path
     assert_select "td", text: /Made with key #{Backup::Key.id(Backup::Key.parse(other))}/
@@ -108,7 +110,9 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
 
   test "a pasted backup key never reaches the log" do
     other = Backup::Key.generate
-    id = put_sealed(build_zip, key: Backup::Key.parse(other)).delete_suffix(Backup::EXTENSION)
+    put_sealed(build_zip, key: Backup::Key.parse(other))
+    Backup.sync
+    id = Backup.stored.sole.id
     log = StringIO.new
     previous = ActionController::Base.logger
     ActionController::Base.logger = ActiveSupport::Logger.new(log)
@@ -131,6 +135,7 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
       put_backup(Backup::Envelope::MAGIC + [ header.bytesize ].pack("N") + header, "zeropaper-2026-01-0#{index + 1}-000000.zpbackup")
     end
     put_sealed(build_zip, made_at: 1.day.ago)
+    Backup.sync
 
     get backups_path
 
@@ -179,15 +184,16 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
   test "a restore whose backup unzips past the limit fails in its job before reading anything" do
     Rails.configuration.x.stubs(:max_upload_bytes).returns(1.megabyte)
     other = Backup::Key.generate
-    name = put_sealed(Zip::OutputStream.write_buffer do |zip|
+    put_sealed(Zip::OutputStream.write_buffer do |zip|
       zip.put_next_entry("manifest.json")
       zip.write({ format: Archive::FORMAT, version: Archive::VERSION }.to_json)
       zip.put_next_entry("documents/1/file/bomb.txt")
       zip.write("0" * 5.megabytes)
     end.string, key: Backup::Key.parse(other))
+    Backup.sync
     Zlib.expects(:crc32).never
 
-    perform_enqueued_jobs { post backup_restoration_path(name.delete_suffix(Backup::EXTENSION)), params: { backup_key: other } }
+    perform_enqueued_jobs { post backup_restoration_path(Backup.stored.sole), params: { backup_key: other } }
 
     restore = Restore.last
     assert_equal "failed", restore.status
@@ -197,10 +203,11 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
   test "an uploaded backup is marked as uploaded and can be downloaded" do
     upload = Rack::Test::UploadedFile.new(StringIO.new(build_zip), "application/zip", true, original_filename: "old.zip")
     post backups_uploads_path, params: { archive: upload }
-    name = Backup.files.sole.basename.to_s
-    assert name.end_with?("-uploaded.zpbackup")
+    backup = Backup.stored.sole
+    assert backup.uploaded
+    assert backup.filename.end_with?("-uploaded.zpbackup")
 
-    get backup_path(name.delete_suffix(Backup::EXTENSION))
+    get backup_path(backup)
 
     assert_response :success
     assert_equal Backup.files.sole.binread, response.body
@@ -209,10 +216,11 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "a backup deleted after it was listed is not served" do
-    id = put_sealed(build_zip).delete_suffix(Backup::EXTENSION)
-    Backup.stubs(:file_for).with(id).returns(Pathname(@backup_dir).join("gone.zpbackup"))
+    name = put_sealed(build_zip)
+    Backup.sync
+    File.delete(File.join(@backup_dir, name))
 
-    get backup_path(id)
+    get backup_path(Backup.stored.sole)
 
     assert_redirected_to backups_path
     assert_equal "That backup is no longer in the backup folder.", flash[:alert]
@@ -226,6 +234,10 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
 
     get backup_path("zeropaper-2026-01-01-030000")
     assert_redirected_to backups_path
+
+    put_backup("x", "zeropaper-2026-01-01-030000.zpbackup")
+    get backup_path(Backup.create!(status: "ready", filename: "../zeropaper-2026-01-01-030000.zpbackup"))
+    assert_redirected_to backups_path
   end
 
   test "an uploaded export is encrypted into the folder" do
@@ -236,6 +248,7 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to backups_path
     assert_equal 1, Backup.files.size
     assert Backup::Envelope.backup?(Backup.files.first)
+    assert_equal Backup.files.first.basename.to_s, Backup.stored.sole.filename
   end
 
   test "an upload that is not a backup is refused" do

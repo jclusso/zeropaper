@@ -1,0 +1,36 @@
+<% name = backup.filename %>
+<tr>
+  <td>
+    <%= backup.made_at&.to_fs(:long) %>
+    <span class="block font-mono text-xs muted"><%= name %></span>
+  </td>
+  <td class="hidden muted md:table-cell">
+    <% if !backup.readable? %>
+      <span class="text-danger">Cannot be read</span>
+    <% elsif !backup.own_key? %>
+      Made with key <code><%= backup.key_id %></code>
+    <% elsif backup.documents_count %>
+      <%= pluralize(backup.documents_count, "document") %><% if backup.private_documents_count.to_i.positive? %>, <%= backup.private_documents_count %> private<% end %><% if backup.made_by %> · <%= backup.made_by %><% end %>
+    <% end %>
+  </td>
+  <td class="hidden tabular-nums muted sm:table-cell"><%= number_to_human_size(backup.size) %></td>
+  <td>
+    <div class="flex items-start justify-end gap-2">
+      <% if !backup.readable? || backup.own_key? %>
+        <%= button_to "Restore", backup_restoration_path(backup), class: "btn-secondary btn-sm",
+              form: { data: { turbo_confirm: "Restore #{name}? Documents already in the library are skipped." } } %>
+      <% else %>
+        <details class="group">
+          <summary class="btn-secondary btn-sm cursor-pointer list-none">Restore</summary>
+          <%= form_with url: backup_restoration_path(backup), class: "mt-2 flex w-72 gap-2" do |form| %>
+            <%= form.password_field :backup_key, required: true, placeholder: "zpkey-…", autocomplete: "off", "aria-label": "Key #{backup.key_id}", class: "input h-8 min-w-0 flex-1 font-mono text-xs" %>
+            <%= form.submit "Restore", class: "btn-primary btn-sm" %>
+          <% end %>
+        </details>
+      <% end %>
+      <%= link_to backup_path(backup), class: "btn-ghost btn-sm", data: { turbo: false }, "aria-label": "Download #{name}" do %><%= icon(:download, class: "size-3.5") %><% end %>
+      <%= button_to backup_path(backup), method: :delete, class: "btn-icon-danger", "aria-label": "Delete #{name}",
+            form: { data: { turbo_confirm: "Delete #{name} permanently?" } } do %><%= icon(:trash, class: "size-4") %><% end %>
+    </div>
+  </td>
+</tr>

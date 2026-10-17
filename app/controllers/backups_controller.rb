@@ -5,7 +5,7 @@ class BackupsController < ApplicationController
 
   def index
     @setting = Setting.instance
-    @files = Backup.files
+    @backups = Backup.stored.order(made_at: :desc)
     @unfinished = Backup.unfinished.includes(:user)
     @restores = Restore.recent.includes(:user).limit(5)
   end
@@ -17,7 +17,7 @@ class BackupsController < ApplicationController
   end
 
   def show
-    file = Backup.file_for(params[:id])
+    file = Backup.stored.find_by(id: params[:id])&.path
     return gone unless file
 
     io = Backup.open_file(file)
@@ -32,9 +32,9 @@ class BackupsController < ApplicationController
   end
 
   def destroy
-    file = Backup.file_for(params[:id])
-    file&.delete
-    redirect_to backups_path, notice: file ? "Deleted #{file.basename}." : "That backup was already gone."
+    backup = Backup.stored.find_by(id: params[:id])
+    backup&.remove!
+    redirect_to backups_path, notice: backup ? "Deleted #{backup.filename}." : "That backup was already gone."
   end
 
   private

@@ -3,6 +3,7 @@ class ScheduledBackupJob < ApplicationJob
   limits_concurrency to: 1, key: "backup", duration: 6.hours
 
   def perform
+    Backup.sync
     Backup.run_scheduled
   end
 end

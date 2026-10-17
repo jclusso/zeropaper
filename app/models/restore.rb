@@ -19,6 +19,8 @@ class Restore < ApplicationRecord
 
   scope :recent, -> { order(created_at: :desc) }
 
+  after_commit -> { Backup.broadcast_changes }
+
   def process_later
     RestoreJob.perform_later(self)
   end
@@ -27,13 +29,14 @@ class Restore < ApplicationRecord
   def process!
     run_alone do
       update!(status: "processing", error: nil)
-      path = Backup.file(filename) or raise "#{filename} is no longer in the backup folder."
+      path = backup_file or raise "#{filename} is no longer in the backup folder."
 
       Backup.open_zip(path, key_bytes) do |zip|
         reader = Archive::Reader.new(zip, restored_by: user, own_key: key_bytes == Setting.instance.backup_key_bytes)
         reader.verify!
         reader.each_result do |result|
           increment!(result == :restored ? :restored_count : :skipped_count)
+          Backup.broadcast_changes
         end
       end
       update!(status: "ready", key: nil)
@@ -43,12 +46,16 @@ class Restore < ApplicationRecord
   end
 
   private
+    def backup_file
+      Backup.stored.find_by(filename: filename)&.path
+    end
+
     def key_bytes
       Backup::Key.parse(key) || Setting.instance.backup_key_bytes
     end
 
     def backup_can_be_opened
-      path = Backup.file(filename)
+      path = backup_file
       if path.nil?
         errors.add(:filename, "is not a backup in the backup folder")
       elsif key.present? && Backup::Key.parse(key).nil?
