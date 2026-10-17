@@ -78,12 +78,17 @@
 
         <%= render layout: "settings/section", locals: { id: "page-cleanup", title: "Page Cleanup", description: "Fixes common scanning problems before text is read. Runs on this machine, and the original upload is always kept." } do %>
           <%= render "settings/toggle", form: form, field: :auto_rotate_pages, title: "Turn pages upright", description: "Pages scanned upside down or sideways are turned. Only pages with enough text to be sure are changed." %>
-          <%= render "settings/toggle", form: form, field: :blank_page_detection, title: "Find blank pages", description: "Empty sheets and pages that only show print bleeding through are left out of OCR and offered for removal." %>
-          <%= render "settings/ai_gated", ai_enabled: @setting.ai_enabled?, inline_hint: true do %>
-            <%= render "settings/toggle", form: form, field: :blank_page_ai_check, title: "Check unclear pages with AI",
-                  description: "Pages the local check cannot settle are sent to the OCR model. Spends tokens. Skipped while a privacy rule still has to read a document's text.",
-                  aside: render("settings/ai_hint", ai_enabled: @setting.ai_enabled?) %>
-          <% end %>
+          <div class="space-y-5" data-controller="reveal" data-reveal-when-value="true">
+            <%= render "settings/toggle", form: form, field: :blank_page_detection, title: "Find blank pages", description: "Empty sheets and pages that only show print bleeding through are left out of OCR and offered for removal.",
+                  data: { reveal_target: "source", action: "reveal#update" } %>
+            <fieldset class="min-w-0 border-l border-border pl-4" data-reveal-target="content" <%= "hidden disabled" unless @setting.blank_page_detection? %>>
+              <%= render "settings/ai_gated", ai_enabled: @setting.ai_enabled?, inline_hint: true do %>
+                <%= render "settings/toggle", form: form, field: :blank_page_ai_check, title: "Check unclear pages with AI",
+                      description: "Pages the local check cannot settle are sent to the OCR model. Spends tokens. Skipped while a privacy rule still has to read a document's text.",
+                      aside: render("settings/ai_hint", ai_enabled: @setting.ai_enabled?) %>
+              <% end %>
+            </fieldset>
+          </div>
         <% end %>
 
         <%= render layout: "settings/section", locals: { id: "review", title: "Review" } do %>
