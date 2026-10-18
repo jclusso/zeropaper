@@ -7,7 +7,14 @@
     <%= render "messages/steps", message: message %>
 
     <% if message.content.present? && message.status != "failed" %>
-      <div class="prose-answer mt-3" <%= "data-streaming" if message.streaming? %>><%= render_answer(message) %></div>
+      <div data-controller="citations" data-action="mouseover->citations#show mouseout->citations#hide focusin->citations#show focusout->citations#hide keydown.esc->citations#close">
+        <div class="prose-answer mt-3" <%= "data-streaming" if message.streaming? %>><%= render_answer(message) %></div>
+        <% if message.status == "complete" %>
+          <% answer_sources(message).each.with_index(1) do |document, number| %>
+            <%= render "messages/source_card", message: message, document: document, number: number %>
+          <% end %>
+        <% end %>
+      </div>
     <% end %>
 
     <% if message.status == "failed" %>
@@ -23,22 +30,22 @@
     <% end %>
 
     <% if message.status == "complete" %>
-      <% sources = message.cited_documents.values %>
+      <% sources = answer_sources(message) %>
       <% if sources.any? %>
         <div class="mt-4">
           <p class="mb-1.5 text-[0.7rem] font-medium uppercase tracking-wider muted">Sources</p>
-          <ul class="flex flex-wrap gap-2">
-            <% sources.each do |document| %>
+          <ol class="flex flex-wrap gap-2">
+            <% sources.each.with_index(1) do |document, number| %>
               <li>
                 <%= link_to document_path(document), data: { turbo_frame: "_top" },
                       class: "flex max-w-xs items-center gap-2 rounded-sm border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-strong-accent/50" do %>
-                  <%= icon(:document, class: "size-3.5 shrink-0 text-strong-accent") %>
+                  <span class="shrink-0 font-medium tabular-nums text-strong-accent"><%= number %></span>
                   <span class="truncate"><%= document.display_title %></span>
                   <span class="shrink-0 muted"><%= document.display_date.strftime("%b %-d, %Y") %></span>
                 <% end %>
               </li>
             <% end %>
-          </ul>
+          </ol>
         </div>
       <% end %>
 

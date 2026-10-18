@@ -43,6 +43,6 @@ class MarkdownHelperTest < ActionView::TestCase
     refute_includes html, "<img"
     assert_includes html, "chart"
     assert_includes html, %(rel="noopener noreferrer nofollow")
-    assert_includes html, "March statement"
+    assert_includes html, %(href="#{document_path(cited)}">[1]</a>)
   end
 end

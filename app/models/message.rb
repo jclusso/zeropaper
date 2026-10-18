@@ -60,8 +60,12 @@ class Message < ApplicationRecord
     ResearchJob.perform_later(self)
   end
 
+  # The cited documents that may be shown, in the order the answer first
+  # cites them, which numbers its citations and its Sources.
   def cited_documents
-    Document.shareable.where(id: cited_document_ids).index_by(&:id)
+    documents = Document.shareable.where(id: cited_document_ids)
+      .includes(:correspondent).index_by(&:id)
+    cited_document_ids.filter_map { documents[it.to_i] }
   end
 
   # Every document the answer handed to the model, through its tools or the
