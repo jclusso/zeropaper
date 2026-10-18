@@ -30,6 +30,13 @@ module FileServing
       end
     end
 
+    # A PDF made on request rather than stored, shown like a stored one.
+    def send_pdf_data(data, filename:)
+      response.headers["Cache-Control"] = "private, max-age=3600"
+      response.headers["Content-Security-Policy"] = "sandbox"
+      send_data data, filename: filename, type: "application/pdf", disposition: :inline
+    end
+
     def send_image(data, type: "image/jpeg")
       response.headers["Cache-Control"] = "private, max-age=86400"
       send_data data, type: type, disposition: :inline

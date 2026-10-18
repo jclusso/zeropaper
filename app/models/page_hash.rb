@@ -42,6 +42,36 @@ module PageHash
     shorter.any? && shorter.all? { |hash| longer.any? { |candidate| distance(hash, candidate) <= SAME_PAGE_BITS } }
   end
 
+  # Pairs the pages of two documents in order, as [page, other_page] with
+  # 1-based numbers, matching as many as it can. A page with no match in
+  # the other document is paired with nil, so a copy with pages removed
+  # lines up with the full scan around the gaps. A block, given 0-based
+  # indexes, can rule out pairs the hashes alone would allow.
+  def pair(hashes, other, &allowed)
+    same = ->(i, j) { distance(hashes[i], other[j]) <= SAME_PAGE_BITS && (allowed.nil? || allowed.call(i, j)) }
+    lengths = Array.new(hashes.size + 1) { Array.new(other.size + 1, 0) }
+    hashes.size.downto(1) do |i|
+      other.size.downto(1) do |j|
+        lengths[i - 1][j - 1] =
+          if same.(i - 1, j - 1) then lengths[i][j] + 1
+          else [ lengths[i][j - 1], lengths[i - 1][j] ].max
+          end
+      end
+    end
+
+    pairs, i, j = [], 0, 0
+    while i < hashes.size || j < other.size
+      if i < hashes.size && j < other.size && same.(i, j) && lengths[i][j] == lengths[i + 1][j + 1] + 1
+        pairs << [ i += 1, j += 1 ]
+      elsif j == other.size || (i < hashes.size && lengths[i + 1][j] >= lengths[i][j + 1])
+        pairs << [ i += 1, nil ]
+      else
+        pairs << [ nil, j += 1 ]
+      end
+    end
+    pairs
+  end
+
   # Average brightness of each cell when gray is cut into columns by rows.
   def grid(gray, columns, rows)
     (0...rows).map do |row|

@@ -11,38 +11,91 @@
     </div>
   </div>
 
-  <section class="card card-body flex flex-wrap items-center gap-x-6 gap-y-3" id="comparison-summary">
-    <div>
-      <p class="text-3xl font-bold tabular-nums <%= comparison.similarity >= 90 ? "text-warning" : "text-foreground" %>"><%= comparison.similarity %>%</p>
-      <p class="text-xs muted">similar by <%= comparison.similarity_basis %></p>
-    </div>
-    <ul class="flex flex-wrap gap-2">
-      <% comparison.facts.each do |fact| %>
-        <li class="badge-slate" data-comparison-fact><%= fact %></li>
+  <section class="card" id="comparison-summary">
+    <div class="grid gap-5 p-5 sm:p-6 lg:grid-cols-[20rem_minmax(0,1fr)] lg:gap-8">
+      <%# The ring, the verdict and the measure that sets the score share one color, for the confidence. %>
+      <% tone = { high: "text-success", medium: "text-warning", low: "text-muted-foreground" }.fetch(comparison.confidence) %>
+      <% tone_border = { high: "border-success/60", medium: "border-warning/60", low: "border-muted-foreground/40" }.fetch(comparison.confidence) %>
+      <div class="flex items-center gap-4" data-comparison-confidence="<%= comparison.confidence %>">
+        <%# A ring filled to the score; stroke-dasharray is an attribute, which the content security policy allows. %>
+        <div class="relative size-24 shrink-0 <%= tone %>">
+          <svg viewBox="0 0 36 36" class="size-full -rotate-90" aria-hidden="true">
+            <circle cx="18" cy="18" r="15.9155" fill="none" stroke-width="3" class="stroke-muted"></circle>
+            <% if comparison.similarity.positive? %>
+              <circle cx="18" cy="18" r="15.9155" fill="none" stroke-width="3" stroke-linecap="round" stroke-dasharray="<%= comparison.similarity %> 100" class="stroke-current"></circle>
+            <% end %>
+          </svg>
+          <p class="absolute inset-0 flex items-center justify-center text-2xl font-bold tabular-nums" data-comparison-score><%= comparison.similarity %>%</p>
+        </div>
+        <div class="min-w-0">
+          <p class="font-bold leading-snug <%= tone unless comparison.confidence == :low %>" data-comparison-verdict><%= comparison.verdict %></p>
+          <p class="mt-1 text-sm muted" data-comparison-guidance><%= comparison.guidance %></p>
+          <p class="mt-2 text-xs muted">
+            <span data-comparison-basis><%= comparison.similarity_basis %></span>
+            <span class="inline-flex align-[-3px]"><%= render "shared/info_tip", text: comparison.similarity_explanation, id: "comparison_score_tip", about: "how the score is worked out" %></span>
+          </p>
+        </div>
+      </div>
+
+      <% if (measures = comparison.measures).any? %>
+        <dl class="grid gap-3 <%= { 2 => "sm:grid-cols-2", 3 => "sm:grid-cols-3" }[measures.size] %>">
+          <% measures.each do |measure| %>
+            <div class="rounded-sm border bg-subtle p-3 <%= measure.decides ? tone_border : "border-border" %>"
+              data-comparison-measure="<%= measure.key %>" data-decides="<%= measure.decides.present? %>">
+              <dt class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide muted">
+                <%= measure.label %>
+                <%= render "shared/info_tip", text: measure.explanation, id: "comparison_#{measure.key}_tip", about: measure.label.downcase %>
+              </dt>
+              <dd class="mt-1 flex items-baseline justify-between gap-2">
+                <span class="text-2xl font-bold tabular-nums"><%= measure.score %>%</span>
+                <% if measure.decides %><span class="text-[11px] font-semibold uppercase tracking-wide <%= tone %>">Sets the score</span><% end %>
+              </dd>
+              <dd class="mt-2">
+                <%# An SVG bar: its width is an attribute, which the content security policy allows where an inline style is not. %>
+                <svg viewBox="0 0 100 1" preserveAspectRatio="none" role="meter" aria-label="<%= measure.label %>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= measure.score %>"
+                  class="block h-1.5 w-full overflow-hidden rounded-full <%= measure.decides ? tone : "text-muted-foreground" %>">
+                  <rect width="100" height="1" class="fill-muted"></rect>
+                  <rect width="<%= measure.score %>" height="1" class="fill-current"></rect>
+                </svg>
+              </dd>
+              <dd class="mt-2 text-xs muted"><%= measure.detail %></dd>
+            </div>
+          <% end %>
+        </dl>
       <% end %>
-    </ul>
+    </div>
   </section>
 
   <div class="grid gap-4 md:grid-cols-2">
-    <%= render "documents/comparisons/column", document: @document, other: @other, heading: "This document" %>
-    <%= render "documents/comparisons/column", document: @other, other: @document, heading: comparison_heading(@document, @other) %>
+    <%= render "documents/comparisons/column", document: @document, other: @other, heading: "This document", pages: comparison.pages_of(@document) %>
+    <%= render "documents/comparisons/column", document: @other, other: @document, heading: comparison_heading(@document, @other), pages: comparison.pages_of(@other) %>
   </div>
 
-  <section class="card overflow-x-auto">
-    <table class="w-full min-w-[36rem] text-sm">
+  <section class="card">
+    <table class="w-full table-fixed text-sm">
       <thead class="bg-card-header text-left text-xs uppercase tracking-wide muted">
         <tr>
-          <th class="w-40 px-4 py-2.5 font-semibold"><span class="sr-only">Detail</span></th>
-          <th class="px-4 py-2.5 font-semibold">This document</th>
-          <th class="px-4 py-2.5 font-semibold"><%= comparison_heading(@document, @other) %></th>
+          <th class="w-32 px-3 py-2.5 font-semibold sm:w-44 sm:px-4"><span class="sr-only">Detail</span></th>
+          <th class="px-3 py-2.5 font-semibold sm:px-4">This document</th>
+          <th class="px-3 py-2.5 font-semibold sm:px-4"><%= comparison_heading(@document, @other) %></th>
         </tr>
       </thead>
       <tbody class="divide-y divide-border">
         <% comparison.rows(self).each do |row| %>
-          <tr class="<%= row.same? ? "muted" : "bg-warning/[0.06]" %>" data-comparison-row="<%= row.label %>" data-same="<%= row.same? %>">
-            <th scope="row" class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide <%= row.same? ? "" : "text-warning" %>"><%= row.label %></th>
-            <td class="px-4 py-2.5 <%= "font-medium text-foreground" unless row.same? %>"><%= row.left.presence || "None" %></td>
-            <td class="px-4 py-2.5 <%= "font-medium text-foreground" unless row.same? %>"><%= row.right.presence || "None" %></td>
+          <%# Only differences are tinted; a match is marked by its check alone. %>
+          <% same = row.same? %>
+          <tr class="<%= same ? "text-muted-foreground" : "bg-warning/[0.06]" %>" data-comparison-row="<%= row.label %>" data-same="<%= same %>">
+            <th scope="row" class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide break-words sm:px-4 <%= "text-warning" unless same %>">
+              <span class="flex items-center gap-2">
+                <%= icon(same ? :check : :warning, class: "size-4 shrink-0 #{"text-success" if same}") %><%= row.label %>
+                <span class="sr-only"><%= same ? "(same)" : "(differs)" %></span>
+                <% if row.note %>
+                  <span class="inline-flex" data-comparison-note><%= render "shared/info_tip", text: row.note, id: "comparison_#{row.label.parameterize}_note", about: row.label.downcase %></span>
+                <% end %>
+              </span>
+            </th>
+            <td class="px-3 py-2.5 break-words sm:px-4 <%= "font-medium text-foreground" unless same %>"><%= row.left.presence || "None" %></td>
+            <td class="px-3 py-2.5 break-words sm:px-4 <%= "font-medium text-foreground" unless same %>"><%= row.right.presence || "None" %></td>
           </tr>
         <% end %>
       </tbody>

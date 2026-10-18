@@ -76,7 +76,20 @@ class Document::PagesTest < ActiveSupport::TestCase
     @document.reload
     assert_equal original_checksum, @document.checksum
     assert_equal @pdf, @document.file.download
+    assert_equal 3, @document.page_count, "the page rail needs the count before processing finishes"
     refute @document.original_file.attached?
+  end
+
+  test "restore_original! works when another document is the same file" do
+    original_checksum = @document.checksum
+    @document.remove_pages!([ 2 ])
+    copy = document_with_text("Same upload", title: "Full scan")
+    copy.update_columns(checksum: original_checksum)
+
+    @document.reload.restore_original!
+
+    assert_equal original_checksum, @document.reload.checksum
+    assert_equal 2, Document.where(checksum: original_checksum).count
   end
 
   test "restore_original! needs an original" do

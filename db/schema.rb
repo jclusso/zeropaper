@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_17_170000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_17_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -144,7 +144,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_170000) do
     t.string "processing_run"
     t.bigint "ai_created_correspondent_id"
     t.string "page_hashes", default: [], null: false, array: true
-    t.index ["checksum"], name: "index_documents_on_checksum", unique: true
+    t.index ["checksum"], name: "index_documents_on_checksum"
     t.index ["correspondent_id"], name: "index_documents_on_correspondent_id"
     t.index ["document_date"], name: "index_documents_on_document_date"
     t.index ["document_type_id"], name: "index_documents_on_document_type_id"

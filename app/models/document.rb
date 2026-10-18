@@ -23,7 +23,7 @@ class Document < ApplicationRecord
 
   validates :status, inclusion: { in: STATUSES }
   validates :source, inclusion: { in: SOURCES }
-  validates :checksum, presence: true, uniqueness: true
+  validates :checksum, presence: true
   validates :original_filename, :content_type, presence: true
 
   scope :ready, -> { where(status: "ready") }

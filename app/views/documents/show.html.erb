@@ -19,7 +19,7 @@
     <div class="flex flex-wrap items-center gap-1.5">
       <%= render "documents/view_switch" if readable %>
       <%= render "documents/privacy_menu", document: @document %>
-      <% if @document.pdf? && @document.page_count.to_i > 1 %>
+      <% if @document.reviewable_pages? %>
         <button type="button" class="btn-secondary btn-sm" command="show-modal" commandfor="pages-dialog" title="Remove or restore pages"
           <%= "data-controller=auto-open" if params[:review] == "pages" %>>
           <%= icon(:grid, class: "size-4") %><span class="hidden md:inline">Pages</span>
@@ -59,6 +59,6 @@
   </div>
 </div>
 
-<% if @document.pdf? && @document.page_count.to_i > 1 %>
+<% if @document.reviewable_pages? %>
   <%= render "documents/pages/dialog", document: @document %>
 <% end %>

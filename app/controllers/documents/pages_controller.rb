@@ -1,4 +1,5 @@
-# Page images for the viewer's thumbnail rail and the page editor.
+# Page images for the viewer's thumbnail rail, the page editor and the
+# comparison, which shows removed pages from the stored upload.
 class Documents::PagesController < ApplicationController
   include DocumentScoped, FileServing
 
@@ -13,11 +14,12 @@ class Documents::PagesController < ApplicationController
   end
 
   def show
-    source = params[:source] == "file" ? @document.file : (@document.viewable_pdf || @document.file)
+    source = { "file" => @document.file, "original" => @document.original_file }.fetch(params[:source]) { @document.viewable_pdf || @document.file }
     return head(:not_found) unless @document.pdf? && source.attached?
 
     page = params[:id].to_i
-    return head(:not_found) unless page.between?(1, @document.page_count.to_i)
+    pages = params[:source] == "original" ? @document.page_fingerprints(source).size : @document.page_count.to_i
+    return head(:not_found) unless page.between?(1, pages)
 
     edge = EDGES.fetch(params[:size], EDGES["thumb"])
     send_image @document.page_image(source, page, edge: edge)

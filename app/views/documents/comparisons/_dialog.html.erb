@@ -12,6 +12,13 @@
                 <span class="flex items-center gap-1"><% keys.split.each do |key| %><kbd class="rounded-xs border border-border bg-subtle px-1.5 font-mono text-[11px] text-foreground"><%= key %></kbd><% end %> <%= label %></span>
               <% end %>
             </p>
+            <% if document_comparison(document, other).hidden_pages? %>
+              <button type="button" class="btn-secondary btn-sm aria-pressed:border-strong-accent aria-pressed:text-strong-accent" aria-pressed="false"
+                data-pdf-compare-target="blank" data-action="pdf-compare#toggleBlank"
+                title="Show blank pages, and pages removed since upload, so both documents show every page. Off, blank pages without a match are left out so the pages line up.">
+                <%= icon(:document, class: "size-4") %> Blank pages
+              </button>
+            <% end %>
             <button type="button" class="btn-secondary btn-sm aria-pressed:border-strong-accent aria-pressed:text-strong-accent" aria-pressed="true"
               data-pdf-compare-target="link" data-action="pdf-compare#toggle" title="Scroll, page and zoom both documents together. Turn off to move one on its own.">
               <%= icon(:link, class: "size-4") %> Move together
@@ -19,7 +26,8 @@
           <% end %>
           <button type="button" class="btn-icon" command="close" commandfor="comparison-dialog" aria-label="Close"><%= icon(:x, class: "size-4") %></button>
         </div>
-        <%= turbo_frame_tag dom_id(document, :comparison_viewers), src: document_comparison_path(document, other: other.id), loading: :lazy, class: "flex min-h-0 flex-1 flex-col" do %>
+        <%= turbo_frame_tag dom_id(document, :comparison_viewers), src: document_comparison_path(document, other: other.id), loading: :lazy, class: "flex min-h-0 flex-1 flex-col",
+              data: { pdf_compare_target: "frame" } do %>
           <p class="flex flex-1 items-center justify-center gap-2 text-sm muted"><%= icon(:refresh, class: "size-4 animate-spin") %> Loading documents…</p>
         <% end %>
       </el-dialog-panel>
