@@ -1,0 +1,10 @@
+<%# A cited document's card, shown over its numbered marker on hover or focus.
+    locals: message, document, number %>
+<div id="<%= dom_id(message, "source_#{number}") %>" popover="manual" role="tooltip" data-citations-target="card" data-href="<%= document_path(document) %>"
+  class="m-0 w-80 rounded-sm border border-border bg-popover p-3 text-xs leading-relaxed text-foreground shadow-lg">
+  <p class="line-clamp-2 text-sm font-bold leading-snug"><%= document.display_title %></p>
+  <p class="mt-0.5 muted"><%= [ document.correspondent&.name, document.display_date.strftime("%b %-d, %Y") ].compact.join(" · ") %></p>
+  <% if document.summary.present? %>
+    <p class="mt-2 line-clamp-3 muted"><%= document.summary %></p>
+  <% end %>
+</div>

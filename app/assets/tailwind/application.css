@@ -252,6 +252,7 @@
 @utility table { @apply min-w-full text-sm; }
 @utility prose-answer { @apply text-sm leading-7 text-foreground; }
 @utility citation { @apply mx-0.5 inline-flex max-w-64 items-center rounded-xs border border-strong-accent/40 bg-strong-accent/10 px-1.5 align-baseline text-xs leading-5 font-medium text-strong-accent no-underline hover:bg-strong-accent/20; }
+@utility citation-marker { @apply ml-px align-super text-[0.7em] leading-none font-medium tabular-nums text-strong-accent no-underline hover:underline; }
 @utility kbd { @apply rounded-xs border border-border bg-muted px-1 py-px text-[0.7rem] text-muted-foreground; }
 
 @layer components {

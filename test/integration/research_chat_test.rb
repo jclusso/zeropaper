@@ -46,9 +46,10 @@ class ResearchChatTest < ActionDispatch::IntegrationTest
       assert_select ".prose-answer h2", text: "Answer"
       assert_select ".prose-answer strong", text: "May 2, 2026"
       assert_select ".prose-answer li", text: "Odometer: 34,906"
-      assert_select ".prose-answer a.citation[href=?]", document_path(cited), text: "Vehicle inspection"
+      assert_select ".prose-answer a.citation-marker[href=?]", document_path(cited), text: "[1]"
+      assert_select "[data-controller=citations] [popover][data-href=?]", document_path(cited), text: /\A\s*Vehicle inspection.*May 2, 2026/m
       assert_select "p", text: "Sources"
-      assert_select "a.flex[href=?]", document_path(cited), text: /Vehicle inspection.*May 2, 2026/m
+      assert_select "ol a.flex[href=?]", document_path(cited), text: /1\s*Vehicle inspection.*May 2, 2026/m
       assert_select "p", text: /1 document also matched/
       assert_select "button[data-controller=clipboard][data-clipboard-text-value]"
       assert_select "time"
