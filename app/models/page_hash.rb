@@ -15,6 +15,10 @@ module PageHash
   # Rescans of one page measured up to 11 of the 256 bits apart, inspection
   # reports from one template 20 or more.
   SAME_PAGE_BITS = 16
+  # Pairing two documents' pages allows more, and picks the closest pages
+  # in order: rescans of one dense invoice measured up to 27 bits apart,
+  # while other pages of that invoice were as close as 19 to each other.
+  PAIR_BITS = 32
 
   module_function
 
@@ -43,27 +47,38 @@ module PageHash
   end
 
   # Pairs the pages of two documents in order, as [page, other_page] with
-  # 1-based numbers, matching as many as it can. A page with no match in
+  # 1-based numbers, choosing the closest pages. A page with no match in
   # the other document is paired with nil, so a copy with pages removed
   # lines up with the full scan around the gaps. A block, given 0-based
   # indexes, can rule out pairs the hashes alone would allow.
   def pair(hashes, other, &allowed)
-    same = ->(i, j) { distance(hashes[i], other[j]) <= SAME_PAGE_BITS && (allowed.nil? || allowed.call(i, j)) }
-    lengths = Array.new(hashes.size + 1) { Array.new(other.size + 1, 0) }
-    hashes.size.downto(1) do |i|
-      other.size.downto(1) do |j|
-        lengths[i - 1][j - 1] =
-          if same.(i - 1, j - 1) then lengths[i][j] + 1
-          else [ lengths[i][j - 1], lengths[i - 1][j] ].max
+    pair_costs = hashes.each_index.map do |i|
+      other.each_index.map do |j|
+        bits = distance(hashes[i], other[j])
+        bits if bits <= PAIR_BITS && (allowed.nil? || allowed.call(i, j))
+      end
+    end
+
+    # costs[i][j] is the cheapest pairing of the pages from i and j on. A
+    # page left unpaired costs half of PAIR_BITS, so two pages closer than
+    # that are paired rather than both left out.
+    skip = PAIR_BITS / 2.0
+    costs = Array.new(hashes.size + 1) { Array.new(other.size + 1) }
+    hashes.size.downto(0) do |i|
+      other.size.downto(0) do |j|
+        costs[i][j] =
+          if i == hashes.size then (other.size - j) * skip
+          elsif j == other.size then (hashes.size - i) * skip
+          else [ (costs[i + 1][j + 1] + pair_costs[i][j] if pair_costs[i][j]), costs[i + 1][j] + skip, costs[i][j + 1] + skip ].compact.min
           end
       end
     end
 
     pairs, i, j = [], 0, 0
     while i < hashes.size || j < other.size
-      if i < hashes.size && j < other.size && same.(i, j) && lengths[i][j] == lengths[i + 1][j + 1] + 1
+      if i < hashes.size && j < other.size && pair_costs[i][j] && costs[i][j] == costs[i + 1][j + 1] + pair_costs[i][j]
         pairs << [ i += 1, j += 1 ]
-      elsif j == other.size || (i < hashes.size && lengths[i + 1][j] >= lengths[i][j + 1])
+      elsif j == other.size || (i < hashes.size && costs[i][j] == costs[i + 1][j] + skip)
         pairs << [ i += 1, nil ]
       else
         pairs << [ nil, j += 1 ]
