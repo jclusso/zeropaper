@@ -13,28 +13,16 @@
 
   <section class="card" id="comparison-summary">
     <div class="grid gap-5 p-5 sm:p-6 lg:grid-cols-[20rem_minmax(0,1fr)] lg:gap-8">
-      <%# The ring, the verdict and the measure that sets the score share one color, for the confidence. %>
+      <%# The verdict and the measure that sets the score share one color, for the confidence. %>
       <% tone = { high: "text-success", medium: "text-warning", low: "text-muted-foreground" }.fetch(comparison.confidence) %>
       <% tone_border = { high: "border-success/60", medium: "border-warning/60", low: "border-muted-foreground/40" }.fetch(comparison.confidence) %>
-      <div class="flex items-center gap-4" data-comparison-confidence="<%= comparison.confidence %>">
-        <%# A ring filled to the score; stroke-dasharray is an attribute, which the content security policy allows. %>
-        <div class="relative size-24 shrink-0 <%= tone %>">
-          <svg viewBox="0 0 36 36" class="size-full -rotate-90" aria-hidden="true">
-            <circle cx="18" cy="18" r="15.9155" fill="none" stroke-width="3" class="stroke-muted"></circle>
-            <% if comparison.similarity.positive? %>
-              <circle cx="18" cy="18" r="15.9155" fill="none" stroke-width="3" stroke-linecap="round" stroke-dasharray="<%= comparison.similarity %> 100" class="stroke-current"></circle>
-            <% end %>
-          </svg>
-          <p class="absolute inset-0 flex items-center justify-center text-2xl font-bold tabular-nums" data-comparison-score><%= comparison.similarity %>%</p>
-        </div>
-        <div class="min-w-0">
-          <p class="font-bold leading-snug <%= tone unless comparison.confidence == :low %>" data-comparison-verdict><%= comparison.verdict %></p>
-          <p class="mt-1 text-sm muted" data-comparison-guidance><%= comparison.guidance %></p>
-          <p class="mt-2 text-xs muted">
-            <span data-comparison-basis><%= comparison.similarity_basis %></span>
-            <span class="inline-flex align-[-3px]"><%= render "shared/info_tip", text: comparison.similarity_explanation, id: "comparison_score_tip", about: "how the score is worked out" %></span>
-          </p>
-        </div>
+      <div class="min-w-0 self-center" data-comparison-confidence="<%= comparison.confidence %>">
+        <%# The score is the measure that sets it, which the first card shows, so the verdict stands without a number. %>
+        <p class="text-lg font-bold leading-snug <%= tone unless comparison.confidence == :low %>" data-comparison-verdict><%= comparison.verdict %></p>
+        <p class="mt-1 text-sm muted">
+          <span data-comparison-guidance><%= comparison.guidance %></span>
+          <span class="inline-flex align-[-3px]"><%= render "shared/info_tip", text: comparison.similarity_explanation, id: "comparison_score_tip", about: "how the verdict is worked out" %></span>
+        </p>
       </div>
 
       <% if (measures = comparison.measures).any? %>
