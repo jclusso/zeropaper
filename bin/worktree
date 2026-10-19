@@ -39,12 +39,16 @@ def development_database
   "zeropaper_development_#{NAME}"
 end
 
-# Shared and read-only in practice, so a link saves copying them.
-def link(path)
+# Shared and read-only in practice, so a link saves copying them. With replace,
+# a file of the worktree's own that differs from the main checkout's gives way
+# to the link.
+def link(path, replace: false)
   source, target = File.join(main_checkout, path), File.join(APP_ROOT, path)
-  return if File.exist?(target) || File.symlink?(target) || !File.exist?(source)
+  return if File.symlink?(target) || !File.exist?(source)
+  return if File.exist?(target) && (!replace || FileUtils.identical?(source, target))
 
-  puts "Linking #{path}"
+  puts "Linking #{path}#{" in place of this worktree's own" if File.exist?(target)}"
+  FileUtils.rm_f(target)
   FileUtils.mkdir_p(File.dirname(target))
   File.symlink(source, target)
 end
@@ -85,8 +89,10 @@ end
 def setup(replace: false)
   return unless WORKTREE
 
-  # The copied database is encrypted with keys derived from this secret.
-  link "tmp/local_secret.txt"
+  # The copied database is encrypted with keys derived from this secret. Rails
+  # writes a new one when anything boots here before setup, such as a test run,
+  # and the copy cannot be read with it.
+  link "tmp/local_secret.txt", replace: true
   link "storage/models"
   copy "storage/files", replace: replace
   copy "storage/private", replace: replace
