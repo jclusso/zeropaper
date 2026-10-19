@@ -43,6 +43,14 @@ class PageHashTest < ActiveSupport::TestCase
     assert_equal [ [ nil, 1 ] ], PageHash.pair([], [ a ])
   end
 
+  test "pairs the closest pages, allowing more apart than a match alone" do
+    page, rescan, other_rescan, different = [ 0, 20, 24, 40 ].map { |bits| ("f" * (bits / 4)).ljust(64, "0") }
+
+    assert_equal [ [ nil, 1 ], [ 1, 2 ] ], PageHash.pair([ page ], [ other_rescan, rescan ])
+    assert_equal [ [ 1, 1 ], [ nil, 2 ] ], PageHash.pair([ page ], [ rescan, other_rescan ])
+    assert_equal [ [ 1, nil ], [ nil, 1 ] ], PageHash.pair([ page ], [ different ])
+  end
+
   test "a block can rule out pairs the hashes allow" do
     a, c = "a" * 64, "c" * 64
 
