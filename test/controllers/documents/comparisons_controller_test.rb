@@ -29,10 +29,9 @@ class Documents::ComparisonsControllerTest < ActionDispatch::IntegrationTest
   test "shows how similar the text is" do
     get document_comparison_path(@copy)
 
-    assert_select "[data-comparison-score]", text: "100%"
+    assert_select "[data-comparison-measure]:first-child[data-decides=true] [role=meter][aria-valuenow='100']"
     assert_select "[data-comparison-verdict]", text: "Very likely the same document"
     assert_select "[data-comparison-confidence=high] [data-comparison-guidance]", text: /delete the other/
-    assert_select "[data-comparison-basis]", text: "From shared wording"
     assert_select "[data-comparison-measure=wording][data-decides=true]", text: /Runs of three words in both/
     assert_select "#comparison_score_tip", text: /Runs of three words/
     assert_select "tr[data-comparison-row=Date][data-same=true]"
@@ -44,7 +43,7 @@ class Documents::ComparisonsControllerTest < ActionDispatch::IntegrationTest
 
     get document_comparison_path(@copy)
 
-    assert_select "[data-comparison-basis]", text: "From meaning"
+    assert_select "#comparison_score_tip", text: /close the two texts are in meaning/
     assert_select "[data-comparison-measure=meaning][data-decides=true]"
   end
 
@@ -107,7 +106,7 @@ class Documents::ComparisonsControllerTest < ActionDispatch::IntegrationTest
     get document_comparison_path(trimmed, other: full.id)
 
     assert_select "tr[data-comparison-row=Pages][data-same=false] [data-comparison-note]", text: "1 page only in the other"
-    assert_select "[data-comparison-score]", text: "67%"
+    assert_select "[data-comparison-measure]:first-child[data-decides=true] [role=meter][aria-valuenow='67']"
     assert_select "[data-comparison-measure=pages]", text: /2 of 3 pages with content/
     assert_select "[data-comparison-column=#{trimmed.id}] ol > li" do |cells|
       assert_equal [ false, true, false ], cells.map { it.key?("data-comparison-gap") }
@@ -129,8 +128,8 @@ class Documents::ComparisonsControllerTest < ActionDispatch::IntegrationTest
 
     assert_select "tr[data-comparison-row=Pages][data-same=true] [data-comparison-note]", text: "Same apart from blank pages"
     assert_select "tr[data-comparison-row=Pages] td", text: "2 · 1 removed"
-    assert_select "[data-comparison-score]", text: "100%"
-    assert_select "[data-comparison-basis]", text: "From matching pages"
+    assert_select "[data-comparison-measure]:first-child[data-decides=true] [role=meter][aria-valuenow='100']"
+    assert_select "#comparison_score_tip", text: /share of matching pages\. /
     assert_select "[data-comparison-measure]", count: 1
     assert_select "[data-comparison-measure=pages][data-decides=true] [role=meter][aria-valuenow='100']"
 
@@ -138,8 +137,8 @@ class Documents::ComparisonsControllerTest < ActionDispatch::IntegrationTest
     copy.update!(content: "Invoice 461759 for the X5\n\nVIN 5YMJU0C0N9K62003 total 1234.56")
     full.update!(content: "VIN 5YMJU0C0N9K62003 total 1234.56\n\nInvoice 461759 for the X5")
     get document_comparison_path(copy, other: full.id)
-    assert_select "[data-comparison-score]", text: "100%"
-    assert_select "[data-comparison-basis]", text: "Lower of matching pages and shared numbers"
+    assert_select "[data-comparison-measure]:first-child[data-decides=true] [role=meter][aria-valuenow='100']"
+    assert_select "#comparison_score_tip", text: /held down by the share of shared numbers/
     assert_select "[data-comparison-measure=numbers]", text: /3 of 3 numbers in both/
     assert_select "[data-comparison-measure=wording]", count: 0
     assert_select "#comparison_score_tip", text: /Wording is not counted/
@@ -149,7 +148,7 @@ class Documents::ComparisonsControllerTest < ActionDispatch::IntegrationTest
     # Pages alike by look but other numbers, as two fills of one form can be.
     full.update!(content: "VIN 5YMJU0C0N9K99999 total 9876.54\n\nInvoice 470001 for the X5")
     get document_comparison_path(copy, other: full.id)
-    assert_select "[data-comparison-score]", text: "0%"
+    assert_select "[data-comparison-measure]:first-child[data-comparison-measure=numbers][data-decides=true] [role=meter][aria-valuenow='0']"
     assert_select "[data-comparison-verdict]", text: "Probably different documents"
     assert_select "[data-comparison-confidence=low]"
     assert_select "[data-comparison-measure=numbers][data-decides=true]", text: /0%/

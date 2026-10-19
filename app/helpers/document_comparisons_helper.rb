@@ -60,13 +60,6 @@ module DocumentComparisonsHelper
       @similarity ||= percent(page_score || shared_text || embedding_similarity || 0.0)
     end
 
-    def similarity_basis
-      if page_score then numbers? ? "Lower of matching pages and shared numbers" : "From matching pages"
-      elsif shared_text || !embedding_similarity then "From shared wording"
-      else "From meaning"
-      end
-    end
-
     def similarity_explanation
       if page_score
         "For two PDFs the score is the share of matching pages#{", held down by the share of shared numbers" if numbers?}. " \
@@ -110,7 +103,7 @@ module DocumentComparisonsHelper
     end
 
     # The measures the score is made from: pages and numbers for two PDFs,
-    # otherwise wording or meaning.
+    # otherwise wording or meaning. The one that sets the score comes first.
     def measures
       @measures ||= begin
         measures = []
@@ -128,7 +121,7 @@ module DocumentComparisonsHelper
         end
 
         measures.min_by(&:score)&.decides = true
-        measures
+        measures.partition(&:decides).flatten
       end
     end
 
