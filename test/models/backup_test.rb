@@ -290,9 +290,11 @@ class BackupTest < ActiveSupport::TestCase
     assert_nil Backup.run_scheduled
 
     first.update!(made_at: 23.hours.ago - 31.minutes)
-    assert_difference -> { Backup.count } do
-      Backup.run_scheduled
-    end
+    travel 1.second
+    second = Backup.run_scheduled
+    assert_equal "ready", second.status, second.error
+    assert_equal [ second ], Backup.all.to_a
+    assert_equal [ second.filename ], Backup.files.map { |path| path.basename.to_s }
   end
 
   test "a failed backup is retried and listed until one works" do
