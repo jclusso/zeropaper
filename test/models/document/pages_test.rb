@@ -30,6 +30,16 @@ class Document::PagesTest < ActiveSupport::TestCase
     refute_includes @document.review_reasons, "blank_pages"
   end
 
+  test "removing the first page takes the thumbnail from the searchable PDF" do
+    archive = text_pdf("FIRST PAGE", "SECOND PAGE", "THIRD PAGE")
+    @document.update!(archive_file: { io: StringIO.new(archive), filename: "scan.pdf", content_type: "application/pdf" })
+    expected = with_pdf_file(archive) { |path| Pdf.render_page(path, 2, edge: 640, format: :jpeg) }
+
+    @document.remove_pages!([ 1 ])
+
+    assert_equal expected, @document.reload.thumbnail.download
+  end
+
   test "removing a page that was read queues OCR again without new details" do
     assert_enqueued_with(job: ProcessDocumentJob, args: [ @document, { extract_metadata: false } ]) do
       @document.remove_pages!([ 1 ])
