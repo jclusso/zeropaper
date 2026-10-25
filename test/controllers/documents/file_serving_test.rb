@@ -26,6 +26,17 @@ class Documents::FileServingTest < ActionDispatch::IntegrationTest
     assert_equal "bytes 0-9/#{@pdf.bytesize}", response.headers["Content-Range"]
   end
 
+  test "a front server that sends files is handed the whole file to answer a range" do
+    Rails.application.config.action_dispatch.stubs(:x_sendfile_header).returns("X-Sendfile")
+    ActiveStorage::Blob.any_instance.expects(:download_chunk).never
+
+    get document_file_path(@document), headers: { "Range" => "bytes=0-9" }
+
+    assert_response :success
+    assert_equal @pdf, response.body
+    assert_nil response.headers["Content-Range"]
+  end
+
   test "a private file is decrypted and served whole or by range" do
     private_pdf = text_pdf("Diagnosis page")
     document = ingest(private_pdf, filename: "private.pdf", private: true, private_reason: "Uploaded as private")
