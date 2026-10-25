@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Rebuilds the fictional demo library in its own database, zeropaper_demo,
+# so your development database is never touched. Then serve it with
+#
+#   DATABASE_URL=postgres:///zeropaper_demo bin/rails server -p 3999
+#
+# and take screenshots with `node script/demo/screenshots.js`.
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+
+export DATABASE_URL="${DEMO_DATABASE_URL:-postgres:///zeropaper_demo}"
+database="${DATABASE_URL##*/}"
+case "$database" in
+  *demo*) ;;
+  *) echo "Refusing to reset $database: the demo database's name must contain \"demo\"." >&2; exit 1 ;;
+esac
+
+dropdb --if-exists --force "$database"
+createdb "$database"
+bin/rails db:schema:load
+bin/rails tailwindcss:build
+bin/rails demo:load
