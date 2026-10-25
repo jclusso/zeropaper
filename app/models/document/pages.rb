@@ -178,7 +178,7 @@ module Document::Pages
           Pdf.without_pages(path, pages, output)
           checksum = Digest::SHA256.file(output).hexdigest
           archive = trimmed_archive(pages, dir)
-          image = Pdf.render_page(output, 1, edge: 640, format: :jpeg) if pages.include?(1)
+          image = Pdf.render_page(archive || output, 1, edge: 640, format: :jpeg) if pages.include?(1)
 
           # The upload is already stored, so its blob becomes the original
           # rather than a second copy of the same file.

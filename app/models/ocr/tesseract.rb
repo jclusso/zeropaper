@@ -21,13 +21,23 @@ module Ocr
       output = File.join(dir, "archive.pdf")
       sidecar = File.join(dir, "text.txt")
 
-      command = [ "ocrmypdf", MODES.fetch(mode), "--output-type", "pdf", "--optimize", "1",
+      command = [ "ocrmypdf", "--output-type", "pdf", "--optimize", "1",
         "--language", LANGUAGE, "--sidecar", sidecar, "--jobs", "2" ]
       command += [ "--image-dpi", "300" ] if content_type.start_with?("image/")
       command += [ "--pages", pages.join(",") ] if content_type == "application/pdf" && pages.any?
-      command += [ path, output ]
+      files = [ path, output ]
 
-      _stdout, stderr, status = Pdf.capture(*command, timeout: TIMEOUT)
+      # A page tilted a degree or two splits table rows across lines.
+      # Straightening redraws the page image, which :redo keeps as is, so a
+      # scanner's OCR layer is replaced by reading its pages afresh. ocrmypdf
+      # fails the whole file when Tesseract can't measure a page's tilt, as
+      # on very low resolution scans, so a failed attempt is read again as
+      # scanned.
+      if @settings.straighten_pages?
+        straight_mode = mode == :redo ? :force : mode
+        _stdout, stderr, status = Pdf.capture(*command, MODES.fetch(straight_mode), "--deskew", *files, timeout: TIMEOUT)
+      end
+      _stdout, stderr, status = Pdf.capture(*command, MODES.fetch(mode), *files, timeout: TIMEOUT) unless status&.success? || status&.exitstatus == 6
       # Exit 6 means the file already had text everywhere; the copy is still written.
       raise Pdf::CommandFailed, "ocrmypdf failed: #{stderr.lines.last(3).join}".truncate(500) unless status.success? || status.exitstatus == 6
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_17_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_25_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -266,6 +266,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_180000) do
     t.integer "backup_keep_weekly", default: 4, null: false
     t.integer "backup_keep_monthly", default: 12, null: false
     t.integer "backup_keep_yearly", default: 2, null: false
+    t.boolean "straighten_pages", default: true, null: false
     t.index ["extraction_provider_id"], name: "index_settings_on_extraction_provider_id"
     t.index ["research_provider_id"], name: "index_settings_on_research_provider_id"
     t.index ["vision_provider_id"], name: "index_settings_on_vision_provider_id"

@@ -26,7 +26,9 @@ Dir.mktmpdir do |dir|
   File.binwrite(scan, PdfFactory.build([ canvas ]))
 
   check("the scan has no text layer") { NativeText.pdf_pages(scan).first.text.squish.empty? }
-  result = Ocr::Tesseract.new(nil).call(scan, pages: [ 1 ], content_type: "application/pdf", mode: :force)
+  # The image has no database to read settings from.
+  settings = Data.define(:straighten_pages) { alias_method :straighten_pages?, :straighten_pages }.new(straighten_pages: true)
+  result = Ocr::Tesseract.new(settings).call(scan, pages: [ 1 ], content_type: "application/pdf", mode: :force)
   check("ocrmypdf and Tesseract read the scan") { result.text.include?("INVOICE") && result.text.include?("4471") }
   check("ocrmypdf writes a searchable PDF") { result.archive_path && NativeText.pdf_pages(result.archive_path).first.text.include?("INVOICE") }
   FileUtils.rm_rf(File.dirname(result.archive_path)) if result.archive_path

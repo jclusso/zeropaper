@@ -21,6 +21,19 @@ class Document::TextReadingTest < ActiveSupport::TestCase
     assert document.archive_file.attached?
   end
 
+  test "the thumbnail shows the searchable PDF the viewer shows" do
+    Setting.instance.update!(searchable_pdf: true)
+    archive = File.join(Dir.mktmpdir, "archive.pdf")
+    File.binwrite(archive, text_pdf("STRAIGHTENED PAGE"))
+    Ocr::Tesseract.any_instance.stubs(:call).returns(Ocr::Result.new(pages: { 1 => "PAYROLL SUMMARY" }, archive_path: archive))
+    expected = Pdf.render_page(archive, 1, edge: 640, format: :jpeg)
+
+    document = process(ingest(scanned_text_pdf("PAYROLL SUMMARY\n"), filename: "scan_0012.pdf"))
+
+    assert document.archive_file.attached?
+    assert_equal expected, document.thumbnail.download
+  end
+
   test "logs how long the text step and each read took" do
     logged = StringIO.new
     Rails.stubs(:logger).returns(ActiveSupport::Logger.new(logged))

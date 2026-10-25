@@ -153,9 +153,9 @@ module Document::Processing
     file.open { |tempfile| yield tempfile.path }
   end
 
-  def generate_thumbnail(path)
+  def generate_thumbnail(path, pdf: pdf?)
     image =
-      if pdf?
+      if pdf
         Pdf.render_page(path, 1, edge: 640, format: :jpeg)
       elsif image?
         ImageProcessing::Vips.source(path).resize_to_limit(640, 640).convert("jpeg").call.read
@@ -405,6 +405,8 @@ module Document::Processing
       return unless run&.archive_path
 
       archive_file.attach(io: File.open(run.archive_path), filename: "#{File.basename(original_filename, ".*")}.pdf", content_type: "application/pdf")
+      # The viewer shows the searchable PDF, whose pages may be straightened.
+      generate_thumbnail(run.archive_path, pdf: true)
     end
 
     # Returns the AI model's page texts, or nil when it could not read them.
