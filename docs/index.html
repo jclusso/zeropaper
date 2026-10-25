@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ZeroPaper · Self-hosted document archive</title>
+  <meta name="description" content="ZeroPaper turns scans, PDFs, photos, Word files and spreadsheets into a searchable library on your own server, with OCR, AI-proposed details, hybrid search, Research and private documents that never leave your machine.">
+  <meta name="color-scheme" content="light dark">
+  <meta property="og:title" content="ZeroPaper">
+  <meta property="og:description" content="A self-hosted document archive with OCR, AI details, hybrid search and Research. Private documents never leave your machine.">
+  <meta property="og:url" content="https://zeropaper.dev/">
+  <meta property="og:image" content="https://zeropaper.dev/screenshots/document.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://zeropaper.dev/">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/site.css">
+  <script src="assets/theme.js"></script>
+  <script src="assets/site.js" defer></script>
+</head>
+<body class="bg-grid">
+  <svg width="0" height="0" class="absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.75 6 6 9-13.5"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m19.5 8.25-7.5 7.5-7.5-7.5"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></symbol>
+      <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"/></symbol>
+      <symbol id="i-github" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.1 0 4.7-2.8 5.7-5.5 6 .4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18 18 6M6 6l12 12"/></symbol>
+      <symbol id="i-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.75 19.5 8.25 12l7.5-7.5"/></symbol>
+      <symbol id="i-chevron-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 15.75 7.5-7.5 7.5 7.5"/></symbol>
+      <symbol id="i-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m19.5 8.25-7.5 7.5-7.5-7.5"/></symbol>
+      <symbol id="i-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5v15m7.5-7.5h-15"/></symbol>
+      <symbol id="i-document" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></symbol>
+      <symbol id="i-panel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125Z"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"/></symbol>
+    </defs>
+  </svg>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="#top"><img src="assets/icon.svg" alt="">ZeroPaper</a>
+      <nav class="site-nav">
+        <a class="optional" href="#features">Features</a>
+        <a class="optional" href="#quick-start">Quick start</a>
+        <button type="button" class="theme-toggle" aria-label="Switch theme" hidden><svg class="i-moon size-5" aria-hidden="true"><use href="#i-moon"/></svg><svg class="i-sun size-5" aria-hidden="true"><use href="#i-sun"/></svg></button>
+        <a class="github-link" href="https://github.com/jclusso/zeropaper" aria-label="ZeroPaper on GitHub" title="ZeroPaper on GitHub"><svg class="size-5" aria-hidden="true"><use href="#i-github"/></svg></a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <div class="wrap">
+      <section class="hero">
+        <p class="eyebrow mb-3.5">Self-hosted · Ruby on Rails · Postgres</p>
+        <h1>Your paperwork, <em class="rotator"><span class="sr-only">searchable,</span><span class="rotator-words" aria-hidden="true"><span class="is-current">searchable,</span><span>organized,</span><span>private,</span></span></em> on <span class="whitespace-nowrap">your own server.</span></h1>
+        <p class="lede">ZeroPaper turns scans, PDFs, photos and office files into a library you can search and ask questions about. AI fills in the details when you want it to, and documents you mark private never leave your machine.</p>
+        <div class="actions">
+          <a class="btn-primary h-11 px-5" href="#quick-start">Get started</a>
+          <a class="btn-secondary h-11 px-5" href="https://github.com/jclusso/zeropaper">
+            <svg class="size-4" aria-hidden="true"><use href="#i-github"/></svg>
+            View on GitHub
+          </a>
+        </div>
+        <div class="brackets">
+          <div class="frame">
+            <picture>
+              <source data-dark srcset="screenshots/document-dark.png" media="(prefers-color-scheme: dark)">
+              <img src="screenshots/document.png" width="2880" height="1800" alt="A September electric bill open in ZeroPaper: the PDF and its extracted text side by side, with the title, date, correspondent, type, tags and summary proposed by AI.">
+            </picture>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section id="features" class="site-section">
+      <div class="wrap">
+        <h2>Everything a paper archive needs</h2>
+        <p class="section-intro">Drop files in, and ZeroPaper reads them, files them and makes them findable. Every detail can be edited, and every step can run without a hosted AI.</p>
+        <div class="features">
+          <div class="card feature">
+            <h3><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8h10M7 12h10M7 16h6"/></svg></span>OCR that fits your setup</h3>
+            <p>Read scans and photos with a vision model or Mistral Document OCR, or locally with Tesseract or Docling. Scans also get a searchable PDF.</p>
+          </div>
+          <div class="card feature">
+            <h3><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></span>AI-proposed details</h3>
+            <p>A title, date, correspondent, document type, tags and summary for each document. Choose whether AI may create new types and tags.</p>
+          </div>
+          <div class="card feature">
+            <h3><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>Hybrid search</h3>
+            <p>Postgres full-text search plus embeddings computed on your machine. Dates, correspondents, types and #tags in a search become filters.</p>
+          </div>
+          <div class="card feature">
+            <h3><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>Research</h3>
+            <p>Ask questions across many documents. Answers show their progress, cite the documents they used and are saved to continue later.</p>
+          </div>
+          <div class="card feature">
+            <h3><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M12 4v16"/></svg></span>Side-by-side viewer</h3>
+            <p>See the PDF, the extracted text or both, with the text following the page you are on.</p>
+          </div>
+          <div class="card feature">
+            <h3><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></svg></span>Review inbox</h3>
+            <p>Low-confidence details, possible duplicates, blank pages and processing errors, each with its own fix.</p>
+          </div>
+          <div class="card feature">
+            <h3><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></span>Rules</h3>
+            <p>When the text, filename or source matches, set the correspondent and type, add tags or mark the document private.</p>
+          </div>
+          <div class="card feature">
+            <h3><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="m9 14 2 2 4-4"/></svg></span>Page cleanup</h3>
+            <p>Pages scanned upside down or sideways are turned upright, and blank sheets and print bleed-through are found and offered for removal.</p>
+          </div>
+          <div class="card feature">
+            <h3><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></span>Import anything</h3>
+            <p>Upload files or whole folders with progress, or let a scanner save into a watched folder.</p>
+          </div>
+          <div class="card feature">
+            <h3><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7h12M8 12h12M8 17h12M4 7h0M4 12h0M4 17h0"/></svg></span>Tidy up</h3>
+            <p>ZeroPaper suggests similar correspondents, types and tags (plurals, spelling, meaning) and merges them, moving their documents and rules.</p>
+          </div>
+          <div class="card feature">
+            <h3><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="1"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>Encrypted backups</h3>
+            <p>Back up the whole library as one encrypted file, on demand or on a schedule to a folder such as a NAS share.</p>
+          </div>
+          <div class="card feature">
+            <h3><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>Any AI provider, or none</h3>
+            <p>OpenAI, Anthropic, Gemini, Mistral, OpenRouter, DeepSeek, xAI, Ollama or any OpenAI-compatible API, chosen per task. Or turn AI off.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="site-section band">
+      <div class="wrap">
+        <div class="showcase">
+          <div class="text">
+            <h2>Ask your archive</h2>
+            <p>Research searches the library, reads the documents that matter and answers with numbered citations you can open.</p>
+            <ul>
+              <li>Shows each step while it works</li>
+              <li>Adds up amounts and shows the sum</li>
+              <li>Conversations are saved to pick up later</li>
+            </ul>
+          </div>
+          <div class="brackets"><div class="frame">
+            <div class="demo bg-grid pb-14 text-sm" data-demo="research">
+              <p class="sr-only">Animated example of Research. The question “What did the hail damage cost us in the end?” is researched in five steps: two searches, reading the repair invoice and the claim settlement, and adding up the amounts. The answer: the repair at Pinecrest Auto Service came to $2,340.00, Harbor Mutual paid $2,090.00 after the $250 deductible, so the hail cost $250.00 out of pocket and the claim did not affect the safe-driver discount. It cites the repair invoice and the claim settlement letter, and notes that one private checking statement also matched but was not shown to the AI.</p>
+              <div aria-hidden="true">
+                <div class="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4 sm:px-6">
+                  <p class="min-w-0 flex-1 truncate text-sm font-semibold">What did the hail damage cost us in the end?</p>
+                </div>
+                <div class="space-y-6 px-4 pt-6 sm:px-6">
+                  <div class="flex justify-end" data-part="question">
+                    <div class="max-w-[80%] break-words rounded-sm bg-muted px-4 py-2.5 text-sm leading-6">What did the hail damage cost us in the end?</div>
+                  </div>
+                  <article class="min-w-0">
+                    <div class="relative text-xs" data-part="steps">
+                      <p class="step-summary flex w-fit items-center gap-2 muted">
+                        <svg class="size-3.5 shrink-0"><use href="#i-check"/></svg><span>Researched · 5 steps</span><svg class="size-3.5"><use href="#i-chevron"/></svg>
+                      </p>
+                      <ol class="step-list absolute inset-x-0 top-0 ml-[0.4rem] space-y-1.5 border-l border-border pl-[1.1rem]" hidden>
+                        <li class="flex items-center gap-2 muted"><svg class="size-3.5 shrink-0"><use href="#i-check"/></svg><span>Searching for “hail damage”</span></li>
+                        <li class="flex items-center gap-2 muted"><svg class="size-3.5 shrink-0"><use href="#i-check"/></svg><span>Searching for “claim settlement Harbor Mutual”</span></li>
+                        <li class="flex items-center gap-2 muted"><svg class="size-3.5 shrink-0"><use href="#i-check"/></svg><span>Reading “Hail damage repair invoice”</span></li>
+                        <li class="flex items-center gap-2 muted"><svg class="size-3.5 shrink-0"><use href="#i-check"/></svg><span>Reading “Hail damage claim settlement”</span></li>
+                        <li class="flex items-center gap-2 muted"><svg class="size-3.5 shrink-0"><use href="#i-check"/></svg><span>Adding up amounts</span></li>
+                      </ol>
+                    </div>
+                    <div class="prose-answer mt-3" data-part="answer">
+                      <p>The repair came to <strong>$2,340.00</strong> at Pinecrest Auto Service: dent repair on the hood and roof, a new windshield and a lane camera recalibration<span class="citation-marker">[1]</span>.</p>
+                      <p>Harbor Mutual approved the full estimate and paid <strong>$2,090.00</strong> by direct deposit on May 19, 2026, after the $250 comprehensive deductible<span class="citation-marker">[2]</span>. So the hail cost you <strong>$250.00</strong> out of pocket, and the claim did not affect your safe-driver discount<span class="citation-marker">[2]</span>.</p>
+                    </div>
+                    <div class="mt-4" data-part="sources">
+                      <p class="mb-1.5 text-[0.7rem] font-medium uppercase tracking-wider muted">Sources</p>
+                      <ol class="flex flex-wrap gap-2">
+                        <li class="flex max-w-xs items-center gap-2 rounded-sm border border-border bg-card px-2.5 py-1.5 text-xs">
+                          <span class="shrink-0 font-medium tabular-nums text-strong-accent">1</span><span class="truncate">Hail damage repair invoice</span><span class="shrink-0 muted">Jun 4, 2026</span>
+                        </li>
+                        <li class="flex max-w-xs items-center gap-2 rounded-sm border border-border bg-card px-2.5 py-1.5 text-xs">
+                          <span class="shrink-0 font-medium tabular-nums text-strong-accent">2</span><span class="truncate">Hail damage claim settlement</span><span class="shrink-0 muted">May 19, 2026</span>
+                        </li>
+                      </ol>
+                    </div>
+                    <div class="mt-4 text-xs" data-part="private">
+                      <p class="flex flex-wrap items-center gap-1.5 muted">
+                        <span class="badge-private"><svg class="size-3"><use href="#i-lock"/></svg>Private</span>
+                        1 document also matched but stayed off the AI, so this answer leaves them out.
+                      </p>
+                      <ul class="mt-1.5 flex flex-wrap gap-1.5"><li><span class="citation">Checking statement August 2026</span></li></ul>
+                    </div>
+                  </article>
+                </div>
+              </div>
+              <button type="button" class="replay btn-secondary btn-sm" hidden><svg class="size-3.5"><use href="#i-refresh"/></svg>Replay</button>
+            </div>
+          </div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="site-section">
+      <div class="wrap">
+        <div class="showcase flip">
+          <div class="text">
+            <h2>Search that understands you</h2>
+            <p>Write “insurance from Harbor Mutual 2026” and the correspondent and dates become filters, worked out locally. Keywords and meaning are ranked together.</p>
+          </div>
+          <div class="brackets"><div class="frame">
+            <div class="demo bg-grid p-4 pb-16 text-sm sm:p-6 sm:pb-16" data-demo="search">
+              <p class="sr-only">Animated example of search. Typing “insurance from Harbor Mutual 2026” turns “from Harbor Mutual” into the Correspondent filter Harbor Mutual Insurance and “2026” into dates from January 1 to December 31, 2026, leaving “insurance” as the search words. Three results appear: Homeowners policy 2026–2027, Auto policy renewal Oct 2026 and Hail damage claim settlement.</p>
+              <div aria-hidden="true">
+                <div class="flex gap-3">
+                  <div class="input relative flex h-11 flex-1 items-center gap-1 pl-10 text-base">
+                    <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center muted"><svg class="size-5"><use href="#i-search"/></svg></span>
+                    <span class="typed min-w-0 overflow-hidden">insurance</span><span class="caret shrink-0"></span>
+                  </div>
+                  <span class="btn-primary h-11">Search</span>
+                </div>
+                <div class="my-4 grid grid-cols-2 items-end gap-3 border-y border-border bg-background/60 py-3">
+                  <div class="col-span-2">
+                    <p class="label">Correspondent</p>
+                    <div class="input flex items-center justify-between gap-2" data-filter data-empty="Any"><span class="value truncate">Harbor Mutual Insurance</span><svg class="size-4 shrink-0 muted"><use href="#i-chevron"/></svg></div>
+                  </div>
+                  <div>
+                    <p class="label">From</p>
+                    <div class="input flex items-center justify-between gap-2" data-filter data-empty="Any date"><span class="value truncate">Jan 1, 2026</span><svg class="size-4 shrink-0 muted"><use href="#i-calendar"/></svg></div>
+                  </div>
+                  <div>
+                    <p class="label">To</p>
+                    <div class="input flex items-center justify-between gap-2" data-filter data-empty="Any date"><span class="value truncate">Dec 31, 2026</span><svg class="size-4 shrink-0 muted"><use href="#i-calendar"/></svg></div>
+                  </div>
+                </div>
+                <p class="mb-2 text-xs muted" data-part="count">3 results</p>
+                <div class="space-y-2">
+                  <div class="card flex items-center gap-3 p-3" data-part="result">
+                    <img src="screenshots/thumbs/homeowners-policy.webp" width="36" height="48" alt="" class="h-12 w-9 shrink-0 rounded-xs border border-border bg-white object-cover object-top">
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-sm font-bold">Homeowners policy 2026–2027</p>
+                      <p class="mt-0.5 truncate text-xs muted">June 01, 2026 · Harbor Mutual Insurance · Insurance Policy</p>
+                      <p class="mt-1 truncate text-xs muted">Harbor Mutual <mark class="bg-strong-accent/20 px-0.5 text-foreground">Insurance</mark> · dwelling coverage $385,000</p>
+                    </div>
+                    <div class="hidden shrink-0 gap-1 sm:flex">
+                      <span class="inline-flex items-center rounded-xs border px-1.5 py-px text-[0.7rem] font-medium border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300">insurance</span>
+                      <span class="inline-flex items-center rounded-xs border px-1.5 py-px text-[0.7rem] font-medium border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">home</span>
+                    </div>
+                  </div>
+                  <div class="card flex items-center gap-3 p-3" data-part="result">
+                    <img src="screenshots/thumbs/auto-policy.webp" width="36" height="48" alt="" class="h-12 w-9 shrink-0 rounded-xs border border-border bg-white object-cover object-top">
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-sm font-bold">Auto policy renewal Oct 2026</p>
+                      <p class="mt-0.5 truncate text-xs muted">September 02, 2026 · Harbor Mutual Insurance · Insurance Policy</p>
+                      <p class="mt-1 truncate text-xs muted">Harbor Mutual <mark class="bg-strong-accent/20 px-0.5 text-foreground">Insurance</mark> · six-month premium $712.50</p>
+                    </div>
+                    <div class="hidden shrink-0 gap-1 sm:flex">
+                      <span class="inline-flex items-center rounded-xs border px-1.5 py-px text-[0.7rem] font-medium border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300">insurance</span>
+                      <span class="inline-flex items-center rounded-xs border px-1.5 py-px text-[0.7rem] font-medium border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-300">car</span>
+                    </div>
+                  </div>
+                  <div class="card flex items-center gap-3 p-3" data-part="result">
+                    <img src="screenshots/thumbs/claim-settlement.webp" width="36" height="48" alt="" class="h-12 w-9 shrink-0 rounded-xs border border-border bg-white object-cover object-top">
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-sm font-bold">Hail damage claim settlement</p>
+                      <p class="mt-0.5 truncate text-xs muted">May 19, 2026 · Harbor Mutual Insurance · Letter</p>
+                      <p class="mt-1 truncate text-xs muted">Harbor Mutual <mark class="bg-strong-accent/20 px-0.5 text-foreground">Insurance</mark> · settlement paid $2,090.00</p>
+                    </div>
+                    <div class="hidden shrink-0 gap-1 sm:flex">
+                      <span class="inline-flex items-center rounded-xs border px-1.5 py-px text-[0.7rem] font-medium border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300">insurance</span>
+                      <span class="inline-flex items-center rounded-xs border px-1.5 py-px text-[0.7rem] font-medium border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-300">car</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button type="button" class="replay btn-secondary btn-sm" hidden><svg class="size-3.5"><use href="#i-refresh"/></svg>Replay</button>
+            </div>
+          </div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="site-section band">
+      <div class="wrap">
+        <div class="showcase">
+          <div class="text">
+            <h2>An inbox for what needs a look</h2>
+            <p>Uncertain details, possible duplicates and blank pages collect in one place, each with its own fix: looks good, compare side by side, or review the pages.</p>
+          </div>
+          <div class="brackets"><div class="frame">
+            <div class="demo bg-grid p-4 pb-16 text-sm sm:p-6 sm:pb-16" data-demo="inbox">
+              <p class="sr-only">Animated example of the review inbox with 9 documents that need a look, each with its own fix: Corner Market groceries with low-confidence details and Looks good; Electric bill September 2026, a possible duplicate, with Compare and Not a duplicate; Summit Fiber internet offer, a new document; Homeowners policy 2026–2027 with blank pages found and Review pages; Checkup reminder Nov 12; Greenleaf Hardware drill and paint; Water &amp; sewer bill Q3 2026, a possible duplicate; Auto policy renewal Oct 2026; and Hail damage repair invoice. One by one, five are marked Looks good or Not a duplicate and leave the inbox, and four remain.</p>
+              <div aria-hidden="true">
+                <p class="page-title">Inbox</p>
+                <p class="mt-1 text-sm muted"><span class="tabular-nums" data-count>9</span> documents need a look</p>
+                <ul class="inbox-list mt-5">
+                  <li class="card flex flex-col gap-3 p-3 sm:flex-row sm:items-center" data-item data-clear>
+                    <div class="flex min-w-0 flex-1 items-center gap-3">
+                      <img src="screenshots/thumbs/groceries.webp" width="36" height="48" alt="" class="h-12 w-9 shrink-0 rounded-xs border border-border bg-white object-cover object-top">
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-bold">Corner Market groceries</p>
+                        <p class="mt-0.5 truncate text-xs muted">Corner Market · October 24, 2026 · Receipt</p>
+                        <div class="mt-1.5 flex flex-wrap gap-1.5"><span class="badge-amber">Low-confidence details</span></div>
+                      </div>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2 sm:justify-end"><span class="btn-primary btn-sm" data-press><svg class="size-3.5"><use href="#i-check"/></svg>Looks good</span></div>
+                  </li>
+                  <li class="card flex flex-col gap-3 p-3 sm:flex-row sm:items-center" data-item data-clear>
+                    <div class="flex min-w-0 flex-1 items-center gap-3">
+                      <img src="screenshots/thumbs/electric-bill.webp" width="36" height="48" alt="" class="h-12 w-9 shrink-0 rounded-xs border border-border bg-white object-cover object-top">
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-bold">Electric bill September 2026</p>
+                        <p class="mt-0.5 truncate text-xs muted">Northwind Utilities · September 14, 2026 · Utility Bill</p>
+                        <div class="mt-1.5 flex flex-wrap gap-1.5"><span class="badge-amber">Possible duplicate</span></div>
+                      </div>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2 sm:justify-end"><span class="btn-ghost btn-sm">Compare</span><span class="btn-secondary btn-sm" data-press>Not a duplicate</span></div>
+                  </li>
+                  <li class="card flex flex-col gap-3 p-3 sm:flex-row sm:items-center" data-item data-clear>
+                    <div class="flex min-w-0 flex-1 items-center gap-3">
+                      <img src="screenshots/thumbs/internet-offer.webp" width="36" height="48" alt="" class="h-12 w-9 shrink-0 rounded-xs border border-border bg-white object-cover object-top">
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-bold">Summit Fiber internet offer</p>
+                        <p class="mt-0.5 truncate text-xs muted">Summit Fiber · October 20, 2026 · Letter</p>
+                        <div class="mt-1.5 flex flex-wrap gap-1.5"><span class="badge-amber">New document</span></div>
+                      </div>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2 sm:justify-end"><span class="btn-primary btn-sm" data-press><svg class="size-3.5"><use href="#i-check"/></svg>Looks good</span></div>
+                  </li>
+                  <li class="card flex flex-col gap-3 p-3 sm:flex-row sm:items-center" data-item>
+                    <div class="flex min-w-0 flex-1 items-center gap-3">
+                      <img src="screenshots/thumbs/homeowners-policy.webp" width="36" height="48" alt="" class="h-12 w-9 shrink-0 rounded-xs border border-border bg-white object-cover object-top">
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-bold">Homeowners policy 2026–2027</p>
+                        <p class="mt-0.5 truncate text-xs muted">Harbor Mutual Insurance · June 01, 2026 · Insurance Policy</p>
+                        <div class="mt-1.5 flex flex-wrap gap-1.5"><span class="badge-amber">Blank pages found</span></div>
+                      </div>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2 sm:justify-end"><span class="btn-secondary btn-sm">Review pages</span></div>
+                  </li>
+                  <li class="card flex flex-col gap-3 p-3 sm:flex-row sm:items-center" data-item data-clear>
+                    <div class="flex min-w-0 flex-1 items-center gap-3">
+                      <img src="screenshots/thumbs/checkup-reminder.webp" width="36" height="48" alt="" class="h-12 w-9 shrink-0 rounded-xs border border-border bg-white object-cover object-top">
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-bold">Checkup reminder Nov 12</p>
+                        <p class="mt-0.5 truncate text-xs muted">Maple Street Dental · October 14, 2026 · Letter</p>
+                        <div class="mt-1.5 flex flex-wrap gap-1.5"><span class="badge-amber">Low-confidence details</span></div>
+                      </div>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2 sm:justify-end"><span class="btn-primary btn-sm" data-press><svg class="size-3.5"><use href="#i-check"/></svg>Looks good</span></div>
+                  </li>
+                  <li class="card flex flex-col gap-3 p-3 sm:flex-row sm:items-center" data-item hidden>
+                    <div class="flex min-w-0 flex-1 items-center gap-3">
+                      <img src="screenshots/thumbs/hardware-receipt.webp" width="36" height="48" alt="" class="h-12 w-9 shrink-0 rounded-xs border border-border bg-white object-cover object-top">
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-bold">Greenleaf Hardware drill and paint</p>
+                        <p class="mt-0.5 truncate text-xs muted">Greenleaf Hardware · September 27, 2026 · Receipt</p>
+                        <div class="mt-1.5 flex flex-wrap gap-1.5"><span class="badge-amber">Low-confidence details</span></div>
+                      </div>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2 sm:justify-end"><span class="btn-primary btn-sm"><svg class="size-3.5"><use href="#i-check"/></svg>Looks good</span></div>
+                  </li>
+                  <li class="card flex flex-col gap-3 p-3 sm:flex-row sm:items-center" data-item data-clear hidden>
+                    <div class="flex min-w-0 flex-1 items-center gap-3">
+                      <img src="screenshots/thumbs/water-bill.webp" width="36" height="48" alt="" class="h-12 w-9 shrink-0 rounded-xs border border-border bg-white object-cover object-top">
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-bold">Water &amp; sewer bill Q3 2026</p>
+                        <p class="mt-0.5 truncate text-xs muted">City of Brightwater · October 03, 2026 · Utility Bill</p>
+                        <div class="mt-1.5 flex flex-wrap gap-1.5"><span class="badge-amber">Possible duplicate</span></div>
+                      </div>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2 sm:justify-end"><span class="btn-ghost btn-sm">Compare</span><span class="btn-secondary btn-sm" data-press>Not a duplicate</span></div>
+                  </li>
+                  <li class="card flex flex-col gap-3 p-3 sm:flex-row sm:items-center" data-item hidden>
+                    <div class="flex min-w-0 flex-1 items-center gap-3">
+                      <img src="screenshots/thumbs/auto-policy.webp" width="36" height="48" alt="" class="h-12 w-9 shrink-0 rounded-xs border border-border bg-white object-cover object-top">
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-bold">Auto policy renewal Oct 2026</p>
+                        <p class="mt-0.5 truncate text-xs muted">Harbor Mutual Insurance · September 02, 2026 · Insurance Policy</p>
+                        <div class="mt-1.5 flex flex-wrap gap-1.5"><span class="badge-amber">New document</span></div>
+                      </div>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2 sm:justify-end"><span class="btn-primary btn-sm"><svg class="size-3.5"><use href="#i-check"/></svg>Looks good</span></div>
+                  </li>
+                  <li class="card flex flex-col gap-3 p-3 sm:flex-row sm:items-center" data-item hidden>
+                    <div class="flex min-w-0 flex-1 items-center gap-3">
+                      <img src="screenshots/thumbs/auto-invoice.webp" width="36" height="48" alt="" class="h-12 w-9 shrink-0 rounded-xs border border-border bg-white object-cover object-top">
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-bold">Hail damage repair invoice</p>
+                        <p class="mt-0.5 truncate text-xs muted">Pinecrest Auto Service · June 04, 2026 · Invoice</p>
+                        <div class="mt-1.5 flex flex-wrap gap-1.5"><span class="badge-amber">Low-confidence details</span></div>
+                      </div>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2 sm:justify-end"><span class="btn-primary btn-sm"><svg class="size-3.5"><use href="#i-check"/></svg>Looks good</span></div>
+                  </li>
+                </ul>
+              </div>
+              <button type="button" class="replay btn-secondary btn-sm" hidden><svg class="size-3.5"><use href="#i-refresh"/></svg>Replay</button>
+            </div>
+          </div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="site-section">
+      <div class="wrap">
+        <div class="showcase flip">
+          <div class="text">
+            <h2>File documents automatically</h2>
+            <p>Rules match on document text, filename or source and run on your machine before anything is sent out.</p>
+          </div>
+          <div class="brackets"><div class="frame">
+            <div class="demo bg-grid p-4 text-sm sm:p-6">
+              <p class="sr-only">A rule named “Bluefin statements stay private”, turned on. When all conditions match, document text contains “Bluefin Credit Union”. Then it sets the correspondent to Bluefin Credit Union, sets the type to Bank Statement, adds the tag bank and marks the document private.</p>
+              <div aria-hidden="true" class="space-y-4">
+                <div class="card">
+                  <div class="p-4">
+                    <div class="mb-1.5 flex items-center justify-between gap-3">
+                      <p class="label mb-0">Name</p>
+                      <span class="inline-flex items-center gap-2 text-xs muted"><span class="switch is-on"><span class="switch-knob"></span></span>Enabled</span>
+                    </div>
+                    <div class="input">Bluefin statements stay private</div>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="card-header flex flex-wrap items-center gap-3 py-2.5 sm:px-4">
+                    <p class="section-title flex-1">When</p>
+                    <div class="input flex w-44 items-center justify-between gap-2"><span class="truncate">All conditions</span><svg class="size-4 shrink-0 muted"><use href="#i-chevron"/></svg></div>
+                    <span class="text-xs muted">match</span>
+                  </div>
+                  <div class="p-4">
+                    <div class="grid gap-2 rounded-sm border border-border bg-subtle p-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                      <div class="input flex items-center justify-between gap-2"><span class="truncate">Document text</span><svg class="size-4 shrink-0 muted"><use href="#i-chevron"/></svg></div>
+                      <div class="input flex items-center justify-between gap-2"><span class="truncate">contains the phrase</span><svg class="size-4 shrink-0 muted"><use href="#i-chevron"/></svg></div>
+                      <span class="btn-icon hidden self-center sm:inline-flex"><svg class="size-4"><use href="#i-x"/></svg></span>
+                      <div class="input truncate sm:col-span-2">Bluefin Credit Union</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="card-header py-2.5 sm:px-4"><p class="section-title">Then</p></div>
+                  <div class="space-y-4 p-4">
+                    <div class="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <p class="label">Set correspondent</p>
+                        <div class="input flex items-center gap-2"><span class="flex-1 truncate">Bluefin Credit Union</span><svg class="size-3.5 shrink-0 muted"><use href="#i-x"/></svg><svg class="size-4 shrink-0 muted"><use href="#i-chevron"/></svg></div>
+                      </div>
+                      <div>
+                        <p class="label">Set type</p>
+                        <div class="input flex items-center gap-2"><span class="flex-1 truncate">Bank Statement</span><svg class="size-3.5 shrink-0 muted"><use href="#i-x"/></svg><svg class="size-4 shrink-0 muted"><use href="#i-chevron"/></svg></div>
+                      </div>
+                    </div>
+                    <div>
+                      <p class="label">Add tags</p>
+                      <div class="input flex h-auto min-h-9 items-center gap-1.5 py-1.5">
+                        <span class="inline-flex items-center gap-1 rounded-xs border py-px pl-1.5 pr-0.5 text-[0.7rem] font-medium border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300">bank<span class="px-0.5 opacity-60">×</span></span>
+                        <span class="px-1.5 text-xs muted">Add a tag</span>
+                      </div>
+                    </div>
+                    <div class="flex items-center justify-between gap-4">
+                      <p class="flex flex-wrap items-center gap-x-1.5 font-bold">Mark as <span class="badge-private"><svg class="size-3"><use href="#i-lock"/></svg>Private</span></p>
+                      <span class="switch is-on"><span class="switch-knob"></span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="privacy" class="site-section band">
+      <div class="wrap">
+        <div class="showcase">
+          <div class="text">
+            <p><span class="badge-private"><svg class="size-3"><use href="#i-lock"/></svg>Private</span></p>
+            <h2>Private documents never leave your machine</h2>
+            <p>Mark a document private and it is read and filed on your machine. Its file, text and details are never sent to an AI provider.</p>
+          </div>
+          <div class="brackets"><div class="frame">
+            <div class="demo text-sm">
+              <p class="sr-only">A checking statement marked private, open in the document viewer on page 1 of 2. The page shows the Bluefin Credit Union letterhead, Sam and Alex Rivera at 42 Sample Street, Brightwater ST 00000, checking account ending 0000 for September 1 to 30, 2026, an opening balance of $5,870.12, a closing balance of $6,402.88 and the month’s transactions. The details panel shows the title Checking statement September 2026, the date Sep 30, 2026, the type Bank Statement, the correspondent Bluefin Credit Union and the tag bank.</p>
+              <div aria-hidden="true">
+                <div class="flex items-center gap-2 border-b border-border bg-background px-3 py-2.5 sm:px-4">
+                  <span class="btn-icon -ml-1"><svg class="size-4"><use href="#i-chevron-left"/></svg></span>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex min-w-0 items-center gap-2">
+                      <p class="truncate text-sm font-bold">Checking statement September 2026</p>
+                      <span class="badge-private"><svg class="size-3"><use href="#i-lock"/></svg>Private</span>
+                    </div>
+                    <p class="truncate text-xs muted">September 30, 2026 · Bluefin Credit Union · Bank Statement · 1 page</p>
+                  </div>
+                  <div class="hidden shrink-0 rounded-sm border border-border p-0.5 sm:flex">
+                    <span class="flex h-7 items-center gap-1.5 rounded-xs px-2 text-xs font-semibold bg-subtle text-foreground"><svg class="size-4"><use href="#i-document"/></svg><span class="hidden sm:inline">Pages</span></span>
+                    <span class="flex h-7 items-center gap-1.5 rounded-xs px-2 text-xs font-semibold muted"><svg class="size-4"><use href="#i-menu"/></svg></span>
+                    <span class="flex h-7 items-center gap-1.5 rounded-xs px-2 text-xs font-semibold muted"><svg class="size-4"><use href="#i-panel"/></svg></span>
+                  </div>
+                </div>
+                <div class="grid sm:grid-cols-[minmax(0,1fr)_13rem]">
+                  <div class="flex min-w-0 flex-col">
+                    <div class="flex items-center gap-1 border-b border-border bg-background/95 px-2 py-1.5 text-sm">
+                      <span class="btn-icon"><svg class="size-4"><use href="#i-chevron-up"/></svg></span>
+                      <span class="input flex h-8 w-12 items-center justify-center px-1.5 tabular-nums">1</span>
+                      <span class="ml-1 whitespace-nowrap muted">/ 1</span>
+                      <span class="btn-icon"><svg class="size-4"><use href="#i-chevron-down"/></svg></span>
+                      <span class="mx-1 h-5 w-px bg-border"></span>
+                      <span class="btn-icon"><svg class="size-4"><use href="#i-minus"/></svg></span>
+                      <span class="w-12 text-center tabular-nums muted">100%</span>
+                      <span class="btn-icon"><svg class="size-4"><use href="#i-plus"/></svg></span>
+                    </div>
+                    <div class="bg-grid flex-1 overflow-hidden px-4 pt-4 sm:px-5 sm:pt-5">
+                      <img src="screenshots/statement-page-1.webp" width="816" height="699" loading="lazy" alt="" class="w-full bg-white shadow-[0_2px_10px_rgb(0_0_0/0.18)]">
+                    </div>
+                  </div>
+                  <div class="space-y-3 border-t border-border bg-card p-4 sm:border-t-0 sm:border-l">
+                    <div>
+                      <p class="label">Type</p>
+                      <div class="input flex items-center gap-2"><span class="flex-1 truncate">Bank Statement</span><svg class="size-4 shrink-0 muted"><use href="#i-chevron"/></svg></div>
+                    </div>
+                    <div>
+                      <p class="label">Correspondent</p>
+                      <div class="input flex items-center gap-2"><span class="flex-1 truncate">Bluefin Credit Union</span><svg class="size-4 shrink-0 muted"><use href="#i-chevron"/></svg></div>
+                    </div>
+                    <div>
+                      <p class="label">Tags</p>
+                      <div class="input flex h-auto min-h-9 items-center gap-1.5 py-1.5">
+                        <span class="inline-flex items-center gap-1 rounded-xs border py-px pl-1.5 pr-0.5 text-[0.7rem] font-medium border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300">bank<span class="px-0.5 opacity-60">×</span></span>
+                        <span class="px-1.5 text-xs muted">Add a tag</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="quick-start" class="site-section">
+      <div class="wrap">
+        <div class="showcase">
+          <div class="text">
+            <h2>Quick start</h2>
+            <p>ZeroPaper runs with Docker Compose on a home server, a NAS or any Linux machine, with images for amd64 and arm64.</p>
+            <p>Once it's up, open it in your browser and the setup wizard creates your account and asks how documents should be read.</p>
+            <p><a class="btn-secondary h-11 px-5" href="https://github.com/jclusso/zeropaper#quick-start">Setup guide</a></p>
+            <p class="quick-note">The guide also covers configuration, HTTPS behind a proxy and deploying with Kamal.</p>
+          </div>
+          <div class="brackets"><div class="frame terminal" data-copy>
+            <div class="terminal-bar">
+              <span class="terminal-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="terminal-title">Terminal</span>
+              <button type="button" class="copy" hidden><svg class="size-3.5" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span><span class="sr-only"> commands</span></button>
+            </div>
+            <pre><code>git clone https://github.com/jclusso/zeropaper.git
+cd zeropaper
+cp .env.example .env
+<span class="c"># Set SECRET_KEY_BASE (openssl rand -hex 64)
+# and POSTGRES_PASSWORD in .env</span>
+mkdir -p ingest/private backups
+docker compose pull
+docker compose up -d</code></pre>
+          </div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-top">
+      <div class="footer-brand">
+        <a class="brand" href="#top"><img src="assets/icon.svg" alt="">ZeroPaper</a>
+        <p>Self-hosted document archive with OCR, AI and private documents.</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="https://github.com/jclusso/zeropaper#readme">Documentation</a>
+        <a href="https://github.com/jclusso/zeropaper/issues">Issues</a>
+      </nav>
+    </div>
+    <div class="wrap">
+      <div class="footer-bottom">
+        <span>Built by <a href="https://github.com/jclusso">jclusso</a></span>
+        <a class="github-link" href="https://github.com/jclusso/zeropaper" aria-label="ZeroPaper on GitHub" title="ZeroPaper on GitHub"><svg class="size-5" aria-hidden="true"><use href="#i-github"/></svg></a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

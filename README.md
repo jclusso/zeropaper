@@ -2,6 +2,11 @@
 
 ZeroPaper is a self-hosted document archive built with Ruby on Rails. It turns scans, PDFs, photos, Word files and spreadsheets into a searchable library.
 
+<picture>
+  <source srcset="docs/screenshots/document-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="docs/screenshots/document.png" alt="A document open side by side with its extracted text and AI-proposed details">
+</picture>
+
 - **AI providers** through RubyLLM: OpenAI, Anthropic, Google Gemini, Mistral, OpenRouter, DeepSeek, xAI, Ollama or any OpenAI-compatible API. Each task (OCR, document details, Research) can use its own provider and model, and AI can be turned off entirely.
 - **OCR** reads scans and photos with a vision model or Mistral Document OCR, with Tesseract or Docling on your machine as the fallback and for private documents. Scans also get a searchable PDF, so text in the viewer can be selected and found.
 - **AI metadata** proposes a title, date, correspondent, document type, tags and a summary for each document. You can edit every field, and choose whether AI may create new types and tags or only pick existing ones.
@@ -196,6 +201,29 @@ Run the tests with:
 ```sh
 bin/rails test
 ```
+
+### Demo library and screenshots
+
+`script/demo/reset` builds a fictional library (bills, statements, letters, scanned PDFs and receipt photos made from HTML) in a separate `zeropaper_demo` database, running each document through the pipeline with AI off and Tesseract. It needs Node with Playwright, ImageMagick and poppler. Its files land in `storage/files` next to your development files. Then serve it and take the screenshots in `docs/screenshots`:
+
+```sh
+script/demo/reset
+DATABASE_URL=postgres:///zeropaper_demo bin/rails server -p 3999
+node script/demo/screenshots.js   # in another terminal
+```
+
+Sign in to the demo as `sam@example.com` with the password `zeropaper-demo`.
+
+### Project website
+
+The website is static HTML in `docs/`. Its stylesheet is built from the app's own Tailwind theme (`docs/assets/site.tailwind.css` imports `app/assets/tailwind/application.css`) into `docs/assets/site.css`, which is committed. Rebuild it after changing `app/assets/tailwind/application.css` or the site's HTML or JavaScript, then preview the site:
+
+```sh
+bin/rails site:css
+python3 -m http.server -d docs   # http://localhost:8000
+```
+
+GitHub Pages serves it with **Deploy from a branch**, branch `master`, folder `/docs`.
 
 ### Worktrees
 

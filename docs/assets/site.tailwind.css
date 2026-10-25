@@ -1,0 +1,185 @@
+/* The project website's stylesheet. It builds on the app's own Tailwind
+   theme (tokens, font, dark variant and utilities such as btn, card,
+   badge-private, citation-marker and prose-answer), so the site and the
+   animated demos look like the app. Build it with `bin/rails site:css`,
+   which writes docs/assets/site.css; the built file is committed so GitHub
+   Pages can serve docs/ as it is. */
+@import "../../app/assets/tailwind/application.css";
+
+@source "../**/*.html";
+@source "./*.js";
+
+/* The app's @font-face rules load the font from next to the stylesheet, so
+   the site keeps copies of app/assets/fonts/*.woff2 next to site.css. */
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body {
+    font-size: 15px;
+    line-height: 1.75;
+  }
+  a { color: var(--strong-accent); }
+  a:hover { text-decoration: underline; }
+  code { font-family: var(--font-mono); }
+}
+
+/* Site layout: header, hero, sections, framed screenshots and footer. */
+@layer components {
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+  @media (min-width: 640px) { .wrap { padding: 0 32px; } }
+
+  .site-header {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in oklab, var(--background) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .site-header .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--foreground); font-weight: 700; font-size: 17px; }
+  .brand:hover { text-decoration: none; }
+  .brand img { width: 28px; height: 28px; border-radius: 3px; }
+  .site-nav { display: flex; align-items: center; gap: 28px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .site-nav a { color: var(--muted-foreground); }
+  .site-nav a:hover { color: var(--foreground); text-decoration: none; }
+  @media (max-width: 720px) { .site-nav .optional { display: none; } }
+
+  .hero { padding: 96px 0 56px; text-align: center; }
+  @media (max-width: 639px) { .hero { padding: 64px 0 32px; } }
+  .hero h1 { font-size: clamp(32px, 6vw, 56px); line-height: 1.1; letter-spacing: -0.02em; font-weight: 700; margin: 0 auto 24px; max-width: 18ch; }
+  .hero h1 em { font-style: normal; color: var(--strong-accent); }
+  .lede { max-width: 56ch; margin: 0 auto 36px; color: var(--muted-foreground); font-size: 16px; }
+  .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+  .actions a:hover { text-decoration: none; }
+
+  /* A framed screenshot or demo, with the app's corner brackets. */
+  .frame {
+    position: relative; margin: 64px 0 0; overflow: hidden;
+    border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card);
+    box-shadow: 0 24px 60px -24px rgb(0 0 0 / 0.25);
+  }
+  .frame img { width: 100%; height: auto; }
+  .brackets { position: relative; }
+  .brackets::before, .brackets::after {
+    content: ""; position: absolute; width: 14px; height: 14px; pointer-events: none;
+    border-color: var(--muted-foreground); border-style: solid; opacity: 0.5;
+  }
+  .brackets::before { top: -6px; left: -6px; border-width: 2px 0 0 2px; }
+  .brackets::after { bottom: -6px; right: -6px; border-width: 0 2px 2px 0; }
+
+  .site-section { padding: 112px 0; }
+  @media (max-width: 639px) { .site-section { padding: 72px 0; } }
+  .site-section h2 { font-size: clamp(24px, 3.4vw, 34px); line-height: 1.2; letter-spacing: -0.01em; font-weight: 700; margin: 0 0 20px; }
+  .section-intro { color: var(--muted-foreground); max-width: 60ch; margin: 0 0 56px; }
+
+  .features { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 20px; }
+  .feature { padding: 28px; }
+  @media (max-width: 639px) {
+    .features { gap: 12px; }
+    .feature { padding: 18px 20px; }
+    .feature h3 { margin-bottom: 6px; }
+    .feature p { font-size: 13px; line-height: 1.65; }
+  }
+  .feature h3 { margin: 0 0 12px; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .feature h3 span {
+    display: inline-flex; width: 28px; height: 28px; flex-shrink: 0; align-items: center; justify-content: center;
+    border-radius: var(--radius-sm); background: color-mix(in oklab, var(--strong-accent) 10%, transparent); color: var(--strong-accent);
+  }
+  .feature h3 svg { width: 16px; height: 16px; }
+  .feature p { color: var(--muted-foreground); font-size: 14px; line-height: 1.75; }
+
+  .showcase { display: grid; gap: 36px; align-items: center; }
+  @media (min-width: 900px) {
+    .showcase { grid-template-columns: 5fr 7fr; gap: 72px; }
+    .showcase.flip { grid-template-columns: 7fr 5fr; }
+    .showcase.flip .text { order: 2; }
+  }
+  .showcase > * { min-width: 0; }
+  .showcase .frame { margin: 0; }
+  .showcase .text { max-width: 44ch; }
+  .site-section .showcase h2:not(#privacy h2) { font-size: clamp(22px, 2.6vw, 28px); }
+  #privacy h2 { font-size: clamp(24px, 3.4vw, 34px); }
+  .showcase .text p { color: var(--muted-foreground); margin: 0 0 16px; }
+  .showcase .text ul { padding-left: 18px; list-style: disc; color: var(--muted-foreground); }
+  .showcase .text li { margin: 6px 0; }
+
+  /* Alternate feature sections sit on a card-coloured band. */
+  .band { background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .dark .band { background: var(--card-header); }
+
+  .site-section pre {
+    padding: 20px 22px; overflow-x: auto; background: #131313; color: #e5e5e5;
+    border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 13.5px; line-height: 1.7;
+  }
+  .dark .site-section pre { background: #0b0b0b; }
+  .site-section pre .c { color: #8b949e; }
+
+  /* Quick start: three numbered steps, each with its own commands. */
+  /* Quick start: one terminal window beside the text. */
+  .quick-note { font-size: 13px; }
+  .terminal { background: #0b0b0b; border-color: oklch(1 0 0 / 10%); }
+  .terminal-bar { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid oklch(1 0 0 / 8%); background: #161616; }
+  .terminal-dots { display: flex; gap: 6px; }
+  .terminal-dots i { width: 10px; height: 10px; border-radius: 999px; background: oklch(1 0 0 / 14%); }
+  .terminal-title { flex: 1; color: #8b949e; font-size: 12px; }
+  .terminal .copy { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 0; border-radius: var(--radius-sm); background: none; color: #8b949e; font: inherit; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer; }
+  .terminal .copy[hidden] { display: none; }
+  .terminal .copy:hover { color: #e5e5e5; background: oklch(1 0 0 / 6%); }
+  .terminal .copy.is-copied { color: #2dd4bf; }
+  .site-section .terminal pre { margin: 0; padding: 20px 22px 24px; border: 0; border-radius: 0; background: none; font-size: 13.5px; line-height: 1.85; }
+
+  /* The hero's rotating word. Every word sits in the same grid cell, so the
+     slot keeps the widest word's width and the heading never reflows. */
+  .rotator-words { display: inline-grid; overflow-x: clip; transition: width 0.4s ease; }
+  .rotator-words > span { grid-area: 1 / 1; justify-self: start; white-space: nowrap; opacity: 0; translate: 0 0.3em; transition: opacity 0.4s ease, translate 0.4s ease; }
+  .rotator-words > .is-current { opacity: 1; translate: none; }
+  .rotator-words > .is-out { opacity: 0; translate: 0 -0.3em; }
+
+  .site-footer { border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: 13px; }
+  .footer-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 48px; padding-top: 40px; padding-bottom: 28px; }
+  .footer-brand p { margin-top: 8px; line-height: 1.6; }
+  .footer-links { display: flex; gap: 32px; }
+  .footer-links a { color: var(--muted-foreground); }
+  .footer-links a:hover { color: var(--foreground); text-decoration: none; }
+  .footer-bottom { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 16px; padding-bottom: 24px; border-top: 1px solid var(--border); }
+  .site-footer .brand { font-size: 15px; }
+  .site-footer .brand img { width: 24px; height: 24px; }
+  .github-link { display: inline-flex; color: var(--muted-foreground); }
+  .github-link:hover { color: var(--foreground); }
+  .theme-toggle { display: inline-flex; padding: 0; border: 0; background: none; cursor: pointer; color: var(--muted-foreground); }
+  .theme-toggle[hidden] { display: none; }
+  .theme-toggle:hover { color: var(--foreground); }
+  .theme-toggle .i-sun, .dark .theme-toggle .i-moon { display: none; }
+  .dark .theme-toggle .i-sun { display: inline; }
+
+  /* Animated demos (site.js). The markup holds the final state, so they
+     read the same without JavaScript or with reduced motion. */
+  .demo { position: relative; overflow: hidden; text-align: left; }
+  .demo [data-part] { transition: opacity 0.4s ease, translate 0.4s ease; }
+  .demo .is-hidden { opacity: 0; translate: 0 6px; }
+  .demo .word { transition: opacity 0.25s ease; }
+  .demo .word.is-hidden { translate: none; }
+  /* Typed text scrolls to the caret as it would in an input (site.js). */
+  .demo .typed { white-space: pre; }
+  .demo .typed .chip { background: color-mix(in oklab, var(--strong-accent) 22%, transparent); transition: opacity 0.35s; }
+  .demo .typed .chip.is-gone { opacity: 0; }
+  .demo .caret { display: none; width: 2px; height: 1.1em; background: var(--foreground); animation: caret-blink 1s step-end infinite; }
+  .demo.is-typing .caret { display: inline-block; }
+  .demo .is-filled { border-color: var(--strong-accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--strong-accent) 22%, transparent); }
+  .demo .replay { position: absolute; right: 12px; bottom: 12px; z-index: 2; }
+  /* Inbox: an item's action is pressed and the item folds away (site.js). */
+  .demo .inbox-list > li { margin-bottom: 8px; }
+  .demo [data-press].is-pressed { scale: 0.94; box-shadow: 0 0 0 3px color-mix(in oklab, var(--strong-accent) 30%, transparent); }
+  .demo .is-leaving {
+    overflow: hidden; opacity: 0; translate: 24px 0;
+    transition: opacity 0.3s ease, translate 0.3s ease, height 0.4s ease 0.2s, margin 0.4s ease 0.2s, padding 0.4s ease 0.2s, border-width 0.4s ease 0.2s;
+  }
+  .demo .is-leaving::before { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .demo [data-part], .demo .word, .demo .is-leaving, .rotator-words, .rotator-words > span { transition: none; }
+  }
+}
+
+/* A switch drawn as on, without a checkbox (rule editor mock). Outside the
+   layers so it beats the app's switch utility. */
+.demo .switch.is-on { border-color: var(--strong-accent); background-color: var(--strong-accent); }
+.demo .switch.is-on .switch-knob { translate: calc(var(--spacing) * 5) 0; background-color: var(--strong-accent-foreground); }
