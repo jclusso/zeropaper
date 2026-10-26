@@ -23,11 +23,19 @@ module BlankPages
     # Whether this page carries nothing but the front seen through the
     # sheet: a mirror image of it, and a faint one.
     def shows_through?(front)
-      return false if front.nil? || front.ink.ink.zero? || front.ink.solid.zero?
-      return false if ink.ink > BLEED_INK_SHARE * front.ink.ink || ink.solid > BLEED_SOLID_SHARE * front.ink.solid
+      return false unless faint_beside?(front)
 
       mirrored = grid.match(front.grid, mirrored: true)
       mirrored >= MIRRORED_MATCH && mirrored - grid.match(front.grid, mirrored: false) >= MIRROR_MARGIN
+    end
+
+    # Whether this page is faint enough beside front to be no more than front
+    # seen through the paper. A page with no inked front before it, or with
+    # as much ink as its front, is printed whatever it looks like.
+    def faint_beside?(front)
+      return false if front.nil? || front.ink.ink.zero? || front.ink.solid.zero?
+
+      ink.ink <= BLEED_INK_SHARE * front.ink.ink && ink.solid <= BLEED_SOLID_SHARE * front.ink.solid
     end
   end
 end
