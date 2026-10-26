@@ -21,7 +21,7 @@ class Document::BroadcastingTest < ActiveSupport::TestCase
   end
 
   test "the inbox count follows documents entering and leaving the inbox" do
-    document = ingest(BILL_TEXT, filename: "bill.txt")
+    document = process(ingest(BILL_TEXT, filename: "bill.txt"))
     count = Document.in_inbox.count
 
     added = broadcasts_to(Document::INBOX_COUNT_STREAM) { document.add_review_reason!("blank_pages") }
@@ -31,6 +31,17 @@ class Document::BroadcastingTest < ActiveSupport::TestCase
 
     removed = broadcasts_to(Document::INBOX_COUNT_STREAM) { document.destroy! }
     assert_equal count.to_s, removed.last.at_css("#inbox_count").text
+  end
+
+  test "a document flagged on its first run joins the inbox count when it finishes" do
+    document = ingest(BILL_TEXT, filename: "bill.txt")
+    count = Document.in_inbox.count
+
+    flagged = broadcasts_to(Document::INBOX_COUNT_STREAM) { document.add_review_reason!("blank_pages") }
+    assert_equal count.to_s, flagged.last.at_css("#inbox_count").text
+
+    finished = broadcasts_to(Document::INBOX_COUNT_STREAM) { process(document) }
+    assert_equal (count + 1).to_s, finished.last.at_css("#inbox_count").text
   end
 
   test "the inbox count is hidden when the inbox is empty" do
