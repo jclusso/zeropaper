@@ -29,12 +29,12 @@ class SetupWizardTest < ActionDispatch::IntegrationTest
     provider = AIProvider.sole
     assert setting.ai_enabled?
     assert_equal provider, setting.provider_for(:extraction)
-    assert_equal "gpt-5.6-luna", setting.model_for(:extraction)
-    assert_equal "gpt-5.6", setting.model_for(:research)
+    assert_equal "gpt-6-luna", setting.model_for(:extraction)
+    assert_equal "gpt-6.1-sol", setting.model_for(:research)
 
     get setup_models_path
     assert_response :success
-    assert_select "input[name='setting[research_model]'][value='gpt-5.6']"
+    assert_select "input[name='setting[research_model]'][value='gpt-6.1-sol']"
 
     patch setup_models_path, params: { setting: { research_provider_id: provider.id, research_model: "gpt-5.6-sol" } }
     assert_redirected_to setup_ocr_path

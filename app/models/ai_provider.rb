@@ -17,7 +17,7 @@ class AIProvider < ApplicationRecord
 
   # Sensible starting models per task, used to prefill Settings.
   DEFAULT_MODELS = {
-    "openai" => { "extraction" => "gpt-5.6-luna", "research" => "gpt-5.6", "vision" => "gpt-5.6-luna" },
+    "openai" => { "extraction" => "gpt-6-luna", "research" => "gpt-6.1-sol", "vision" => "gpt-6-luna" },
     "anthropic" => { "extraction" => "claude-haiku-4-5", "research" => "claude-sonnet-4-5", "vision" => "claude-haiku-4-5" },
     "gemini" => { "extraction" => "gemini-2.5-flash", "research" => "gemini-2.5-pro", "vision" => "gemini-2.5-flash" },
     "mistral" => { "extraction" => "mistral-small-latest", "research" => "mistral-large-latest", "vision" => "mistral-ocr-latest" }
