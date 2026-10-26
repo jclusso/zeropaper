@@ -228,13 +228,11 @@ module Document::Pages
       blobs.each_value { |blob| blob.purge unless blob.attachments.exists? }
     end
 
-    # The new pages are in place by now, so an index that cannot be built
-    # is retried by an index-only job, which reads and sends nothing again.
-    # A missing search model leaves the index waiting for the download.
+    # Keyword search follows the new pages at once. Passages are embedded by
+    # an index-only job, which reads and sends nothing again, so the edit
+    # never waits on the search model loading or running in the web process.
     def reindex
-      index_now!
-    rescue StandardError => error
-      Rails.logger.warn("[pages] document #{id}: reindex failed (#{error.class}), retrying in the background")
+      refresh_search_vector
       IndexDocumentJob.perform_later(self)
     end
 
