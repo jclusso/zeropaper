@@ -12,7 +12,9 @@ module Document::Reviewable
   }.freeze
 
   included do
-    scope :in_inbox, -> { where(needs_review: true) }
+    # A document still on its first run waits until it is done, even when a
+    # step already flagged it. Reprocessing keeps it in place.
+    scope :in_inbox, -> { where(needs_review: true).and(where.not(status: %w[pending processing]).or(where.not(processed_at: nil))) }
   end
 
   def add_review_reason!(reason)

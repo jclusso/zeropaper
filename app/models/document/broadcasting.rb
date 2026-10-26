@@ -15,8 +15,8 @@ module Document::Broadcasting
 
     after_update_commit -> { broadcast_refresh_later_to LIBRARY_STREAM }
     after_destroy_commit -> { broadcast_refresh_later_to LIBRARY_STREAM }
-    after_save_commit :broadcast_inbox_count, if: :saved_change_to_needs_review?
-    after_destroy_commit :broadcast_inbox_count, if: :needs_review?
+    # One callback: a second commit callback naming the same method replaces the first.
+    after_commit :broadcast_inbox_count, if: :inbox_changed?
   end
 
   class_methods do
@@ -31,6 +31,14 @@ module Document::Broadcasting
   end
 
   private
+    # A document on its first run joins the inbox when it finishes, so a
+    # status change counts too.
+    def inbox_changed?
+      return needs_review? if destroyed?
+
+      saved_change_to_needs_review? || (needs_review? && saved_change_to_status?)
+    end
+
     def broadcast_review_changes
       broadcast_changes
       broadcast_inbox_count

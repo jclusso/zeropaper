@@ -50,7 +50,7 @@ module Document::Processing
   def process_later(extract_metadata: true)
     if persisted?
       update_columns(status: "pending", processing_run: nil, updated_at: Time.current)
-      broadcast_changes
+      needs_review? ? broadcast_review_changes : broadcast_changes
     end
     ProcessDocumentJob.perform_later(self, extract_metadata: extract_metadata)
   end
@@ -61,7 +61,7 @@ module Document::Processing
     update_columns(status: "failed", processing_run: nil, error: reason, updated_at: Time.current)
     add_review_reason!("failed")
     discard_queued_processing
-    broadcast_changes
+    broadcast_review_changes
   end
 
   # Whether a queued or running job will still pick this document up.
@@ -103,7 +103,7 @@ module Document::Processing
 
     update_columns(status: "failed", error: error.message.truncate(1_000), processing_run: nil, updated_at: Time.current)
     add_review_reason!("failed")
-    broadcast_changes
+    broadcast_review_changes
   ensure
     @run = nil
   end

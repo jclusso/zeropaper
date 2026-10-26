@@ -50,4 +50,17 @@ class InboxesControllerTest < ActionDispatch::IntegrationTest
     assert_select "[role=tooltip]", text: "Processing stopped unexpectedly."
     assert_select "p.text-danger", count: 0
   end
+
+  test "a document waits for its first run to finish before showing" do
+    document_with_text("Gas bill", title: "First run", status: "processing", needs_review: true, review_reasons: [ "blank_pages" ])
+    document_with_text("Water bill", title: "Reprocessing", status: "processing", processed_at: 1.day.ago,
+      needs_review: true, review_reasons: [ "blank_pages" ])
+    document_with_text("Lease", title: "Failed first run", status: "failed", needs_review: true, review_reasons: [ "failed" ])
+
+    get inbox_path
+
+    assert_select "li", text: /First run/, count: 0
+    assert_select "li", text: /Reprocessing/, count: 1
+    assert_select "li", text: /Failed first run/, count: 1
+  end
 end
