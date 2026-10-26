@@ -51,7 +51,7 @@
         <span class="mr-auto"></span>
       <% end %>
       <button type="button" class="btn-secondary btn-sm" command="close" commandfor="pages-dialog">Cancel</button>
-      <button type="submit" form="page-removal-form" class="btn-danger-solid btn-sm" data-page-selection-target="submit">
+      <button type="submit" form="page-removal-form" class="btn-danger-solid btn-sm" data-page-selection-target="submit" data-turbo-submits-with="Saving…">
         <span data-page-selection-target="removeIcon"><%= icon(:trash, class: "size-4") %></span>
         <span data-page-selection-target="keepIcon" hidden><%= icon(:check, class: "size-4") %></span>
         <span data-page-selection-target="label">Remove pages</span>

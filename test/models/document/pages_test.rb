@@ -112,7 +112,10 @@ class Document::PagesTest < ActiveSupport::TestCase
     assert_equal [ 2 ], document.page_record["ocr_skipped"]
     assert_equal 3, document.page_texts.size
 
-    assert_no_enqueued_jobs(only: ProcessDocumentJob) { document.remove_pages!([ 2 ]) }
+    assert_no_enqueued_jobs(only: ProcessDocumentJob) do
+      assert_enqueued_with(job: IndexDocumentJob, args: [ document ]) { document.remove_pages!([ 2 ]) }
+    end
+    perform_enqueued_jobs(only: IndexDocumentJob)
 
     document.reload
     assert_equal 2, document.page_texts.size
@@ -188,7 +191,8 @@ class Document::PagesTest < ActiveSupport::TestCase
     Embedder.stubs(:downloaded?).returns(false)
     Embedder.stubs(:embed_documents).raises(Embedder::ModelMissing, "still downloading")
 
-    assert_no_enqueued_jobs(only: [ ProcessDocumentJob, IndexDocumentJob ]) { @document.remove_pages!([ 2 ]) }
+    assert_no_enqueued_jobs(only: ProcessDocumentJob) { @document.remove_pages!([ 2 ]) }
+    perform_enqueued_jobs(only: IndexDocumentJob)
 
     @document.reload
     assert_equal 2, @document.page_count
@@ -206,8 +210,8 @@ class Document::PagesTest < ActiveSupport::TestCase
     assert_empty @document.chunks.ids & stale
   end
 
-  test "a page edit whose index fails for another reason is indexed again on its own, not read again" do
-    Embedder.stubs(:embed_documents).raises(RuntimeError, "out of memory")
+  test "a page edit leaves embedding to an index-only job, not the request" do
+    Embedder.expects(:embed_documents).never
 
     assert_no_enqueued_jobs(only: ProcessDocumentJob) do
       assert_enqueued_with(job: IndexDocumentJob, args: [ @document ]) { @document.remove_pages!([ 2 ]) }
@@ -216,7 +220,6 @@ class Document::PagesTest < ActiveSupport::TestCase
     @document.reload
     assert_equal 2, @document.page_count
     assert_equal "ready", @document.status
-    assert_equal "failed", @document.step_state("index")["status"]
   end
 
   test "the first page edit keeps the stored upload as the original instead of storing it twice" do
