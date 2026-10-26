@@ -174,7 +174,7 @@ Backups hold the library but not users, AI providers or settings. To move a whol
 
 Requirements:
 
-- [mise](https://mise.jdx.dev) for Ruby (the version is in `.ruby-version`, currently 4.0.7)
+- [mise](https://mise.jdx.dev) for Ruby (the version is in `.ruby-version`, currently 4.0.9)
 - Postgres with the pgvector extension
 - The PDF and OCR tools
 
