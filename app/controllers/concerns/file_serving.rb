@@ -11,7 +11,8 @@ module FileServing
   private
     # Streams files from the disk service instead of reading them into
     # memory, and answers a single byte range (the PDF viewer asks for
-    # these).
+    # these). When a front server takes files from disk, it is handed the
+    # whole file and answers ranges itself.
     def send_attachment(attachment, disposition: :inline)
       blob = attachment.blob
       disposition = :attachment unless blob.content_type.in?(INLINE_TYPES)
@@ -20,10 +21,13 @@ module FileServing
       response.headers["Accept-Ranges"] = "bytes"
       response.headers["Content-Security-Policy"] = "sandbox"
 
-      if (range = requested_range(blob.byte_size))
+      path = plain_disk_path(blob)
+      range = requested_range(blob.byte_size) unless path && front_server_sends_files?
+
+      if range
         response.headers["Content-Range"] = "bytes #{range.begin}-#{range.end}/#{blob.byte_size}"
         send_data blob.download_chunk(range), **options, status: :partial_content
-      elsif (path = plain_disk_path(blob))
+      elsif path
         send_file path, **options
       else
         send_data blob.download, **options
@@ -47,6 +51,10 @@ module FileServing
 
       ranges = Rack::Utils.get_byte_ranges(request.headers["Range"], size)
       ranges.first if ranges&.one?
+    end
+
+    def front_server_sends_files?
+      Rails.application.config.action_dispatch.x_sendfile_header.present?
     end
 
     def plain_disk_path(blob)

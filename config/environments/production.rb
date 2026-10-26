@@ -24,6 +24,10 @@ Rails.application.configure do
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :local
 
+  # Thruster serves files from disk, byte ranges included, so Puma threads
+  # are not held for the length of a download.
+  config.action_dispatch.x_sendfile_header = "X-Sendfile"
+
   # Set ASSUME_SSL when a reverse proxy terminates TLS in front of the app.
   config.assume_ssl = ENV["ASSUME_SSL"] == "true"
 
