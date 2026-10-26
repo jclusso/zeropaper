@@ -67,8 +67,8 @@ class AIProvidersControllerTest < ActionDispatch::IntegrationTest
     get ai_provider_models_path(provider, task: "vision")
 
     assert_response :success
-    assert_select "turbo-frame#model_vision input[name='setting[vision_model]'][value='gpt-5.6-luna']"
-    assert_select "turbo-frame#model_vision el-option[value='gpt-5.6-luna']"
+    assert_select "turbo-frame#model_vision input[name='setting[vision_model]'][value='gpt-6-luna']"
+    assert_select "turbo-frame#model_vision el-option[value='gpt-6-luna']"
   end
 
   test "members cannot manage providers" do

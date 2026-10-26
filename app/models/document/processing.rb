@@ -140,7 +140,7 @@ module Document::Processing
   end
 
   # Where the text came from, for people: "Embedded text", "Tesseract (local)",
-  # "OpenAI · gpt-5.6-luna + embedded text".
+  # "OpenAI · gpt-6-luna + embedded text".
   def text_source_label
     return if text_source.blank?
     return "Embedded text" if text_source == "native"
