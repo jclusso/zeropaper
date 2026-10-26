@@ -25,9 +25,12 @@ module BlankPages
       Pdf.render_gray_pages(@path, edge: RENDER_EDGE) do |paths|
         paths.first(@page_count).each_with_index do |page_path, index|
           current = MeasuredPage.new(Gray.read(page_path))
+          # Only a printed page before this one can show through it.
+          front = previous if index.positive? && !verdicts[index - 1].blank
           alone = current.ink.blank?
-          blank = alone || (index.positive? && !verdicts[index - 1].blank && current.shows_through?(previous))
-          verdicts << Verdict.new(blank: blank, sure: alone || current.ink.solid >= InkProfile::CONTENT_SOLID)
+          blank = alone || current.shows_through?(front)
+          sure = alone || current.ink.solid >= InkProfile::CONTENT_SOLID || !current.faint_beside?(front)
+          verdicts << Verdict.new(blank: blank, sure: sure)
           previous = current
         end
       end

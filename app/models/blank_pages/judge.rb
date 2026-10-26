@@ -45,18 +45,17 @@ module BlankPages
       return verdicts if unclear.empty?
 
       Dir.mktmpdir do |dir|
-        images = unclear.flat_map do |page|
-          [ page - 1, page ].select(&:positive?).map do |number|
-            image_path = File.join(dir, "page-#{number}.jpg")
-            File.binwrite(image_path, Pdf.render_page(path, number, edge: RENDER_EDGE))
-            image_path
-          end.uniq
-        end.uniq
+        shown = unclear.flat_map { |page| [ page - 1, page ].select(&:positive?) }.uniq
+        images = shown.map do |number|
+          image_path = File.join(dir, "page-#{number}.jpg")
+          File.binwrite(image_path, Pdf.render_page(path, number, edge: RENDER_EDGE))
+          image_path
+        end
 
         response = Outbound.for(@document)
           .chat(:vision)
           .with_schema(SCHEMA)
-          .ask(prompt(unclear), with: images)
+          .ask(prompt(unclear, shown), with: images)
         answers = response.parsed.fetch("pages").to_h { |answer| [ answer["page"].to_i, answer["blank"] ] }
 
         verdicts.each_with_index.map do |verdict, index|
@@ -67,10 +66,14 @@ module BlankPages
     end
 
     private
-      def prompt(pages)
+      # Images reach the model without their file names, so the prompt says
+      # which page each one is, and that the scan's own printed page numbers
+      # do not count.
+      def prompt(pages, shown)
+        order = shown.each_with_index.map { |page, index| "image #{index + 1} is page #{page}" }.join(", ")
         <<~PROMPT
-          These are pages from a scanned document, named page-N.jpg. For each of pages #{pages.join(", ")},
-          decide whether it is blank. A page is blank when it carries no print of its own: an empty sheet,
+          These are pages from a scanned document, in this order: #{order}. Numbers printed on the pages
+          themselves do not count. For each of pages #{pages.join(", ")}, decide whether it is blank. A page is blank when it carries no print of its own: an empty sheet,
           or one that only shows the previous page's print faintly and mirrored through the paper.
           A page printed in light or faded toner is not blank. Answer for exactly those pages.
         PROMPT
