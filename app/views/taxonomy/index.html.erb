@@ -11,7 +11,7 @@
   <% if @records.empty? %>
     <div class="card card-body py-12 text-center text-sm muted">Nothing here yet. Names are also added when AI fills in a document’s details.</div>
   <% else %>
-    <div class="card overflow-x-auto">
+    <div class="card">
       <table class="table">
         <thead>
           <tr>
@@ -35,7 +35,7 @@
                 <%= count.positive? ? link_to(count, taxonomy_documents_path(record), class: "link") : tag.span("0", class: "muted") %>
               </td>
               <td class="text-right">
-                <div class="flex justify-end gap-1">
+                <div class="flex flex-wrap justify-end gap-1">
                   <% if @records.many? %><%= link_to "Merge into…", polymorphic_path([ :new, record, :merge ]), class: "btn-ghost btn-sm" %><% end %>
                   <%= link_to "Edit", url_for(action: :edit, id: record), class: "btn-ghost btn-sm" %>
                 </div>
