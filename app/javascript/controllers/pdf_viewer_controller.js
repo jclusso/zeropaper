@@ -7,12 +7,17 @@ export default class extends Controller {
   static values = { url: String, workerSrc: String }
 
   async connect() {
-    this.keydown = this.keydown.bind(this)
+    this.keydown ||= this.keydown.bind(this)
     window.addEventListener("keydown", this.keydown)
     // Fit width and Fit page follow the stage when the details panel or the
     // side by side text opens or closes.
     this.resizeObserver = new ResizeObserver(() => this.refit())
     this.resizeObserver.observe(this.containerTarget)
+
+    // A morph that keeps this viewer can still move it, which disconnects and
+    // reconnects it; the PDF it already shows stays. See disconnect.
+    if (this.loading) return
+    this.loading = true
 
     try {
       const pdfjsLib = await import("pdfjs-dist")
@@ -72,8 +77,12 @@ export default class extends Controller {
   disconnect() {
     window.removeEventListener("keydown", this.keydown)
     this.resizeObserver?.disconnect()
-    this.loadingTask?.destroy()
-    this.pdf = null
+    // Only unload once the viewer is gone for good, not when a morph moves it.
+    setTimeout(() => {
+      if (this.element.isConnected) return
+      this.loadingTask?.destroy()
+      this.pdf = null
+    })
   }
 
   // Toolbar
