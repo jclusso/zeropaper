@@ -64,7 +64,7 @@ end
 gem "ruby_llm", "~> 2.1"
 gem "neighbor", "~> 1.2"
 gem "informers", "~> 1.3"
-gem "webauthn", "~> 3.4"
+gem "webauthn", "~> 3.5"
 gem "httpx", "~> 1.9"
 gem "roo", "~> 3.0"
 gem "docx", "~> 0.13"
